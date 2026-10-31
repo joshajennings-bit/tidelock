@@ -6546,19 +6546,25 @@ function buildRiderBody(root,model,o){const M=MODELS[o.id],map=o.map;if(!M)retur
   wrap.quaternion.setFromRotationMatrix(Ms.multiply(Mt.transpose()));upd();
   const hs=wp(SB[HK]).y-wp(SB.FootL).y,ht=wp(T(HK)).y-wp(T('FootL')).y;wrap.scale.setScalar(hs/ht);upd();
   const d=wp(SB.FootL).add(wp(SB.FootR)).multiplyScalar(.5).sub(wp(T('FootL')).add(wp(T('FootR'))).multiplyScalar(.5));d.x=wp(SB.Hips).x-wp(T('Hips')).x;d.z=wp(SB.Hips).z-wp(T('Hips')).z;wrap.position.add(d);upd();
+  // ankle bones sit at different heights on different rigs: stand the soles on the same ground as the driving rig's soles
+  {const lo=skinBox(model,root).min.y,lb=skinBox(body,root).min.y;if(isFinite(lo)&&isFinite(lb)){wrap.position.y+=lo-lb;upd();}}
   // rest poses in the character's own space
   const rq=new THREE.Quaternion(),qi=new THREE.Quaternion();const relQ=(o,out)=>{root.getWorldQuaternion(qi).invert();return out.copy(qi).multiply(o.getWorldQuaternion(rq));};
   const off={};for(const k of pairs){const s=SB[k],t=T(k);const Rs=relQ(s,new THREE.Quaternion()),Rt=relQ(t,new THREE.Quaternion());let Ra=new THREE.Quaternion();
     const c=RIG_CHILD[k];if(c&&SB[c]&&T(c)){const ds=wp(SB[c]).sub(wp(s)).normalize(),dt=wp(T(c)).sub(wp(t)).normalize();Ra.setFromUnitVectors(dt,ds);}
     off[t.uuid]={s,o:Rs.clone().invert().multiply(Ra).multiply(Rt)};}
   const hip0s=wp(SB.Hips),pel=T('Hips'),pel0=wp(pel),hipK=(pel0.y-wp(T('FootL')).y)/Math.max(.01,hip0s.y-wp(SB.FootL).y);
-  const order=[];body.traverse(x=>{if(x.isBone)order.push(x);});// parents come before children
+  const order=[];body.traverse(x=>{if(x.isBone)order.push(x);});
+  const fL=T('FootL'),fR=T('FootR'),footRest=Math.min(fL?wp(fL).y:9,fR?wp(fR).y:9);let lift=0;// parents come before children
   const W={},tmp=new THREE.Quaternion(),pv=new THREE.Vector3();
   return {body,wrap,mats,T,handR:T('WristR'),armR:T('LowerArmR'),sync(){root.updateMatrixWorld(true);
     for(const b of order){const P=b.parent.isBone?W[b.parent.uuid]:relQ(b.parent,new THREE.Quaternion()),e=off[b.uuid];let w;
       if(e){w=relQ(e.s,new THREE.Quaternion()).multiply(e.o);b.quaternion.copy(tmp.copy(P).invert().multiply(w));}else w=P.clone().multiply(b.quaternion);W[b.uuid]=w;}
     // hips travel (crouches, falls, lying knocked down), scaled to this body's leg length
-    pv.copy(wp(SB.Hips)).sub(hip0s).multiplyScalar(hipK).add(pel0);pel.parent.worldToLocal(root.localToWorld(pv));pel.position.copy(pv);}};}
+    pv.copy(wp(SB.Hips)).sub(hip0s).multiplyScalar(hipK).add(pel0);pv.y+=lift;const pw=pv.clone();pel.parent.worldToLocal(root.localToWorld(pv));pel.position.copy(pv);
+    // keep the feet out of the ground: different leg proportions can let a pose sink below where the soles stood at rest
+    body.updateMatrixWorld(true);const fy=Math.min(fL?wp(fL).y:9,fR?wp(fR).y:9),pen=footRest-fy;
+    if(pen>.005){lift+=pen;pw.y+=pen;pel.parent.worldToLocal(root.localToWorld(pw));pel.position.copy(pw);}else lift=Math.max(0,lift-.01);}};}
 
 /* ---------- suit surface patterns ---------- */
 // The spacesuit has no texture coordinates, so its detail is drawn in the shader from each vertex's rest-pose position
@@ -10740,7 +10746,7 @@ async function boot(){try{await loadAllModels();envInit();}catch(e){console.erro
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
