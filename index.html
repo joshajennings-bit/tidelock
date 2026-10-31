@@ -6086,7 +6086,10 @@ class Parts{constructor(){this.b=new Map();}
   beam(parent,mat,a,b,r,seg=8){const d=_v.subVectors(b,a),L=d.length();const m=new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(.5),_q.setFromUnitVectors(UP,d.normalize()),_s.set(1,1,1));return this.addM(parent,mat,cyl(r,r,L,seg),m);}
   build(shadow=true){const out=[];for(const {parent,mat,list} of this.b.values()){const m=new THREE.Mesh(mergeGeos(list),mat);m.castShadow=shadow;m.receiveShadow=true;parent.add(m);out.push(m);}this.b.clear();return out;}}
 
-const GLOW=new THREE.CanvasTexture((()=>{const c=mkCanvas(64),g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return c;})());
+// the soft halo used by every glow sprite, computed per pixel: canvas gradients are dithered on some GPUs (Safari), and bloom
+// magnified that dither into specks floating in the glows
+const GLOW=(()=>{const N=128,d=new Uint8Array(N*N*4);for(let y=0;y<N;y++)for(let x=0;x<N;x++){const r=Math.hypot(x+.5-N/2,y+.5-N/2)/(N/2),a=r>=1?0:Math.pow(1-r,2.2)*(r<.25?1:1)*(1-.0*r);
+  const k=(y*N+x)*4;d[k]=d[k+1]=d[k+2]=255;d[k+3]=Math.round(Math.min(1,a*1.15)*255);}const t=new THREE.DataTexture(d,N,N,THREE.RGBAFormat);t.magFilter=THREE.LinearFilter;t.minFilter=THREE.LinearMipmapLinearFilter;t.generateMipmaps=true;t.needsUpdate=true;return t;})();
 const glowMats={};
 function glowSprite(color,size,op=1){const k=color+'_'+op;if(!glowMats[k]){glowMats[k]=new THREE.SpriteMaterial({map:GLOW,color,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false});if(typeof POST!=='undefined'&&POST.on&&POST.composer)boostMat(glowMats[k],true);}const s=new THREE.Sprite(glowMats[k]);s.scale.set(size,size,1);return s;}
 
@@ -6680,12 +6683,12 @@ function buildAvatar(L){
     // and both arms reach for it, right hand on the grip and left on the fore-grip
     holdPose(aim,face){const W=this.weapon;if(!W||!W.two||!B.UpperArmR||!B.UpperArmL||!root.visible)return;root.updateMatrixWorld(true);const S=root.scale.x;
       const f=_hf.set(Math.sin(face),0,Math.cos(face)),rt=_hr.set(-Math.cos(face),0,Math.sin(face)),sh=B.UpperArmR.getWorldPosition(_hs),shL=B.UpperArmL.getWorldPosition(_hl);
-      const lowP=_ha.copy(sh).addScaledVector(f,.2*S).addScaledVector(UP,-.36*S).addScaledVector(rt,-.05*S),aimP=_hb.copy(sh).addScaledVector(f,.3*S).addScaledVector(UP,-.1*S).addScaledVector(rt,-.03*S);
-      const lowD=_hc.copy(f).multiplyScalar(.8).addScaledVector(UP,-.42).addScaledVector(rt,-.5).normalize(),grip=lowP.lerp(aimP,aim),dir=lowD.lerp(f,aim).normalize();
+      const lowP=_ha.copy(sh).addScaledVector(f,.16*S).addScaledVector(UP,-.2*S).addScaledVector(rt,-.14*S),aimP=_hb.copy(sh).addScaledVector(f,.26*S).addScaledVector(UP,-.08*S).addScaledVector(rt,-.12*S);
+      const lowD=_hc.copy(f).multiplyScalar(.7).addScaledVector(UP,-.3).addScaledVector(rt,-.65).normalize(),grip=lowP.lerp(aimP,aim),dir=lowD.lerp(f,aim).normalize();
       const up=_hd.copy(UP).addScaledVector(dir,-UP.dot(dir)).normalize(),x=_he.crossVectors(up,dir);_hm.makeBasis(x,up,dir);
       weaponG.position.copy(grip);weaponG.quaternion.setFromRotationMatrix(_hm);weaponG.scale.setScalar(S);weaponG.updateMatrixWorld(true);this._posed=true;
       // wrists sit just behind and below where the palms close
-      const wr=_hg.copy(grip).addScaledVector(dir,-.05*S).addScaledVector(up,-.05*S),fo=W.fore?W.fore.getWorldPosition(_hh):_hh.copy(grip).addScaledVector(dir,.3*S);fo.addScaledVector(up,-.05*S).addScaledVector(dir,-.02*S);
+      const wr=_hg.copy(grip).addScaledVector(dir,-.05*S).addScaledVector(up,-.05*S),foreD=W.fore?W.fore.getWorldPosition(_hh).sub(grip).dot(dir):.3*S,tt=clamp(_hp.copy(shL).sub(grip).dot(dir),.12*S,Math.max(.12*S,foreD)),fo=_hh.copy(grip).addScaledVector(dir,tt);fo.addScaledVector(up,-.05*S);
       ik2(B.UpperArmR,B.LowerArmR,B.WristR,wr,_hp.copy(sh).addScaledVector(rt,.4).addScaledVector(UP,-.5).addScaledVector(f,-.2));
       ik2(B.UpperArmL,B.LowerArmL,B.WristL,fo,_hq.copy(shL).addScaledVector(rt,-.4).addScaledVector(UP,-.5).addScaledVector(f,-.05));},
     // one-handed weapons follow the hand itself: the pistol's barrel runs along the forearm with its top on the index-finger side,
@@ -6756,7 +6759,11 @@ function buildPerson(spec){
     // people and humanoid robots: the townsperson rig stays as an unseen driver and the new model copies its pose
     const sex=/npc_f/.test(nm.mdl)?'f':'m',P=buildPerson(Object.assign({},spec,{npcModel:null,id:null,body:'soldier',qt:spec.qt||(spec.id&&QT_NPC[spec.id])||[sex,sex==='f'?'Casual':'Casual_2',sex==='f'?'Casual_Head':'Casual_2_Head'],scale:spec.scale||nm.scale||1}));
     if(P.model){const rb=buildRiderBody(P.root,P.model,{id:nm.mdl,map:NPC_RIG[nm.mdl]||RPM_MAP,paint:m=>npcPaint(m,nm,!!NPC_RIG[nm.mdl])});
-      if(rb){P.model.traverse(o=>{if(o.isMesh)o.visible=false;});P.rider=rb;}}
+      if(rb){P.model.traverse(o=>{if(o.isMesh)o.visible=false;});P.rider=rb;
+        // a carried gun: robots don't carry one; people hold it in the visible body's hand
+        if(P.held){if(NPC_RIG[nm.mdl]){P.root.remove(P.held.g);P.held=null;P.updateHeld=()=>{};}
+          else{const h=P.held,hw=rb.T('WristR'),he=rb.T('LowerArmR');P.updateHeld=(aim,face)=>{if(!hw||!he)return;P.root.updateMatrixWorld(true);hw.getWorldPosition(_wp);he.getWorldPosition(_we);_wd.subVectors(_wp,_we).normalize();
+            if(aim>0){_wt.set(Math.sin(face),0,Math.cos(face));_wd.lerp(_wt,aim).normalize();}P.root.worldToLocal(_wt.copy(_wp).addScaledVector(_wd,.06));h.g.position.copy(_wt);P.root.worldToLocal(_we.copy(_wp).addScaledVector(_wd,1.06));h.g.lookAt(P.root.localToWorld(_we.clone()));};}}}}
     return P;}
   const body=spec.body||'soldier',root=new THREE.Group();
   if(body==='robot'){const model=cloneModel('robot');if(!model){root.add(new THREE.Mesh(cyl(.3,.3,1.8,12),MAT.hull));return {root,anim:null,B:{}};}
@@ -7513,9 +7520,12 @@ function explode(p){FX.burst(p.pos.clone(),p.col,70,10,.8,.24);FX.ringAt(p.pos.c
 
 /* ---------- target lock ---------- */
 let target=null;
+// is there a clear line from the player's chest to a point (no ground or solid object in between)?
+function losClear(x,y,z){const ax=player.x,ay=player.y+1.3,az=player.z,d=Math.hypot(x-ax,y-ay,z-az),n=Math.ceil(d/.5);
+  for(let i=1;i<n;i++){const t=i/n,px=ax+(x-ax)*t,py=ay+(y-ay)*t,pz=az+(z-az)*t;if(py<groundY(px,pz)-.05||solidAt(px,py,pz))return false;}return true;}
 function findTarget(range){let best=null,bs=1e9;const fx=Math.sin(player.face),fz=Math.cos(player.face),cfx=-Math.sin(cam.yaw),cfz=-Math.cos(cam.yaw);
   for(const e of W.enemies){if(e.dead||!e.m.g.visible)continue;const dx=e.x-player.x,dz=e.z-player.z,d=Math.hypot(dx,dz);if(d>range+e.T.r)continue;
-    const dot=(dx*cfx+dz*cfz)/(d||1),dotF=(dx*fx+dz*fz)/(d||1);if(dot<.35&&dotF<.5&&d>4)continue;const score=d*(1.6-Math.max(dot,dotF));if(score<bs){bs=score;best=e;}}return best;}
+    const dot=(dx*cfx+dz*cfz)/(d||1),dotF=(dx*fx+dz*fz)/(d||1);if(dot<.35&&dotF<.5&&d>4)continue;if(!losClear(e.x,e.y+(e.T.fly?0:e.T.ai==='boss'?3:.9),e.z))continue;const score=d*(1.6-Math.max(dot,dotF));if(score<bs){bs=score;best=e;}}return best;}
 const _mz=new THREE.Vector3();
 function muzzlePos(){if(avatar&&avatar.weapon){avatar.weapon.muzzle.getWorldPosition(_mz);return _mz.clone();}return new THREE.Vector3(player.x+Math.sin(player.face)*.5,player.y+1.35,player.z+Math.cos(player.face)*.5);}
 /* ---------- first-person aim: what lies under the crosshair ---------- */
@@ -7681,7 +7691,7 @@ function updateNPCs(dt){const W_=W;for(const n of W_.npcs){const P=n.P,D=n.D;con
   // head turns toward the player when nearby but not facing them
   const rel=dp<12&&!n.talking?clamp(wrapA(Math.atan2(dxp,dzp)-n.face),-1.1,1.1):0;n.look=lerp(n.look,rel,clamp(dt*3,0,1));
   tickIdle(n.act,dt,sp>0||n.talking,D.idle||['look','wrist','talk','stretch']);
-  if(P.anim){P.anim.update(dt,sp);const B=P.B;if(B&&B.Head){poseLayers(B,{look:n.look,act:n.talking?(n.talkAct=n.talkAct||{kind:'talk',w:.8,t:0}):(n.talkAct=null,n.act)},P.anim);}if(P.rider)P.rider.sync();}
+  if(P.anim){P.anim.update(dt,sp);const B=P.B;if(B&&B.Head){poseLayers(B,{look:n.look,act:n.talking?(n.talkAct=n.talkAct||{kind:'talk',w:.8,t:0}):(n.talkAct=null,n.act)},P.anim);}if(P.rider)P.rider.sync();if(P.updateHeld)P.updateHeld(0,n.face);}
   // barks
   n.barkT-=dt;if(n.bubT>0){n.bubT-=dt;if(n.bubT<=0)n.bub.hidden=true;}
   if(n.barkT<=0&&dp<8&&!n.talking&&!UI.dialog){n.barkT=rf(25,45);const lines=typeof D.barks==='function'?D.barks():D.barks;if(lines&&lines.length){n.bub.textContent=pick(lines);n.bub.hidden=false;n.bubT=4.5;}}}}
@@ -8609,12 +8619,12 @@ function roverModel(ctx,x,z,ry,o={}){const M=MODELS.env_rover;if(!M)return null;
   const drop=[];m.traverse(q=>{if(q.isMesh&&/Cylinder001_18/.test(q.parent.name))drop.push(q);});drop.forEach(q=>q.parent.remove(q));
   const tint=o.color!=null?new THREE.Color(o.color):null,meshes=[];
   m.traverse(q=>{if(!q.isMesh)return;q.castShadow=q.receiveShadow=true;const mt=q.material=q.material.clone();mt.flatShading=true;mt.envMap=protaEnv();mt.envMapIntensity=.5;
-    if(/Lights/.test(mt.name)){mt.emissive=new THREE.Color(wreck?0x000000:0xfff2d8);mt.emissiveIntensity=wreck?0:1;}
+    
     if(tint&&/MainHull$/.test(mt.name))mt.color.lerp(lin(tint.getHex()),.45);if(wreck)mt.color.lerp(new THREE.Color(0x2a2420),.32);meshes.push(q);});
   m.rotation.y=-Math.PI/2;fit.updateMatrixWorld(true);let b=new THREE.Box3().setFromObject(fit);const sz=b.getSize(new THREE.Vector3()),k=6.4/sz.z,c=b.getCenter(new THREE.Vector3());
   fit.scale.setScalar(k);fit.position.set(-c.x*k,-b.min.y*k,-c.z*k);
   const L=6.4,Wd=sz.x*k;
-  if(!wreck){for(const sd of[-1,1]){const h=glowSprite(0xfff0d0,1,.6);h.position.set(sd*Wd*.25,1.2,L/2+.1);body.add(h);}addCol(x,z,2.2);const f=toW(x,z,ry,0,2.2),r=toW(x,z,ry,0,-2.2);addCol(f.x,f.z,1.6);addCol(r.x,r.z,1.6);return {g,body};}
+  if(!wreck){addCol(x,z,2.2);const f=toW(x,z,ry,0,2.2),r=toW(x,z,ry,0,-2.2);addCol(f.x,f.z,1.6);addCol(r.x,r.z,1.6);return {g,body};}
   // ---- the wreck: tear off the two right-hand wheels at the front and middle
   g.updateMatrixWorld(true);const wheels=meshes.filter(q=>/Wheels_1/.test(q.parent.name));const wb=new THREE.Box3();wheels.forEach(q=>wb.expandByObject(q));
   const R=(wb.max.y-wb.min.y)/2,cy=(wb.max.y+wb.min.y)/2,cz=wb.max.z-R*.55,cxs=[wb.max.x-R,(wb.max.x+wb.min.x)/2];
