@@ -6363,6 +6363,7 @@ function initPost(){if(!THREE.EffectComposer||!THREE.UnrealBloomPass)return;try{
   const rt=gl2&&THREE.WebGLMultisampleRenderTarget?new THREE.WebGLMultisampleRenderTarget(w,h,o):new THREE.WebGLRenderTarget(w,h,o);
   const c=new THREE.EffectComposer(renderer,rt);c.addPass(new THREE.RenderPass(scene,camera));
   const b=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.25,.6,hdr?.88:.8);c.addPass(b);
+  b.setSize(innerWidth,innerHeight);// bloom blurs from a lower resolution: the glow is soft anyway, and it costs a fraction
   POST.composer=c;POST.bloom=b;POST.hdr=hdr;}catch(e){console.error('bloom unavailable',e);POST.composer=null;}}
 // Light sources only bloom if they are brighter than lit surfaces, so while bloom is on their emission is pushed above 1:
 // emissive panels and lamps, glow halos, neon and screens. Everything else keeps its colour, and turning glow off restores them.
@@ -6380,11 +6381,19 @@ function boostAll(on){const seen=new Set(),f=m=>{if(!m||seen.has(m))return;seen.
   scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(f);});}
 // called once a zone is built, and when people or enemies with lights are added
 function postScan(){if(POST.on&&POST.composer)boostAll(true);}
-function setBloom(v){POST.on=v;try{localStorage.setItem('tidelock-gfx',JSON.stringify({bloom:v}));}catch(e){}boostAll(v&&!!POST.composer);}
+function setBloom(v){POST.on=v;try{const p=JSON.parse(localStorage.getItem('tidelock-gfx')||'{}');p.bloom=v;localStorage.setItem('tidelock-gfx',JSON.stringify(p));}catch(e){}boostAll(v&&!!POST.composer);}
 // bright daylight zones need a higher threshold or the whole sky blooms
 function postZone(def){if(!POST.bloom)return;const o=def.bloom||{};POST.bloom.threshold=o.threshold||(POST.hdr?.88:.8);POST.bloom.strength=o.strength||1.25;}
 function renderFrame(dt){if(POST.on&&POST.composer)POST.composer.render(dt);else renderer.render(scene,camera);}
-function resizePost(){if(POST.composer)POST.composer.setSize(Math.round(innerWidth*PIXEL_RATIO),Math.round(innerHeight*PIXEL_RATIO));if(POST.bloom)POST.bloom.setSize(innerWidth,innerHeight);}
+function resizePost(){const r=renderer.getPixelRatio();if(POST.composer)POST.composer.setSize(Math.round(innerWidth*r),Math.round(innerHeight*r));if(POST.bloom)POST.bloom.setSize(innerWidth*r/PIXEL_RATIO,innerHeight*r/PIXEL_RATIO);}
+// Auto resolution: when frames take too long the render resolution steps down a little (to at most 70% of full) and comes back
+// up when there is headroom. Text and the HUD are HTML, so they stay sharp. It can be switched off in Options.
+const DRS={on:true,scale:1,acc:0,n:0,cool:0};try{const p=JSON.parse(localStorage.getItem('tidelock-gfx')||'{}');if(p.drs===false)DRS.on=false;}catch(e){}
+function drsApply(){const r=Math.max(.75,PIXEL_RATIO*DRS.scale);if(Math.abs(renderer.getPixelRatio()-r)<.01)return;renderer.setPixelRatio(r);renderer.setSize(innerWidth,innerHeight);resizePost();}
+function drsTick(raw){if(raw<=0||raw>.5)return;DRS.acc+=raw;DRS.n++;if(DRS.acc<1.5)return;const ms=DRS.acc/DRS.n*1000;DRS.acc=0;DRS.n=0;if(DRS.cool>0){DRS.cool--;return;}
+  if(!DRS.on||UI.title){if(DRS.scale!==1){DRS.scale=1;drsApply();}return;}
+  if(ms>24&&DRS.scale>.7){DRS.scale=Math.max(.7,DRS.scale-.1);drsApply();DRS.cool=1;}else if(ms<15&&DRS.scale<1){DRS.scale=Math.min(1,DRS.scale+.05);drsApply();DRS.cool=2;}}
+function setDrs(v){DRS.on=v;try{const p=JSON.parse(localStorage.getItem('tidelock-gfx')||'{}');p.drs=v;localStorage.setItem('tidelock-gfx',JSON.stringify(p));}catch(e){}if(!v){DRS.scale=1;drsApply();}}
 initPost();
 
 // ===== 08_avatar.js =====
@@ -7430,7 +7439,7 @@ function updateEnemies(dt,paused){
     e.phase+=speed*dt*2.4;e.lunge=Math.max(0,e.lunge-dt);
     const gy=groundY(e.x,e.z);e.y=T.fly?lerp(e.y,gy+e.fly+Math.sin(e.t*1.7)*.4,clamp(dt*3,0,1)):gy;
     m.g.position.set(e.x,e.y,e.z);m.g.rotation.y=e.face;
-    animateEnemy(e,dt,speed);
+    e.animAcc=(e.animAcc||0)+dt;if(m.g.visible&&(e.T.ai==='boss'||inView(e.x,e.y+1,e.z,(e.T.r||1)+2.5))){animateEnemy(e,e.animAcc,speed);e.animAcc=0;}
     if(e.flash>0){e.flash-=dt;if(m.mat&&m.mat.emissive){m.mat.emissive.setHex(0xffffff);m.mat.emissiveIntensity=e.flash*5;}}else if(m.mat&&m.mat.emissive){m.mat.emissive.setHex(e.frozen>0?0x6fd8ff:e.baseEm);m.mat.emissiveIntensity=e.frozen>0?.6:e.baseEi;}
   }
 }
@@ -7675,23 +7684,34 @@ function spawnCrowd(cx,cz,r,count,o={}){const bodies=['soldier','michelle'],tint
     const def={name,role:o.role||'',look,barks:o.barks||CROWD_BARKS,crowd:true,talk:'crowd'};const a=Math.random()*6.28,d=Math.sqrt(Math.random())*r,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;
     const pts=o.pts||null;spawnNPC('crowd_'+i+'_'+Math.round(cx),x,z,{def,face:rf(0,6.28),beh:pts?{type:'route',pts:pts.slice().sort(()=>Math.random()-.5),pause:[2,7]}:{type:'wander',r:o.wander||r,pause:[3,9]}});}}
 const CROWD_BARKS=['Another long dusk.','Have you seen the prices at the stores?','My boots are full of grit again.','Watch the ridge after dark. Not that it ever gets dark.','They say the spire hums at night.','I miss rain.','Morning. Or evening. Who can tell?','Ines is in a mood today.','Okafor\'s doubling the patrols.','You\'re the one from the crash, aren\'t you?'];
+// a spot an NPC can stand on: not inside a collider, a wall or off the edge of the zone
+function npcFree(x,z,y){const p={x,z};collide(p,.35);platWalls(p,y,.35);return Math.hypot(p.x-x,p.z-z)<.05;}
+function npcPick(n,cx,cz,r,away){for(let k=0;k<10;k++){const a=away!==undefined?away+rf(-1.1,1.1):Math.random()*6.28,d=away!==undefined?rf(2.5,5):Math.random()*r,x=cx+Math.sin(a)*d,z=cz+Math.cos(a)*d;
+    if(!npcFree(x,z,n.y))continue;// the first metres of the way must be open too
+    const dx=x-n.x,dz=z-n.z,L=Math.hypot(dx,dz)||1;if(!npcFree(n.x+dx/L*Math.min(1.2,L),n.z+dz/L*Math.min(1.2,L),n.y))continue;n.tx=x;n.tz=z;return true;}return false;}
 function updateNPCs(dt){const W_=W;for(const n of W_.npcs){const P=n.P,D=n.D;const dxp=player.x-n.x,dzp=player.z-n.z,dp=Math.hypot(dxp,dzp);
   if(n.ko){n.ko-=dt;if(P.anim)P.anim.update(dt,0);if(P.rider)P.rider.sync();if(n.bubT>0){n.bubT-=dt;if(n.bubT<=0)n.bub.hidden=true;}if(n.ko<=0)reviveNPC(n);continue;}
   let sp=0;
   if(n.talking){n.face+=wrapA(Math.atan2(dxp,dzp)-n.face)*clamp(dt*5,0,1);n.talkAnim+=dt;}
   else if(n.beh.type==='stand'){const tgt=dp<6?Math.atan2(dxp,dzp):n.homeFace;n.face+=wrapA(tgt-n.face)*clamp(dt*(dp<6?3:1),0,1);}
   else{if(n.wait>0){n.wait-=dt;}else{const dx=n.tx-n.x,dz=n.tz-n.z,d=Math.hypot(dx,dz);
-      if(d<.4){const pa=n.beh.pause||[2,6];n.wait=rf(pa[0],pa[1]);if(n.beh.type==='route'){n.wp=(n.wp+1)%n.beh.pts.length;n.tx=n.beh.pts[n.wp][0];n.tz=n.beh.pts[n.wp][1];}else{const a=Math.random()*6.28,r=Math.random()*(n.beh.r||6);n.tx=n.home.x+Math.cos(a)*r;n.tz=n.home.z+Math.sin(a)*r;}}
+      if(d<.4){const pa=n.beh.pause||[2,6];n.wait=rf(pa[0],pa[1]);if(n.beh.type==='route'){n.wp=(n.wp+1)%n.beh.pts.length;n.tx=n.beh.pts[n.wp][0];n.tz=n.beh.pts[n.wp][1];}else if(!npcPick(n,n.home.x,n.home.z,n.beh.r||6)){n.tx=n.home.x;n.tz=n.home.z;}}
       else if(dp<1.3&&(dxp*dx+dzp*dz)>0){n.wait=.6;}
-      else{sp=n.beh.speed||1.35;const p={x:n.x+dx/d*sp*dt,z:n.z+dz/d*sp*dt};collide(p,.35);platWalls(p,n.y,.35);if(Math.hypot(p.x-n.x,p.z-n.z)<sp*dt*.3){n.stuck=(n.stuck||0)+dt;if(n.stuck>1.2){n.stuck=0;n.wait=.5;n.tx=n.home.x;n.tz=n.home.z;}}
+      else{sp=n.beh.speed||1.35;const p={x:n.x+dx/d*sp*dt,z:n.z+dz/d*sp*dt};collide(p,.35);platWalls(p,n.y,.35);
+        // blocked: little progress toward the target (walking into a wall or sliding along a corner). Pause, then turn and head the other way
+        const prog=((p.x-n.x)*dx+(p.z-n.z)*dz)/d;if(prog<sp*dt*.4){n.stuck=(n.stuck||0)+dt;if(n.stuck>.45){n.stuck=0;n.wait=rf(.4,1);n.blocks=(n.blocks||0)+1;
+            if(n.beh.type==='route'&&n.blocks<3){n.wp=(n.wp+1)%n.beh.pts.length;n.tx=n.beh.pts[n.wp][0];n.tz=n.beh.pts[n.wp][1];}
+            else if(!npcPick(n,n.x,n.z,4,Math.atan2(dx,dz)+Math.PI)){n.tx=n.home.x;n.tz=n.home.z;}
+            n.turnTo=Math.atan2(n.tx-n.x,n.tz-n.z);}}else{n.stuck=Math.max(0,(n.stuck||0)-dt);if(prog>sp*dt*.8)n.blocks=0;}
         n.x=p.x;n.z=p.z;n.face+=wrapA(Math.atan2(dx,dz)-n.face)*clamp(dt*6,0,1);}}
-    if(sp===0&&dp<5)n.face+=wrapA(Math.atan2(dxp,dzp)-n.face)*clamp(dt*2,0,1);}
+    if(sp===0&&n.turnTo!==undefined&&n.wait>0)n.face+=wrapA(n.turnTo-n.face)*clamp(dt*5,0,1);else if(sp===0&&dp<5)n.face+=wrapA(Math.atan2(dxp,dzp)-n.face)*clamp(dt*2,0,1);if(sp>0)n.turnTo=undefined;}
   if(n.beh.type!=='stand'&&dp<.75&&dp>.01){player.x+=dxp/dp*(.75-dp);player.z+=dzp/dp*(.75-dp);}
   n.y=W.interior?W.floorY:support(n.x,n.z,n.y+.5).y;P.root.position.set(n.x,n.y,n.z);P.root.rotation.y=n.face;
   // head turns toward the player when nearby but not facing them
   const rel=dp<12&&!n.talking?clamp(wrapA(Math.atan2(dxp,dzp)-n.face),-1.1,1.1):0;n.look=lerp(n.look,rel,clamp(dt*3,0,1));
   tickIdle(n.act,dt,sp>0||n.talking,D.idle||['look','wrist','talk','stretch']);
-  if(P.anim){P.anim.update(dt,sp);const B=P.B;if(B&&B.Head){poseLayers(B,{look:n.look,act:n.talking?(n.talkAct=n.talkAct||{kind:'talk',w:.8,t:0}):(n.talkAct=null,n.act)},P.anim);}if(P.rider)P.rider.sync();if(P.updateHeld)P.updateHeld(0,n.face);}
+  n.animAcc=(n.animAcc||0)+dt;const onScr=P.root.visible&&inView(n.x,n.y+1,n.z,1.6),far=dp>28;n.animTick=(n.animTick||0)+1;
+  if(P.anim&&onScr&&(!far||n.animTick%2===0)){const adt=n.animAcc;n.animAcc=0;P.anim.update(adt,sp);const B=P.B;if(B&&B.Head){poseLayers(B,{look:n.look,act:n.talking?(n.talkAct=n.talkAct||{kind:'talk',w:.8,t:0}):(n.talkAct=null,n.act)},P.anim);}if(P.rider)P.rider.sync();if(P.updateHeld)P.updateHeld(0,n.face);}
   // barks
   n.barkT-=dt;if(n.bubT>0){n.bubT-=dt;if(n.bubT<=0)n.bub.hidden=true;}
   if(n.barkT<=0&&dp<8&&!n.talking&&!UI.dialog){n.barkT=rf(25,45);const lines=typeof D.barks==='function'?D.barks():D.barks;if(lines&&lines.length){n.bub.textContent=pick(lines);n.bub.hidden=false;n.bubT=4.5;}}}}
@@ -7800,7 +7820,7 @@ function disposeZone(){
   if(W.group){scene.remove(W.group);W.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{for(const k in m){const v=m[k];if(v&&v.isTexture)v.dispose();}m.dispose();});}});}
   for(const e of W.enemies){if(e.el)e.el.remove();if(e.m&&e.m.tele)scene.remove(e.m.tele);}
   for(const n of W.npcs){if(n.el)n.el.remove();if(n.bub)n.bub.remove();}
-  W.arch=null;W.grid=new Map();W.plats=[];W.hazards=[];W.inter=[];W.pickups=[];W.npcs=[];W.enemies=[];W.anims=[];W.travel=[];W.pois=[];W.keepout=[];W.safe=[];W.qbosses=[];W.useIds=[];W.bossIds=[];W.water=null;W.H=null;W.group=null;W.flares&&(W.flares.length=0);
+  W.arch=null;W.cullChunks=[];W.grid=new Map();W.plats=[];W.hazards=[];W.inter=[];W.pickups=[];W.npcs=[];W.enemies=[];W.anims=[];W.travel=[];W.pois=[];W.keepout=[];W.safe=[];W.qbosses=[];W.useIds=[];W.bossIds=[];W.water=null;W.H=null;W.group=null;W.flares&&(W.flares.length=0);
   clearProjectiles&&clearProjectiles();
 }
 async function enterZone(id,entry,opts={}){
@@ -8556,9 +8576,17 @@ function envVariants(id,mode,norm){const key=id+mode+norm;if(ENVV[key])return EN
 // instances are gathered while a zone builds, then turned into one InstancedMesh per variant part
 function envBatch(ctx){if(ctx.envB)return ctx.envB;const L=new Map();
   return ctx.envB={add(v,m,c,mats){const k=v;if(!L.has(k))L.set(k,{arr:[],mats});L.get(k).arr.push([m.clone(),c?c.clone():null]);},
-    build(parent){for(const [v,{arr,mats}] of L)v.parts.forEach((p,pi)=>{const im=new THREE.InstancedMesh(p.g,mats?mats[pi]:p.mat,arr.length);
-      arr.forEach(([m,c],i)=>{im.setMatrixAt(i,m);if(c)im.setColorAt(i,c);});im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;
-      im.castShadow=true;im.receiveShadow=true;im.frustumCulled=false;parent.add(im);});L.clear();}};}
+    // instances are grouped in 48 m cells; each cell is shown only while it is in view and inside the fog (see viewCull)
+    build(parent){const CS=48,cells=new Map();for(const [v,{arr,mats}] of L)for(const it of arr){const k=Math.floor(it[0].elements[12]/CS)+','+Math.floor(it[0].elements[14]/CS);
+        if(!cells.has(k))cells.set(k,new Map());const cm=cells.get(k);if(!cm.has(v))cm.set(v,{arr:[],mats});cm.get(v).arr.push(it);}
+      const far=(W.def&&W.def.fogFar||scene.fog&&scene.fog.far||330)+60;
+      for(const [k,cm] of cells){const [i,j]=k.split(',').map(Number),ms=[];let top=0;
+        for(const [v,{arr,mats}] of cm){for(const it of arr)top=Math.max(top,it[0].elements[13]+v.h*Math.max(it[0].elements[5],1));
+          v.parts.forEach((p,pi)=>{const im=new THREE.InstancedMesh(p.g,mats?mats[pi]:p.mat,arr.length);
+          arr.forEach(([m,c],n)=>{im.setMatrixAt(n,m);if(c)im.setColorAt(n,c);});im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;
+          im.castShadow=true;im.receiveShadow=true;im.frustumCulled=false;parent.add(im);ms.push(im);});}
+        const c=new THREE.Vector3((i+.5)*CS,0,(j+.5)*CS);c.y=groundY(c.x,c.z);W.cullChunks.push({ms,c,s:new THREE.Sphere(c.clone().setY(c.y+Math.max(0,top-c.y)/2),CS*.75+Math.max(8,top-c.y)),far2:far*far,v:true});}
+      L.clear();}};}
 const _em=new THREE.Matrix4(),_eq=new THREE.Quaternion(),_ee=new THREE.Euler(),_ev3=new THREE.Vector3(),_es=new THREE.Vector3();
 const envM=(x,y,z,rx,ry,rz,sx,sy,sz)=>_em.compose(_ev3.set(x,y,z),_eq.setFromEuler(_ee.set(rx,ry,rz)),_es.set(sx,sy,sz));
 // a light tint: mostly white, a little of the zone colour
@@ -10104,12 +10132,12 @@ function renderSystem(){const box=$('#menuBody');
     <div class="cb"><button class="buy" type="button" id="sCopy">COPY SAVE CODE</button><button class="buy alt" type="button" id="sLoad">LOAD A CODE…</button></div>
     <textarea id="codeOut" class="codein" rows="3" readonly hidden></textarea><textarea id="codeIn" class="codein" rows="3" placeholder="Paste a TIDELOCK-… code here" spellcheck="false" autocomplete="off" hidden></textarea><div id="codeMsg" class="note"></div>
     <h3>First-person HUD</h3><p class="note">How much of the HUD shows when you zoom all the way in.</p>${hudChoice('sHud')}
-    <h3>Audio</h3><div class="cb"><button class="buy alt" type="button" id="sSnd">${muted?'SOUND: OFF':'SOUND: ON'}</button><button class="buy alt" type="button" id="sMus">${musicOn?'MUSIC: ON':'MUSIC: OFF'}</button><button class="buy alt" type="button" id="sGlow">${POST.on?'GLOW: ON':'GLOW: OFF'}</button></div>
+    <h3>Audio</h3><div class="cb"><button class="buy alt" type="button" id="sSnd">${muted?'SOUND: OFF':'SOUND: ON'}</button><button class="buy alt" type="button" id="sMus">${musicOn?'MUSIC: ON':'MUSIC: OFF'}</button><button class="buy alt" type="button" id="sGlow">${POST.on?'GLOW: ON':'GLOW: OFF'}</button><button class="buy alt" type="button" id="sDrs">${DRS.on?'RES: AUTO':'RES: FULL'}</button></div>
     <h3>Controls</h3><div class="cb"><button class="buy alt" type="button" id="sHelp">HOW TO PLAY</button></div>
     <h3>Credits</h3><p class="note">Design, code, textures and most models: generated for this game. Character models: Mixamo characters from the three.js examples (X Bot, Soldier, Michelle). Robot: “RobotExpressive” by Tomás Laulhé (Quaternius), CC0. Ship corridor: “Space ship hallway” by yeeyeeman, CC-BY 4.0. Engine: three.js (MIT).</p>`;
   const msg=h=>{$('#codeMsg').innerHTML=h;};
   $('#sSave').onclick=()=>{saveNow();msg('<span class="ok">Saved.</span>');};$('#sQuit').onclick=quitToTitle;$('#sHelp').onclick=openHelp;
-  bindHudChoice(box,renderSystem);$('#sSnd').onclick=()=>{setMuted(!muted);renderSystem();};$('#sMus').onclick=()=>{setMusic(!musicOn);renderSystem();};$('#sGlow').onclick=()=>{setBloom(!POST.on);renderSystem();};
+  bindHudChoice(box,renderSystem);$('#sSnd').onclick=()=>{setMuted(!muted);renderSystem();};$('#sMus').onclick=()=>{setMusic(!musicOn);renderSystem();};$('#sGlow').onclick=()=>{setBloom(!POST.on);renderSystem();};$('#sDrs').onclick=()=>{setDrs(!DRS.on);renderSystem();};
   $('#sCopy').onclick=()=>{saveNow();const code=makeCode(G),out=$('#codeOut');out.hidden=false;out.value=code;const sel=()=>{try{out.focus();out.select();out.setSelectionRange(0,code.length);}catch(e){}};
     try{navigator.clipboard.writeText(code).then(()=>msg('<span class="ok">Copied. Paste it somewhere safe.</span>'),()=>{sel();msg('Copying was blocked here. The code is selected below; copy it yourself.');});}catch(e){sel();msg('Copying was blocked here. The code is selected below; copy it yourself.');}};
   $('#sLoad').onclick=()=>{const ci=$('#codeIn');if(ci.hidden){ci.hidden=false;ci.focus();$('#sLoad').textContent='LOAD THIS CODE';return;}const r=readCode(ci.value);if(r.err)return msg('<span class="bad">'+r.err+'</span>');
@@ -10367,10 +10395,10 @@ function titleUpdate(dt){TT.t+=dt;
   titlePadStatus();}
 function openOptions(){openPanel();const b=sheet('narrow');
   b.innerHTML=head('Options','xO')+`<div class="cards"><div class="slotrow"><span class="lab">AUDIO</span><div class="cb"><button class="buy alt" type="button" id="oSnd">${muted?'SOUND: OFF':'SOUND: ON'}</button><button class="buy alt" type="button" id="oMus">${musicOn?'MUSIC: ON':'MUSIC: OFF'}</button></div></div>
-    <div class="slotrow"><span class="lab">GRAPHICS</span><small>Glow makes lights, signs and emissive panels bloom. Turn it off if the game runs slowly.</small><div class="cb"><button class="buy alt" type="button" id="oGlow">${POST.on?'GLOW: ON':'GLOW: OFF'}</button></div></div>
+    <div class="slotrow"><span class="lab">GRAPHICS</span><small>Glow makes lights, signs and emissive panels bloom. Auto resolution lowers the render resolution slightly only when the game would stutter. Turn either off or on to suit your device.</small><div class="cb"><button class="buy alt" type="button" id="oGlow">${POST.on?'GLOW: ON':'GLOW: OFF'}</button><button class="buy alt" type="button" id="oDrs">${DRS.on?'RESOLUTION: AUTO':'RESOLUTION: FULL'}</button></div></div>
     <div class="slotrow"><span class="lab">FIRST-PERSON HUD</span><small>Zoom all the way in to play in first person. Choose how much of the HUD stays on screen.</small>${hudChoice('oHud')}</div>
     <div class="slotrow"><span class="lab">CONTROLLER</span><small>Shows exactly what your browser reports, live.</small><div id="padDiag" class="diag"></div></div></div>`;
-  $('#xO').onclick=closePanel;bindHudChoice(b,openOptions);$('#oSnd').onclick=()=>{setMuted(!muted);openOptions();};$('#oMus').onclick=()=>{setMusic(!musicOn);openOptions();};$('#oGlow').onclick=()=>{setBloom(!POST.on);openOptions();};padDiagT=0;padFocus(b,0);}
+  $('#xO').onclick=closePanel;bindHudChoice(b,openOptions);$('#oSnd').onclick=()=>{setMuted(!muted);openOptions();};$('#oMus').onclick=()=>{setMusic(!musicOn);openOptions();};$('#oGlow').onclick=()=>{setBloom(!POST.on);openOptions();};$('#oDrs').onclick=()=>{setDrs(!DRS.on);openOptions();};padDiagT=0;padFocus(b,0);}
 function openCredits(){openPanel();const b=sheet('narrow');
   b.innerHTML=head('Credits','xCr')+`<div class="help"><p><b>Tidelock</b> was designed, written and built for this project: the worlds, story, characters, code, textures, effects and most of the 3D models.</p>
     <ul><li><b>Spacesuit and townspeople:</b> Quaternius (Ultimate Modular Men, Women and Space Kit), CC0</li><li><b>Robots:</b> “RobotExpressive” by Tomás Laulhé (Quaternius), CC0</li><li><b>Sci-fi soldier:</b> “Stylized Sci-Fi Soldier (animated)” by Jungle Jim, CC BY 4.0</li><li><b>Sci-fi operative:</b> “Sci-Fi Male Character” by Xavi Pujadas, CC BY-NC-ND 4.0 (personal, non-commercial use)</li><li><b>The Vesper:</b> “Phantom Sabre jet” by #3D $Resource$, CC BY 4.0</li><li><b>Pistol:</b> “Scifi Gun” by Slav92, CC BY 4.0</li><li><b>Rifle:</b> “SciFi Rifle” by DJMaesen, CC BY-NC 4.0</li><li><b>Shotgun:</b> “Shotgun” by Alex Sanches, CC BY-NC 4.0</li><li><b>Beam weapons:</b> “Low Poly Laser Pistol 1” by sidedvirus, CC BY 4.0</li><li><b>Grenade launchers:</b> “Grenade Launcher (Death Stranding fan art)” by mnshkv, CC BY 4.0</li><li><b>Blade:</b> “Scifi Heavy Blade (LowPoly)” by Wang Sh D, CC BY 4.0</li><li><b>Ash Golem:</b> “Golem Rigged” by FourthGreen, CC BY 4.0</li><li><b>Reed Stalker:</b> “Alien Ninja Creature with 45 animations” by Jungle Jim, CC BY 4.0</li><li><b>Glider Ray:</b> “Manta Ray Birostris (animated)” by Violaine, CC BY-NC-SA 4.0</li><li><b>Vash:</b> “Nightmare Creature 1#” by Idk, CC BY 4.0</li><li><b>Maintenance Drone:</b> “Flying Bot” by colizey, CC BY 4.0</li><li><b>Ember Wisp:</b> “FireBall” by tamminen, CC BY 4.0</li><li><b>Hollow Warden:</b> “alien low poly” by vicente betoret ferrero, CC BY 4.0</li><li><b>Skitters:</b> “Alien” by DJMaesen, CC BY 4.0</li><li><b>Crystals, rocks, ruin stones and jellyfish:</b> “Toon Style - Crystal”, “Lowpoly textured ice Crystals”, “Crystals”, “Magical Glowing Crystals”, “Magic Crystal IX”, “Glowing Jelly Fish”, “Stylized Rocks with Magic Rune”, “Fantasy Ruin Rocks”, “Small rocks”, “Stylized Rocks”, “Cozy Campfire - Shape Key Animation”, “Tent”, all CC BY 4.0, from Sketchfab</li><li><b>Survey rover:</b> “Rover new” by M8ZA, CC BY 4.0</li><li><b>Shuttle:</b> “Standard civilan shuttle” by Sol, CC BY-NC-ND 4.0</li><li><b>Ship corridor:</b> “Space ship hallway” by yeeyeeman, CC BY 4.0</li><li><b>Engine:</b> three.js, MIT</li><li><b>Music and laser sound:</b> supplied by the player</li></ul></div>`;
@@ -10598,7 +10626,11 @@ function setShadow(o,on){if(o.__sh===on)return;o.__sh=on;for(const m of meshesOf
 function cullFar(){const R=W.interior?80:120;for(const n of W.npcs){const d=Math.hypot(n.x-player.x,n.z-player.z);n.P.root.visible=d<(n.D.crowd?R*.55:R);setShadow(n.P.root,d<28);}
   for(const e of W.enemies){if(e.dead)continue;const d=Math.hypot(e.x-player.x,e.z-player.z),far=d>R+(e.T.ai==='boss'?60:0);if(e.m.g.visible===far)e.m.g.visible=!far;setShadow(e.m.g,d<40||e.T.ai==='boss');}}
 function zoneTemp(){if(!W.def||!W.def.tempAt)return 18;if(nearAny(player.x,player.z,W.safe||[]))return clamp(W.def.tempAt(player.x,player.z),2,30);return W.def.tempAt(player.x,player.z);}
-function update(dt){T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniforms.time.value=T;
+const VIEWF=new THREE.Frustum(),_vfM=new THREE.Matrix4(),_vfS=new THREE.Sphere();
+function inView(x,y,z,r){_vfS.center.set(x,y,z);_vfS.radius=r;return VIEWF.intersectsSphere(_vfS);}
+function viewCull(){camera.updateMatrixWorld();VIEWF.setFromProjectionMatrix(_vfM.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+  const L=W.cullChunks;if(L)for(const c of L){const v=c.c.distanceToSquared(camera.position)<c.far2&&VIEWF.intersectsSphere(c.s);if(v!==c.v){c.v=v;for(const m of c.ms)m.visible=v;}}}
+function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniforms.time.value=T;
   if(UI.title){if(W.id==='twilight'&&!UI.loading)titleUpdate(dt);sky.position.copy(camera.position);BODIES.update(T);FX.update(dt);for(const fn of W.anims)fn(dt);updateNPCs(dt);return;}
   if(UI.loading)return;
   G.playTime+=dt;const busy=modal();
@@ -10693,7 +10725,7 @@ function update(dt){T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniforms.time.valu
 
 /* ---------- boot ---------- */
 const clock=new THREE.Clock();
-function frame(){const dt=Math.min(clock.getDelta(),.1)*(window.__tlTimeScale||1);try{update(dt);updateHUD(dt);}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
+function frame(){const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);drsTick(raw);try{update(dt);updateHUD(dt);}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
 addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);resizePost();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();sizeMap();FX.resize&&FX.resize();if(UI.custom)setLookView();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow();});
 addEventListener('pagehide',saveNow);
