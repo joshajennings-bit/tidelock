@@ -6440,7 +6440,7 @@ class Animator{
       this.walkRef=1.5;this.runRef=4.6;}
     // the head's rest orientation in the character's frame, used to keep it facing forward while moving
     if(set!=='robot'&&this.B.Head){model.updateMatrixWorld(true);const mi=model.getWorldQuaternion(new THREE.Quaternion()).invert();
-      this.rest={};for(const k of['Torso','Chest','Neck','Head'])if(this.B[k])this.rest[k]=mi.clone().multiply(this.B[k].getWorldQuaternion(new THREE.Quaternion()));this.headRest=this.rest.Head;}
+      this.rest={};for(const k of['Hips','Torso','Chest','Neck','Head'])if(this.B[k])this.rest[k]=mi.clone().multiply(this.B[k].getWorldQuaternion(new THREE.Quaternion()));this.headRest=this.rest.Head;}
     this.one=null;this.touched=new Map();this.mixer.update(Math.random()*2);}
   oneShot(k){const a=this.a[k];if(!a||this.dead)return false;if(this.one&&this.one!==a)this.one.fadeOut(.15);a.reset();a.setEffectiveWeight(1);a.fadeIn(.18);a.play();this.one=a;this.oneT=a.getClip().duration/Math.max(.01,a.timeScale||1);return true;}
   die(){const a=this.a.death;this.dead=true;this.one=null;if(!a)return;for(const k in this.a)if(this.a[k]!==a){this.a[k].stopFading();this.a[k].setEffectiveWeight(0);}a.reset();a.setEffectiveWeight(1);a.play();}
@@ -6457,15 +6457,24 @@ class Animator{
       else{const k=.25;for(const x of ['idle','idleGun','aim'])if(A[x])A[x].setEffectiveWeight(A[x].getEffectiveWeight()*k);}}
     this.mixer.update(frozen?0:dt);
     // the walk and run clips swing the head to one side each stride; take that turn out (in proportion to speed) so the eyes stay on the path
-    if(this.headRest&&w>0)steadyUpper(this,w);}
+    if(this.headRest&&w>0)steadyUpper(this,w,frozen?0:dt);}
 }
 const _sh1=new THREE.Quaternion(),_sh2=new THREE.Quaternion(),_sh3=new THREE.Quaternion(),_she=new THREE.Euler();
-// take part of a bone's swing (yaw, about the body's up) and lean (roll, about its forward) out, relative to its rest pose, keeping the nod
-function steadyBone(an,k,kYaw,kRoll){const b=an.B[k],R=an.rest[k];if(!b||!R)return;const mi=an.m.getWorldQuaternion(_sh1).invert(),q=b.getWorldQuaternion(_sh2).premultiply(mi);
-  const d=_sh3.copy(R).invert().premultiply(q);_she.setFromQuaternion(d,'YXZ');_she.y*=1-kYaw;_she.z*=1-kRoll;d.setFromEuler(_she);q.copy(d).multiply(R);
+// a bone's yaw (about the body's up) and roll relative to its rest pose, in the character's frame
+function boneYR(an,k){const b=an.B[k],R=an.rest[k];if(!b||!R)return null;const mi=an.m.getWorldQuaternion(_sh1).invert(),q=b.getWorldQuaternion(_sh2).premultiply(mi);
+  _she.setFromQuaternion(_sh3.copy(R).invert().premultiply(q),'YXZ');return {y:_she.y,z:_she.z};}
+// set a bone's yaw and roll (relative to rest, in the character's frame) to new values, keeping its nod
+function setYR(an,k,f){const b=an.B[k],R=an.rest[k];if(!b||!R)return;const mi=an.m.getWorldQuaternion(_sh1).invert(),q=b.getWorldQuaternion(_sh2).premultiply(mi);
+  const d=_sh3.copy(R).invert().premultiply(q);_she.setFromQuaternion(d,'YXZ');const r=f(_she.y,_she.z);_she.y=r[0];_she.z=r[1];d.setFromEuler(_she);q.copy(d).multiply(R);
   const pq=b.parent.getWorldQuaternion(new THREE.Quaternion()).premultiply(mi);b.quaternion.copy(pq.invert().multiply(q));b.updateMatrixWorld(true);}
-// running: calm the chest's twist and keep the head level, so the character looks where it is going
-function steadyUpper(an,w){an.m.updateMatrixWorld(true);steadyBone(an,'Torso',.8*w,.6*w);steadyBone(an,'Chest',.9*w,.7*w);steadyBone(an,'Neck',.8*w,.8*w);steadyBone(an,'Head',w,w);}
+// The walk and run clips turn the hips about 27 degrees to one side and twist the spine back the other way. Face the hips along the
+// path, give the spine its own original facing back with a lighter swing, and keep the head level.
+function steadyUpper(an,w,dt){const al=1-Math.exp(-dt*4);an.m.updateMatrixWorld(true);const t0=boneYR(an,'Torso'),c0=boneYR(an,'Chest');
+  setYR(an,'Hips',(y,z)=>[y*(1-w),z]);
+  // the clips' spine also leans to one side on average: track that average and swing evenly around straight ahead instead
+  if(t0){an.tMean=an.tMean===undefined?t0.y:an.tMean+(t0.y-an.tMean)*al;setYR(an,'Torso',()=>[t0.y-an.tMean*w-(t0.y-an.tMean)*.6*w,t0.z*(1-.4*w)]);}
+  if(c0){an.cMean=an.cMean===undefined?c0.y:an.cMean+(c0.y-an.cMean)*al;setYR(an,'Chest',()=>[c0.y-an.cMean*w-(c0.y-an.cMean)*.6*w,c0.z*(1-.4*w)]);}
+  setYR(an,'Head',(y,z)=>[y*(1-w),z*(1-w)]);}
 const _qa=new THREE.Quaternion(),_e2=new THREE.Euler();
 function rot(b,x,y,z,w=1,anim){if(!b||w<=0)return;if(anim&&!anim.touched.has(b))anim.touched.set(b,b.quaternion.clone());_e2.set(x*w,y*w,z*w);b.quaternion.multiply(_qa.setFromEuler(_e2));}
 // small procedural touches on top of the clips: head turns and idle gestures
