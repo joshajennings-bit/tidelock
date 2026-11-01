@@ -242,7 +242,7 @@ html.talking #hud #vitals,html.talking #hud #tracker,html.talking #hud #mapwrap,
 .qe p{margin:0;color:var(--dim);font-size:14px;line-height:1.38}
 .perk{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:6px}
 .perk .pips{font-family:var(--f-mono);color:var(--amber);letter-spacing:.2em}
-#mapCanvas{width:100%;aspect-ratio:1;max-height:56vh;border:1px solid var(--line);border-radius:6px;background:#120d1c;touch-action:none}
+#mapCanvas{display:block;width:min(100%,60vh);height:auto;aspect-ratio:1;margin:0 auto;border:1px solid var(--line);border-radius:6px;background:#120d1c;touch-action:none}
 .codein{display:block;width:100%;box-sizing:border-box;margin-top:8px;font-family:var(--f-mono);font-size:11px;line-height:1.4;padding:8px 10px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:4px;color:var(--text);resize:vertical;word-break:break-all;-webkit-user-select:text;user-select:text}
 .slotrow{display:grid;gap:3px;padding:10px 12px;border:1px solid var(--line);border-radius:6px}
 .slotrow.cur{border-color:rgba(111,242,214,.5)}.slotrow.warn{border-color:rgba(255,90,110,.6);background:rgba(255,90,110,.06)}
@@ -309,6 +309,16 @@ html.talking #hud #vitals,html.talking #hud #tracker,html.talking #hud #mapwrap,
 /* VESTA in the helmet: the conversation is projected across the visor */
 .helmetDlg #dialog{left:50%;right:auto;top:auto;bottom:11vh;translate:-50% 0;width:min(960px,82vw);padding:22px 30px 16px;background:linear-gradient(180deg,rgba(111,242,214,.05),rgba(111,242,214,.1));border-color:rgba(111,242,214,.2);box-shadow:0 0 50px rgba(111,242,214,.12);-webkit-backdrop-filter:none;backdrop-filter:none}
 .helmetDlg #dText{font-size:clamp(17px,2.3vw,24px);max-height:36vh}.helmetDlg #dName{font-size:20px}.helmetDlg .opt{font-size:17px}.helmetDlg #dialog .hbeam{display:none}
+/* map tab: the chart and the fast travel list side by side */
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,300px);gap:16px;align-items:start}
+@media (max-width:760px),(orientation:portrait){.mapwrap{grid-template-columns:1fr}}
+.mapc .note{margin-top:8px;text-align:center}.mkey{display:inline-flex;gap:6px;align-items:center;margin-left:8px;font-size:12px}
+.mkey i{display:inline-block;width:9px;height:9px;margin-left:6px}.mkey .k1{background:#6ff2d6;transform:rotate(45deg)}.mkey .k2{background:#e8e2f4;border-radius:50%}.mkey .k3{background:#ffc35a;transform:rotate(45deg)}
+.ftl{display:grid;gap:10px;max-height:62vh;overflow:auto;padding-right:4px}.ftl h3{margin:0}
+.ftg{display:grid;gap:5px;padding:10px;border:1px solid rgba(111,242,214,.18);border-radius:6px;background:rgba(10,30,40,.35)}.ftg.here{border-color:rgba(111,242,214,.5);box-shadow:0 0 14px rgba(111,242,214,.12)}
+.ftz{display:flex;flex-direction:column;gap:1px}.ftz b{font-family:var(--f-display);letter-spacing:.08em;font-size:14px;color:#eafffb}.ftz small{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;color:var(--dim)}
+.ftb{display:flex;gap:8px;align-items:center;text-align:left;padding:8px 10px;border:1px solid rgba(111,242,214,.2);border-radius:4px;background:rgba(111,242,214,.05);color:#e3fbff;font-size:14px}
+.ftb .fd{color:#6ff2d6;text-shadow:0 0 8px #6ff2d6}.ftb:hover,.ftb.psel{border-color:#8ffff0;background:rgba(111,242,214,.22);box-shadow:0 0 12px rgba(111,242,214,.35);outline:none}
 #osk .ohint{font-family:var(--f-mono);font-size:10px;color:rgba(200,240,234,.7);text-align:center;letter-spacing:.05em}
 /* ---- pack ---- */
 .pk{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(0,1.6fr);gap:18px;align-items:start}
@@ -7049,7 +7059,7 @@ const ITEMS={
   slag:{name:'Volcanic Slag Ore',kind:'mat',value:11,desc:'Ashfall ore laced with rare metals.'},
   glass:{name:'Builder Glass',kind:'mat',value:30,desc:'Fragments of the Builders\' living glass. Top-tier upgrades.'},
   polymer:{name:'Polymer Sheet',kind:'mat',value:5,desc:'Flexible synthetic. Used for suit upgrades.'},
-  datachip:{name:'Data Chip',kind:'mat',value:12,desc:'Encrypted storage. Unlocks mod crafting.'},
+  datachip:{name:'Data Chip',kind:'mat',value:12,desc:'An encrypted override key. Opens locked caches, and workbenches use it to make mods. Ines in Meridian and Sable in Kiln Hollow sell them; robots, elites and strongboxes sometimes carry them.'},
   // junk, for selling
   j_datapad:{name:'Cracked Datapad',kind:'junk',value:14,desc:'Someone\'s diary, mostly corrupted.'},
   j_visor:{name:'Broken Visor',kind:'junk',value:9,desc:'A shattered helmet visor.'},
@@ -7099,11 +7109,11 @@ function rollEquipment(lvl,bonus=0,kind){const tier=clamp(Math.ceil(lvl/5),1,5);
 // returns {cr, items:[...]}
 function rollLoot(kind,lvl,zone){const out={cr:0,items:[]};const mats=MAT_BY_ZONE[zone]||MAT_BY_ZONE.twilight;
   const add=(id,q=1)=>{const ex=out.items.find(x=>x.id===id&&x.q);if(ex)ex.q+=q;else out.items.push(makeItem(id,{q}));};
-  if(kind==='enemy'){out.cr=Math.round(rf(1,4)*(1+lvl*.25));if(Math.random()<.55)add(pick(mats),1+(Math.random()<.3?1:0));if(Math.random()<.07+G.perkLoot)out.items.push(rollEquipment(lvl));if(Math.random()<.05)add(pick(JUNK));if(Math.random()<.04)add(pick(['medkit','cell','ration','grenade']));}
-  else if(kind==='elite'){out.cr=Math.round(rf(10,20)*(1+lvl*.3));add(pick(mats),2+Math.floor(Math.random()*3));out.items.push(rollEquipment(lvl,.25));if(Math.random()<.5)add(pick(['medkit','cell','shieldcharge','grenade']));}
-  else if(kind==='chest'){out.cr=Math.round(rf(8,24)*(1+lvl*.3));for(let i=0;i<2+Math.floor(Math.random()*2);i++)add(pick(mats),1+Math.floor(Math.random()*3));if(Math.random()<.45+G.perkLoot)out.items.push(rollEquipment(lvl,.1));if(Math.random()<.5)add(pick(JUNK));if(Math.random()<.45)add(pick(['medkit','cell','heatpack','coolant','flare','grenade','stim','ration']));}
+  if(kind==='enemy'){out.cr=Math.round(rf(1,4)*(1+lvl*.25));if(Math.random()<.55)add(pick(mats),1+(Math.random()<.3?1:0));if(Math.random()<.07+G.perkLoot)out.items.push(rollEquipment(lvl));if(Math.random()<.05)add(pick(JUNK));if(Math.random()<.04)add(pick(['medkit','cell','ration','grenade']));if(Math.random()<.03)add('datachip');}
+  else if(kind==='elite'){out.cr=Math.round(rf(10,20)*(1+lvl*.3));add(pick(mats),2+Math.floor(Math.random()*3));out.items.push(rollEquipment(lvl,.25));if(Math.random()<.5)add(pick(['medkit','cell','shieldcharge','grenade']));if(Math.random()<.35)add('datachip');}
+  else if(kind==='chest'){out.cr=Math.round(rf(8,24)*(1+lvl*.3));for(let i=0;i<2+Math.floor(Math.random()*2);i++)add(pick(mats),1+Math.floor(Math.random()*3));if(Math.random()<.45+G.perkLoot)out.items.push(rollEquipment(lvl,.1));if(Math.random()<.5)add(pick(JUNK));if(Math.random()<.45)add(pick(['medkit','cell','heatpack','coolant','flare','grenade','stim','ration']));if(Math.random()<.12)add('datachip');}
   else if(kind==='locked'){out.cr=Math.round(rf(30,60)*(1+lvl*.3));for(let i=0;i<3;i++)add(pick(mats),2+Math.floor(Math.random()*3));out.items.push(rollEquipment(lvl,.4));if(Math.random()<.6)out.items.push(rollEquipment(lvl,.3));add(pick(JUNK));add(pick(['trauma','cell','shieldcharge','beacon']));}
-  else if(kind==='boss'){out.cr=Math.round(rf(120,200)*(1+lvl*.2));for(let i=0;i<4;i++)add(pick(mats),3+Math.floor(Math.random()*3));const it=rollEquipment(lvl+2,1);if(it){it.r=Math.max(it.r,3);out.items.push(it);}out.items.push(rollEquipment(lvl+1,.6));add('glass',lvl>15?2:0);}
+  else if(kind==='boss'){out.cr=Math.round(rf(120,200)*(1+lvl*.2));for(let i=0;i<4;i++)add(pick(mats),3+Math.floor(Math.random()*3));const it=rollEquipment(lvl+2,1);if(it){it.r=Math.max(it.r,3);out.items.push(it);}out.items.push(rollEquipment(lvl+1,.6));add('glass',lvl>15?2:0);add('datachip',1+(Math.random()<.5?1:0));}
   out.items=out.items.filter(x=>x&&!(x.q===0));return out;}
 
 /* ---------- procedural weapon models (built barrel along +z, then pointed down the forearm) ---------- */
@@ -7996,6 +8006,7 @@ async function enterZone(id,entry,opts={}){
   placePlayer(e.x,e.z,e.face||0);
   G.zone=id;G.entry=entry||null;zoneState(id);G.visited[id]=true;
   if(!opts.silent)Bus.emit('zone',id);
+  ftSync();W.mapShot=null;requestMapShot();
   await nextFrame();L.hidden=true;UI.loading=false;
   if(!opts.quiet)showBanner(def.world||'',def.name);
   saveSoon();
@@ -9006,7 +9017,7 @@ PPL('okafor',{zone:'twilight',name:'Dele Okafor',role:'SECURITY CHIEF',look:{bod
   barks:['Ridge patrol checks in every hour. Or it\'s supposed to.','Skitters are getting bolder.','Keep the lamp line lit and we\'ll be fine.'],
   topics:[{label:'What\'s the security situation?',text:'Skitters on the ridge, raiders on the dayward flats, and a signal nobody understands. Normal week.'},{label:'Tell me about Meridian.',text:'Two hundred and fourteen people in the only strip of this planet that won\'t kill you. We farm, we mine, we fix things. Halden runs the place. I keep it standing.'}]});
 PPL('ines',{zone:'twilight',name:'Ines Marrow',role:'QUARTERMASTER',look:{body:'michelle',tint:0xc9a06a,apron:0x6a5a3a,accent:0xffc35a,belt:true},beh:{type:'stand'},
-  vendor:{tags:['med','food','util','mat1'],gear:[1,2],label:'Show me your stock.'},greet:'Meridian runs on what we can grow, dig up, or scrounge. What do you need?',
+  vendor:{tags:['med','food','util','mat1','chip'],gear:[1,2],label:'Show me your stock.'},greet:'Meridian runs on what we can grow, dig up, or scrounge. What do you need?',
   barks:['Inventory doesn\'t count itself.','Glowcap extract is worth its weight in alloy right now.','If it\'s not nailed down, it\'s mine to sell.'],
   topics:[{label:'What is this place, exactly?',text:'Ossery b keeps one face to its star. Dayward the rock bakes past eighty degrees. Nightward, the air gets cold enough to snow out of the sky. We live in the strip between, where the sun sits on the horizon and never moves.'}]});
 PPL('vey',{zone:'twilight',name:'Dr. Sela Vey',role:'XENOBIOLOGIST',look:{body:'michelle',tint:0xd8d4e4,coat:0xe9e6f0,accent:0x6ff2d6,held:'tablet',screen:4},beh:{type:'wander',r:4,pause:[4,9]},
@@ -9029,7 +9040,7 @@ PPL('pell',{zone:'twilight',name:'Pell Ashgrove',role:'PROSPECTOR',look:{body:'s
 /* ---- Kiln Hollow (Dayward Flats) ---- */
 PPL('oduya',{zone:'dayward',name:'Grisha Oduya',role:'FOREMAN',look:{body:'soldier',tint:0xa0603a,visor:0xffa94a,hat:'goggles',belt:true,scale:1.1},beh:{type:'route',pts:[[-8,62],[10,70],[4,54]],pause:[5,10],speed:1.2},
   greet:'Kiln Hollow. We dig, we sweat, we don\'t complain. Much.',barks:['Pump three is down again.','Those Jackals cost me two haulers this month.','Water first, ore second, sleep never.']});
-PPL('sable',{zone:'dayward',name:'Sable',role:'SCAVENGER TRADER',look:{body:'michelle',tint:0x4a3a3a,hat:'goggles',scarf:0xa0402a,pack:true},beh:{type:'stand'},vendor:{tags:['weapon','mod'],gear:[2,3],label:'Show me the hardware.'},
+PPL('sable',{zone:'dayward',name:'Sable',role:'SCAVENGER TRADER',look:{body:'michelle',tint:0x4a3a3a,hat:'goggles',scarf:0xa0402a,pack:true},beh:{type:'stand'},vendor:{tags:['weapon','mod','chip'],gear:[2,3],label:'Show me the hardware.'},
   greet:'Everything here fell off a hauler. Honest.',barks:['Fresh salvage, barely bloodstained.','I buy anything that shoots.']});
 PPL('amaru',{zone:'dayward',name:'Doc Amaru',role:'MEDIC',look:{body:'soldier',tint:0xd8d4e0,visor:0x6ff2d6,coat:0xe8e4ee},beh:{type:'wander',r:3,pause:[4,9]},vendor:{tags:['med','heat'],label:'I need supplies.'},greet:'Heatstroke, burns, Jackal bullets. I treat it all.',barks:['Drink water. All of it.','Next!'],
   services:[{label:'Patch me up, Doc.',fn:()=>{G.hp=PS.maxHp;FX.heal();toast('Doc Amaru patches you up.','teal');}}]});
@@ -10170,7 +10181,7 @@ function drawMinimap(tq){const c=mapCtx,Wm=mapCv.width,cx=Wm/2,R=W.interior?45:8
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,Wm,Wm);c.save();c.beginPath();c.arc(cx,cx,cx-1,0,Math.PI*2);c.clip();c.fillStyle='#120d1c';c.fillRect(0,0,Wm,Wm);
   const fx=-Math.sin(cam.yaw),fz=-Math.cos(cam.yaw),rx=Math.cos(cam.yaw),rz=-Math.sin(cam.yaw);
   const a=rx*s,cc=rz*s,b=-fx*s,d=-fz*s,e=cx-(a*player.x+cc*player.z),f=cx-(b*player.x+d*player.z);
-  c.setTransform(a,b,cc,d,e,f);c.imageSmoothingEnabled=true;c.drawImage(W.mapImg,-W.half,-W.half,W.size,W.size);c.setTransform(1,0,0,1,0,0);
+  c.setTransform(a,b,cc,d,e,f);c.imageSmoothingEnabled=true;c.drawImage(W.mapShot||W.mapImg,-W.half,-W.half,W.size,W.size);c.setTransform(1,0,0,1,0,0);
   const P=(x,z)=>[a*x+cc*z+e,b*x+d*z+f],dpr=Wm/132;const dot=(x,z,col,r)=>{const[p,q]=P(x,z);c.fillStyle=col;c.beginPath();c.arc(p,q,r*dpr,0,Math.PI*2);c.fill();};
   for(const en of W.enemies)if(!en.dead&&Math.hypot(en.x-player.x,en.z-player.z)<R)dot(en.x,en.z,en.T.ai==='boss'?'#ff4a6e':'#ff6a7a',en.T.ai==='boss'?4:2);
   if(buffOn('scan'))for(const p of W.pickups)if(p.active&&Math.hypot(p.x-player.x,p.z-player.z)<R)dot(p.x,p.z,'#c9a8ff',1.8);
@@ -10295,17 +10306,6 @@ function renderJournal(){const box=$('#menuBody');const act=Object.keys(G.q).fil
   if(jTab==='mem')inner=G.mem.length?G.mem.map(id=>`<div class="qe main"><span class="t">${esc(MEMS[id].title)}</span><p>${MEMS[id].text}</p></div>`).join(''):'<p class="note">Your memories will come back here as you remember them.</p>';
   box.innerHTML=tabsHtml([['quests','TASKS'],['logs',`DATA LOGS (${G.logs.length})`],['mem',`MEMORIES (${G.mem.length}/6)`]],jTab,'j')+inner;
   box.querySelectorAll('[data-j]').forEach(e=>e.onclick=()=>{jTab=e.dataset.j;sfx('click');renderJournal();});box.querySelectorAll('[data-t]').forEach(e=>e.onclick=()=>{G.track=e.dataset.t;renderTracker();renderJournal();});}
-function renderMap(){const box=$('#menuBody');const disc=W.pois.filter(p=>G.flags['poi_'+W.id+'_'+p.id]);
-  box.innerHTML=`<p class="note">${esc(W.def.name)} · ${esc(W.def.world||'')}. ${W.interior?'':'Tap a discovered landmark with a ◆ to fast travel there.'}</p><canvas id="mapCanvas" width="600" height="600"></canvas><div class="chips" style="margin-top:8px">${disc.map(p=>`<button class="chipbtn" type="button" data-poi="${p.id}">${p.ft?'◆ ':''}${esc(p.name)}</button>`).join('')||'<span class="note">Explore to discover landmarks.</span>'}</div>`;
-  const cv=$('#mapCanvas'),c=cv.getContext('2d'),S=600,k=S/W.size,P=(x,z)=>[(x+W.half)*k,(z+W.half)*k];c.imageSmoothingEnabled=true;c.drawImage(W.mapImg,0,0,S,S);
-  for(const t of W.travel){const[a,b]=P(t.x,t.z);c.fillStyle='#ffc35a';c.fillRect(a-5,b-5,10,10);c.fillStyle='#fff';c.font='bold 13px sans-serif';c.textAlign='center';c.fillText('→ '+(ZONES[t.to]?ZONES[t.to].name:''),a,b-9);}
-  for(const p of disc){const[a,b]=P(p.x,p.z);c.fillStyle=p.ft?'#6ff2d6':'#d8d2e4';c.beginPath();c.arc(a,b,p.ft?6:4,0,7);c.fill();c.fillStyle='#fff';c.font='12px sans-serif';c.textAlign='center';c.fillText(p.name,a,b+18);}
-  for(const n of W.npcs)if(!n.D.crowd&&npcMark(n.id).m){const[a,b]=P(n.x,n.z);c.fillStyle='#ffc35a';c.font='bold 16px sans-serif';c.fillText(npcMark(n.id).m,a,b);}
-  const tq=G.track?questTarget(G.track):null;if(tq){const[a,b]=P(tq.x,tq.z);c.save();c.translate(a,b);c.rotate(Math.PI/4);c.fillStyle='#ffc35a';c.strokeStyle='#1a1329';c.lineWidth=2;c.fillRect(-7,-7,14,14);c.strokeRect(-7,-7,14,14);c.restore();}
-  {const[a,b]=P(player.x,player.z);c.save();c.translate(a,b);c.rotate(-player.face+Math.PI);c.fillStyle='#fff';c.beginPath();c.moveTo(0,-10);c.lineTo(7,7);c.lineTo(0,3);c.lineTo(-7,7);c.closePath();c.fill();c.restore();}
-  box.querySelectorAll('[data-poi]').forEach(e=>e.onclick=()=>{const p=W.pois.find(q=>q.id===e.dataset.poi);if(!p||!p.ft||W.interior){toast('You can only fast travel to landmarks marked ◆.');return;}
-    if(W.enemies.some(en=>!en.dead&&en.state==='chase'&&Math.hypot(en.x-player.x,en.z-player.z)<30)){toast('You can\'t fast travel while something is hunting you.','',3000);sfx('deny');return;}
-    closePanel();$('#fade').style.opacity=1;setTimeout(()=>{const a=rf(0,6.28);placePlayer(p.x+Math.cos(a)*6,p.z+Math.sin(a)*6,a);$('#fade').style.opacity=0;sfx('warp');},450);});}
 function renderSystem(){const box=$('#menuBody');
   box.innerHTML=`<div class="cards"><div class="slotrow cur"><span class="lab">PLAYING · SLOT ${saveSlot+1}</span><b>${esc(G.look.name||'Surveyor')}, LV ${G.lvl}</b><small>Progress saves automatically every few seconds and whenever something important happens.</small>
     <div class="cb"><button class="buy" type="button" id="sSave">SAVE NOW</button><button class="buy alt" type="button" id="sQuit">SAVE AND QUIT TO TITLE</button></div></div></div>
@@ -10360,10 +10360,10 @@ function renderWorkbench(){const b=sheet();const eqs=[...['w1','w2','helmet','su
 function recycleYield(it){const d=itemDef(it),t=d.tier||1,m=1+(it.r||0)*.5+(it.up||0)*.3;const out=[['scrap',Math.round((2+t)*m)]];if(t>=2)out.push(['alloy',Math.round(t*m*.6)]);if(t>=3||it.r>=2)out.push(['wiring',Math.round((1+t*.4)*m)]);if(t>=4||it.r>=3)out.push(['powercell',Math.max(1,Math.round(m*.7))]);if(it.r>=4||t>=5)out.push(['glass',1]);return out;}
 
 /* ---------- shops ---------- */
-const SHOP_TAGS={med:['medkit','medkit','trauma','stim'],food:['ration','ration'],util:['flare','beacon','grenade','cell','shieldcharge'],mat1:['scrap','wiring','chitin','polymer'],mat3:['alloy','powercell','resin','pearl','datachip'],cold:['heatpack','insul'],heat:['coolant','heatsink']};
+const SHOP_TAGS={med:['medkit','medkit','trauma','stim'],food:['ration','ration'],util:['flare','beacon','grenade','cell','shieldcharge'],mat1:['scrap','wiring','chitin','polymer'],mat3:['alloy','powercell','resin','pearl','datachip'],chip:['datachip'],cold:['heatpack','insul'],heat:['coolant','heatsink']};
 function shopStock(id){const D=NPCS[id].vendor,V=G.vendors[id];if(V&&G.playTime-V.t<1200)return V.items;
   const items=[],lvl=Math.max(G.lvl,(ZONES[NPCS[id].zone]||{lvl:[1]}).lvl[0]);const seen=new Set();
-  for(const t of D.tags){for(const iid of SHOP_TAGS[t]||[]){if(seen.has(iid)||!itemDef(iid))continue;seen.add(iid);const k=itemKind(iid);items.push(makeItem(iid,{q:k==='mod'?1:k==='mat'?10:5}));}}
+  for(const t of D.tags){for(const iid of SHOP_TAGS[t]||[]){if(seen.has(iid)||!itemDef(iid))continue;seen.add(iid);const k=itemKind(iid);items.push(makeItem(iid,{q:iid==='datachip'?3:k==='mod'?1:k==='mat'?10:5}));}}
   const [a,b]=D.gear||[1,2],gl=()=>clamp(lvl+Math.floor(rf(-1,3)),(a-1)*5+1,b*5+2);
   if(D.tags.includes('weapon'))for(let i=0;i<4;i++){const it=rollEquipment(gl(),.6,'weapon');if(it)items.push(it);}
   if(D.tags.includes('gear')||D.tags.includes('heat')||D.tags.includes('cold'))for(let i=0;i<4;i++){const it=rollEquipment(gl(),.6,'gear');if(it)items.push(it);}
@@ -10700,6 +10700,109 @@ function introTalk(){document.documentElement.classList.add('helmetDlg');UI.dlgL
 function introPull(){UI.dlgLock=false;closeDialog();document.documentElement.classList.remove('helmetDlg');INTRO.phase='pull';INTRO.pullT=0;cam.dist=cam.prevDist||7;renderer.domElement.style.filter='';}
 function endIntro(){INTRO.on=false;INTRO.phase='';const el=$('#wake');el.hidden=true;el.style.opacity='';renderer.domElement.style.filter='';$('#hud').hidden=false;openLooks(true);updateTouchVis();}
 
+// ===== 64_map.js =====
+/* ================= MAP: a real top-down chart of each zone, and fast travel ================= */
+// Once per zone visit the zone is rendered straight down with an orthographic camera into the game canvas and copied out
+// (inside the frame, before the normal render, so nothing flickers). Sky, effects and the player are hidden, light comes
+// from overhead, and indoors a clipping plane takes the ceilings off. The full map and the HUD minimap both draw from it.
+const MAPSHOT={req:false,cb:[]};
+function requestMapShot(cb){if(cb)MAPSHOT.cb.push(cb);MAPSHOT.req=true;}
+const _mapCam=new THREE.OrthographicCamera(-1,1,1,-1,1,4000);
+function takeMapShot(){MAPSHOT.req=false;if(!W.group||!W.def){MAPSHOT.cb.length=0;return;}
+  const gl=renderer.getContext(),cw=gl.drawingBufferWidth,ch=gl.drawingBufferHeight,N=Math.min(cw,ch,1400),pr=renderer.getPixelRatio();
+  const h=W.half;Object.assign(_mapCam,{left:-h,right:h,top:h,bottom:-h});_mapCam.position.set(0,1600,0);_mapCam.up.set(0,0,-1);_mapCam.lookAt(0,0,0);_mapCam.updateProjectionMatrix();
+  // hide everything but the zone itself and the lights
+  const hid=[];for(const o of scene.children)if(o!==W.group&&!o.isLight&&o.visible){hid.push(o);o.visible=false;}
+  const chunks=W.cullChunks||[];for(const c of chunks){for(const m of c.ms)m.visible=true;c.v=undefined;}
+  // neutral overhead light, so the chart shows the ground's own colours rather than each zone's tinted sun
+  const fog=scene.fog,hi=hemi.intensity,hc=hemi.color.clone(),hg=hemi.groundColor.clone(),si=sun.intensity,scol=sun.color.clone(),sp=sun.position.clone(),st=sun.target.position.clone(),sc=sun.castShadow;
+  scene.fog=null;hemi.color.set(0xffffff);hemi.groundColor.set(0x8a8a90);sun.color.set(0xffffff);sun.position.set(60,600,120);sun.target.position.set(0,0,0);sun.target.updateMatrixWorld();sun.castShadow=false;
+  if(W.interior)renderer.clippingPlanes=[new THREE.Plane(new THREE.Vector3(0,-1,0),W.floorY+2.6)];
+  const vp=new THREE.Vector4();renderer.getViewport(vp);renderer.setRenderTarget(null);renderer.setViewport(0,0,N/pr,N/pr);renderer.setScissor(0,0,N/pr,N/pr);renderer.setScissorTest(true);
+  const cv=mkCanvas(N);cv.height=N;const cx=cv.getContext('2d');
+  // expose: render, measure the ground's brightness, and render again with the light scaled to land it mid-range
+  const shot=e=>{hemi.intensity=(W.interior?1.1:.8)*e;sun.intensity=(W.interior?.3:.6)*e;renderer.setClearColor(0x0a0812,1);renderer.clear();renderer.render(scene,_mapCam);
+    cx.clearRect(0,0,N,N);cx.drawImage(renderer.domElement,0,ch-N,N,N,0,0,N,N);};
+  let e=1;shot(e);for(let pass=0;pass<2;pass++){const m=mapMeter(cv);if(!m)break;let f=clamp(118/Math.max(8,m.mean),.3,3);if(m.clip>.04)f=Math.min(f,.7);if(Math.abs(f-1)<.12)break;e*=f;shot(e);}
+  // put everything back
+  renderer.setScissorTest(false);renderer.setViewport(vp);renderer.clippingPlanes=[];
+  for(const o of hid)o.visible=true;scene.fog=fog;if(fog)renderer.setClearColor(fog.color);hemi.intensity=hi;hemi.color.copy(hc);hemi.groundColor.copy(hg);sun.intensity=si;sun.color.copy(scol);sun.position.copy(sp);sun.target.position.copy(st);sun.target.updateMatrixWorld();sun.castShadow=sc;
+  mapLevels(cv);W.mapShot=cv;const cbs=MAPSHOT.cb.splice(0);for(const f of cbs)f();}
+// average brightness of the lit ground, and how much of it is blown out to white
+function mapMeter(cv){const N=cv.width,c=cv.getContext('2d');let d;try{d=c.getImageData(0,0,N,N).data;}catch(e){return null;}let s=0,n=0,cl=0;
+  for(let i=0;i<d.length;i+=4*37){const l=(d[i]*2+d[i+1]*5+d[i+2])>>3;if(d[i]+d[i+1]+d[i+2]<9)continue;s+=l;n++;if(Math.max(d[i],d[i+1],d[i+2])>247)cl++;}return n?{mean:s/n,clip:cl/n}:null;}
+// a gentle final stretch of each chart's brightness range
+function mapLevels(cv){const c=cv.getContext('2d'),N=cv.width;let D;try{D=c.getImageData(0,0,N,N);}catch(e){return;}const d=D.data,H=new Uint32Array(256);
+  for(let i=0;i<d.length;i+=16){const l=(d[i]*2+d[i+1]*5+d[i+2])>>3;if(l>2)H[l]++;}let tot=0;for(const v of H)tot+=v;if(!tot)return;
+  const pct=q=>{let a=0;for(let i=0;i<256;i++){a+=H[i];if(a>=tot*q)return i;}return 255;};const lo=pct(.02),hi=Math.max(lo+40,pct(.99));
+  const oLo=Math.min(lo,14),oHi=Math.max(hi,215),k=(oHi-oLo)/(hi-lo);if(Math.abs(k-1)<.05)return;
+  for(let i=0;i<d.length;i+=4){if(d[i]+d[i+1]+d[i+2]<6)continue;for(let j=0;j<3;j++)d[i+j]=Math.max(0,Math.min(255,(d[i+j]-lo)*k+oLo));}
+  c.putImageData(D,0,0);}
+
+/* ---------- fast travel ---------- */
+// every place marked ◆ that you've found, in every region and world you've been to, plus each visited region's town
+const FT_TOWNS={twilight:['meridian','Meridian Station',0,0],dayward:['kiln','Kiln Hollow',0,180],nightward:['harbor','Cold Harbor',30,-190],anchorage:['promenade','The Promenade',0,22],calder:['reedwater','Reedwater',0,10],ashfall:['shelter','Choir Shelter',-60,-200]};
+const FT_ORDER=['twilight','dayward','nightward','anchorage','calder','ashfall'];
+const worldOf=id=>['twilight','dayward','nightward'].includes(id)?'twilight':id;// Ossery b's three regions are one world, its landing pad at Meridian
+function ftRecord(zone,p){if(!p.ft||String(p.id).startsWith('ship_'))return;G.ft=G.ft||{};(G.ft[zone]=G.ft[zone]||{})[p.id]={n:p.name,x:p.x,z:p.z};}
+function ftSync(){if(!W.def)return;for(const p of W.pois)if(G.flags['poi_'+W.id+'_'+p.id])ftRecord(W.id,p);}
+function ftList(){const out=[];for(const z of FT_ORDER){if(!G.visited[z]||!ZONES[z])continue;const pts=Object.assign({},G.ft&&G.ft[z]),t=FT_TOWNS[z];
+    if(t&&!pts[t[0]])pts[t[0]]={n:t[1],x:t[2],z:t[3]};const L=Object.entries(pts).map(([id,v])=>({id,...v}));if(t)L.sort((a,b)=>(b.id===t[0])-(a.id===t[0]));out.push({zone:z,pts:L});}return out;}
+function ftBlocked(){if(W.enemies.some(en=>!en.dead&&en.state==='chase'&&Math.hypot(en.x-player.x,en.z-player.z)<30))return 'You can\'t fast travel while something is hunting you.';
+  if(INTRO.on)return 'Not yet.';return '';}
+async function fastTravel(zone,id){const why=ftBlocked();if(why){toast(why,'',3000);sfx('deny');return;}
+  const pt=(ftList().find(g=>g.zone===zone)||{pts:[]}).pts.find(p=>p.id===id);if(!pt)return;closePanel();sfx('warp');
+  const land=()=>{const a=rf(0,6.28);placePlayer(pt.x+Math.cos(a)*6,pt.z+Math.sin(a)*6,a);cam.yaw=wrapA(a+Math.PI);};
+  if(zone===W.id){$('#fade').style.opacity=1;setTimeout(()=>{land();$('#fade').style.opacity=0;},450);return;}
+  // another world: the Vesper carries you, and stays parked where you land
+  const flight=worldOf(zone)!==worldOf(W.id==='vesper'?(G.shipAt||'twilight'):W.id);if(flight&&G.flags.vesperFixed)G.shipAt=worldOf(zone);
+  await enterZone(zone,null,{kicker:flight?'THE VESPER · FAST TRAVEL':'FAST TRAVEL',text:pt.n});land();saveSoon();
+  if(flight)vesta('Course plotted and flown. The Vesper is parked at '+esc(ZONES[worldOf(zone)].name)+' whenever you need her.',5000);}
+
+/* ---------- drawing the map ---------- */
+function pill(c,x,y,text,o={}){c.font=`${o.bold?'600 ':''}${o.size||22}px "Rajdhani","Barlow",Arial,sans-serif`;const w=c.measureText(text).width+20,h=(o.size||22)+10;
+  c.fillStyle=o.bg||'rgba(8,10,18,.78)';c.strokeStyle=o.line||'rgba(111,242,214,.45)';c.lineWidth=1.5;const rx=x-w/2,ry=y-h/2,r=h/2;
+  c.beginPath();c.moveTo(rx+r,ry);c.arcTo(rx+w,ry,rx+w,ry+h,r);c.arcTo(rx+w,ry+h,rx,ry+h,r);c.arcTo(rx,ry+h,rx,ry,r);c.arcTo(rx,ry,rx+w,ry,r);c.closePath();c.fill();c.stroke();
+  c.fillStyle=o.col||'#eafffb';c.textAlign='center';c.textBaseline='middle';c.fillText(text,x,y+1);}
+function drawZoneMap(cv){const c=cv.getContext('2d'),S=cv.width,k=S/W.size,P=(x,z)=>[(x+W.half)*k,(z+W.half)*k];
+  c.fillStyle='#0a0812';c.fillRect(0,0,S,S);
+  if(W.mapShot){c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(W.mapShot,0,0,S,S);}else if(W.mapImg){c.drawImage(W.mapImg,0,0,S,S);}
+  // a light chart grade: cool tint, grid every 50 m, darkened edge
+  c.fillStyle='rgba(20,40,60,.12)';c.fillRect(0,0,S,S);
+  c.strokeStyle='rgba(143,255,240,.10)';c.lineWidth=1;const step=50*k;for(let v=((W.half%50)*k);v<S;v+=step){c.beginPath();c.moveTo(v,0);c.lineTo(v,S);c.stroke();c.beginPath();c.moveTo(0,v);c.lineTo(S,v);c.stroke();}
+  const vg=c.createRadialGradient(S/2,S/2,S*.35,S/2,S/2,S*.72);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(4,2,10,.55)');c.fillStyle=vg;c.fillRect(0,0,S,S);
+  // exits to other regions
+  for(const t of W.travel){const[a,b]=P(t.x,t.z),cx=clamp(a,60,S-60),cy=clamp(b,30,S-30);c.save();c.translate(a,b);c.rotate(Math.atan2(b-S/2,a-S/2));c.fillStyle='#ffc35a';c.shadowColor='#ffc35a';c.shadowBlur=12;
+      c.beginPath();c.moveTo(14,0);c.lineTo(-8,-11);c.lineTo(-3,0);c.lineTo(-8,11);c.closePath();c.fill();c.restore();
+    pill(c,cx,cy+(cy<S/2?30:-30),'→ '+(ZONES[t.to]?ZONES[t.to].name:''),{col:'#ffd98a',line:'rgba(255,195,90,.6)',size:19});}
+  // landmarks you've found
+  const disc=W.pois.filter(p=>G.flags['poi_'+W.id+'_'+p.id]);
+  for(const p of disc){const[a,b]=P(p.x,p.z),town=p.icon==='town';c.save();c.translate(a,b);c.shadowColor=p.ft?'#6ff2d6':'#ffffff';c.shadowBlur=14;
+    if(p.ft){c.rotate(Math.PI/4);c.fillStyle='#6ff2d6';const s=town?13:9;c.fillRect(-s,-s,s*2,s*2);c.strokeStyle='#05302a';c.lineWidth=3;c.strokeRect(-s,-s,s*2,s*2);}
+    else{c.fillStyle='#e8e2f4';c.beginPath();c.arc(0,0,7,0,7);c.fill();c.strokeStyle='#1a1329';c.lineWidth=3;c.stroke();}
+    c.restore();pill(c,a,b+(town?38:30),p.name,{bold:town,size:town?24:19,col:p.ft?'#c8fff6':'#f0ecf8',line:p.ft?'rgba(111,242,214,.55)':'rgba(220,210,240,.35)'});}
+  // people with work for you
+  c.textAlign='center';c.textBaseline='middle';for(const n of W.npcs)if(!n.D.crowd&&npcMark(n.id).m){const[a,b]=P(n.x,n.z);c.font='bold 30px sans-serif';c.lineWidth=5;c.strokeStyle='#120c1e';c.strokeText(npcMark(n.id).m,a,b);c.fillStyle='#ffc35a';c.fillText(npcMark(n.id).m,a,b);}
+  // tracked task
+  const tq=G.track?questTarget(G.track):null;if(tq&&(!tq.zone||tq.zone===W.id)){const[a,b]=P(tq.x,tq.z);c.save();c.translate(a,b);c.rotate(Math.PI/4);c.shadowColor='#ffc35a';c.shadowBlur=18;c.fillStyle='#ffc35a';c.strokeStyle='#1a1329';c.lineWidth=3;c.fillRect(-11,-11,22,22);c.strokeRect(-11,-11,22,22);c.restore();}
+  // you
+  {const[a,b]=P(player.x,player.z);c.save();c.translate(a,b);const g=c.createRadialGradient(0,0,0,0,0,34);g.addColorStop(0,'rgba(143,255,240,.45)');g.addColorStop(1,'rgba(143,255,240,0)');c.fillStyle=g;c.beginPath();c.arc(0,0,34,0,7);c.fill();
+    c.rotate(-player.face+Math.PI);c.fillStyle='#ffffff';c.strokeStyle='#0a2a28';c.lineWidth=3;c.beginPath();c.moveTo(0,-17);c.lineTo(12,12);c.lineTo(0,5);c.lineTo(-12,12);c.closePath();c.fill();c.stroke();c.restore();}
+  // compass and scale
+  {c.save();c.translate(S-46,46);c.fillStyle='rgba(8,10,18,.7)';c.strokeStyle='rgba(111,242,214,.5)';c.lineWidth=1.5;c.beginPath();c.arc(0,0,30,0,7);c.fill();c.stroke();
+    c.fillStyle='#ff8a6a';c.beginPath();c.moveTo(0,-22);c.lineTo(7,0);c.lineTo(-7,0);c.closePath();c.fill();c.fillStyle='#d8e8f0';c.beginPath();c.moveTo(0,22);c.lineTo(7,0);c.lineTo(-7,0);c.closePath();c.fill();
+    c.font='600 15px sans-serif';c.fillStyle='#fff';c.textAlign='center';c.fillText('N',0,-36+4);c.restore();}
+  {const m=W.size>300?100:W.size>120?50:20,len=m*k;c.fillStyle='rgba(8,10,18,.7)';c.fillRect(20,S-50,len+70,32);c.fillStyle='#c8fff6';c.fillRect(30,S-30,len,4);c.fillRect(30,S-38,2,12);c.fillRect(30+len-2,S-38,2,12);
+    c.font='600 16px sans-serif';c.textAlign='left';c.textBaseline='middle';c.fillText(m+' m',38+len,S-30);}
+  c.strokeStyle='rgba(111,242,214,.35)';c.lineWidth=2;c.strokeRect(1,1,S-2,S-2);}
+function renderMap(){ftSync();const box=$('#menuBody');const L=ftList(),here=W.id;
+  const groups=L.map(g=>`<div class="ftg${g.zone===here?' here':''}"><div class="ftz"><b>${esc(ZONES[g.zone].name)}</b><small>${esc(ZONES[g.zone].world||'')}${g.zone===here?' · YOU ARE HERE':''}</small></div>${g.pts.map(p=>`<button class="ftb" type="button" data-ft="${g.zone}|${esc(p.id)}"><span class="fd">◆</span>${esc(p.n)}</button>`).join('')}</div>`).join('');
+  box.innerHTML=`<div class="mapwrap"><div class="mapc"><canvas id="mapCanvas" width="1024" height="1024"></canvas>
+      <p class="note">${esc(W.def.name)} · ${esc(W.def.world||'')}${W.mapShot?'':' · charting…'} <span class="mkey"><i class="k1"></i> fast travel <i class="k2"></i> landmark <i class="k3"></i> your task</span></p></div>
+    <div class="ftl"><h3>Fast travel</h3><p class="note">Every ◆ you've found, in every region you've visited. Other worlds are a short Vesper flight.</p>${groups||'<p class="note">Explore to find places marked ◆.</p>'}</div></div>`;
+  const cv=$('#mapCanvas');drawZoneMap(cv);if(!W.mapShot)requestMapShot(()=>{if(UI.holo&&UI.tab==='map'&&$('#mapCanvas'))renderMap();});
+  box.querySelectorAll('[data-ft]').forEach(e=>e.onclick=()=>{const [z,id]=e.dataset.ft.split('|');fastTravel(z,id);});}
+
 // ===== 70_input.js =====
 /* ================= INPUT: keyboard, mouse, touch, controller ================= */
 const keys=new Set();
@@ -10979,7 +11082,7 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
     // travel triggers and discovery
     for(const t of W.travel){const d=Math.hypot(player.x-t.x,player.z-t.z);if(d>t.r*1.6){travelArmed.add(t);continue;}if(!t.auto||d>t.r||!travelArmed.has(t)||busy)continue;travelArmed.delete(t);
       if(t.ok())enterZone(t.to,t.entry);else{say(t.label,'',t.locked||'You can\'t go that way yet.',[bye('Okay.')]);const a=Math.atan2(player.x-t.x,player.z-t.z);placePlayer(t.x+Math.sin(a)*(t.r*1.8),t.z+Math.cos(a)*(t.r*1.8),a);}}
-    for(const p of W.pois){const key='poi_'+W.id+'_'+p.id;if(G.flags[key])continue;if(Math.hypot(player.x-p.x,player.z-p.z)<p.r){G.flags[key]=true;G.stats.discovered++;gainXP(20);toast('Discovered: '+esc(p.name)+(p.ft?' · fast travel point':''),'teal');sfx('scan');saveSoon();}}
+    for(const p of W.pois){const key='poi_'+W.id+'_'+p.id;if(G.flags[key])continue;if(Math.hypot(player.x-p.x,player.z-p.z)<p.r){G.flags[key]=true;ftRecord(W.id,p);G.stats.discovered++;gainXP(20);toast('Discovered: '+esc(p.name)+(p.ft?' · fast travel point':''),'teal');sfx('scan');saveSoon();}}
   }
   // avatar
   if(avatar){avatar.root.position.set(player.x,player.y,player.z);avatar.root.rotation.y=player.face;avatar.root.visible=!(cam.fp&&!UI.custom);
@@ -11026,7 +11129,7 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
 
 /* ---------- boot ---------- */
 const clock=new THREE.Clock();
-function frame(){const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);drsTick(raw);try{update(dt);if(INTRO.on)introTick(dt);updateHUD(dt);}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
+function frame(){const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);drsTick(raw);try{update(dt);if(INTRO.on)introTick(dt);updateHUD(dt);if(MAPSHOT.req)takeMapShot();}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
 addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);resizePost();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();sizeMap();FX.resize&&FX.resize();if(UI.custom)setLookView();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow();});
 addEventListener('pagehide',saveNow);
