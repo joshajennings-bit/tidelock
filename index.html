@@ -6440,7 +6440,8 @@ class Animator{
       this.walkRef=1.5;this.runRef=4.6;}
     // the head's rest orientation in the character's frame, used to keep it facing forward while moving
     if(set!=='robot'&&this.B.Head){model.updateMatrixWorld(true);const mi=model.getWorldQuaternion(new THREE.Quaternion()).invert();
-      this.rest={};for(const k of['Hips','Torso','Chest','Neck','Head'])if(this.B[k])this.rest[k]=mi.clone().multiply(this.B[k].getWorldQuaternion(new THREE.Quaternion()));this.headRest=this.rest.Head;}
+      if(!this.B.Body&&this.B.UpperLegL&&this.B.UpperLegL.parent.isBone)this.B.Body=this.B.UpperLegL.parent;
+      this.rest={};for(const k of['Body','Hips','Torso','Chest','Neck','Head'])if(this.B[k])this.rest[k]=mi.clone().multiply(this.B[k].getWorldQuaternion(new THREE.Quaternion()));this.headRest=this.rest.Head;}
     this.one=null;this.touched=new Map();this.mixer.update(Math.random()*2);}
   oneShot(k){const a=this.a[k];if(!a||this.dead)return false;if(this.one&&this.one!==a)this.one.fadeOut(.15);a.reset();a.setEffectiveWeight(1);a.fadeIn(.18);a.play();this.one=a;this.oneT=a.getClip().duration/Math.max(.01,a.timeScale||1);return true;}
   die(){const a=this.a.death;this.dead=true;this.one=null;if(!a)return;for(const k in this.a)if(this.a[k]!==a){this.a[k].stopFading();this.a[k].setEffectiveWeight(0);}a.reset();a.setEffectiveWeight(1);a.play();}
@@ -6467,10 +6468,11 @@ function boneYR(an,k){const b=an.B[k],R=an.rest[k];if(!b||!R)return null;const m
 function setYR(an,k,f){const b=an.B[k],R=an.rest[k];if(!b||!R)return;const mi=an.m.getWorldQuaternion(_sh1).invert(),q=b.getWorldQuaternion(_sh2).premultiply(mi);
   const d=_sh3.copy(R).invert().premultiply(q);_she.setFromQuaternion(d,'YXZ');const r=f(_she.y,_she.z);_she.y=r[0];_she.z=r[1];d.setFromEuler(_she);q.copy(d).multiply(R);
   const pq=b.parent.getWorldQuaternion(new THREE.Quaternion()).premultiply(mi);b.quaternion.copy(pq.invert().multiply(q));b.updateMatrixWorld(true);}
-// The walk and run clips turn the hips about 27 degrees to one side and twist the spine back the other way. Face the hips along the
-// path, give the spine its own original facing back with a lighter swing, and keep the head level.
-function steadyUpper(an,w,dt){const al=1-Math.exp(-dt*4);an.m.updateMatrixWorld(true);const t0=boneYR(an,'Torso'),c0=boneYR(an,'Chest');
-  setYR(an,'Hips',(y,z)=>[y*(1-w),z]);
+// The legs hang from the Body bone, the spine from Hips. The walk and run clips square the legs up but leave Hips turned about
+// 27 degrees away from them, which a body whose thighs hang from its pelvis shows as a hip and torso turned off the path.
+// Turn Hips to face where the legs face, give the spine its own original facing back with a lighter swing, and keep the head level.
+function steadyUpper(an,w,dt){const al=1-Math.exp(-dt*4);an.m.updateMatrixWorld(true);const t0=boneYR(an,'Torso'),c0=boneYR(an,'Chest'),b0=boneYR(an,'Body');
+  setYR(an,'Hips',(y,z)=>[y+((b0?b0.y:0)-y)*w,z]);
   // the clips' spine also leans to one side on average: track that average and swing evenly around straight ahead instead
   if(t0){an.tMean=an.tMean===undefined?t0.y:an.tMean+(t0.y-an.tMean)*al;setYR(an,'Torso',()=>[t0.y-an.tMean*w-(t0.y-an.tMean)*.6*w,t0.z*(1-.4*w)]);}
   if(c0){an.cMean=an.cMean===undefined?c0.y:an.cMean+(c0.y-an.cMean)*al;setYR(an,'Chest',()=>[c0.y-an.cMean*w-(c0.y-an.cMean)*.6*w,c0.z*(1-.4*w)]);}
