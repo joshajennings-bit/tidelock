@@ -278,6 +278,37 @@ html.talking #hud #vitals,html.talking #hud #tracker,html.talking #hud #mapwrap,
 #osk .ok{flex:1;max-width:62px;height:44px;border:1px solid rgba(111,242,214,.3);border-radius:5px;background:rgba(10,40,48,.5);color:#e6fffb;font-family:var(--f-display);font-size:14px}
 #osk .ok.w2{max-width:150px;flex:2;font-size:11px;letter-spacing:.08em}#osk .ok.w4{max-width:300px;flex:4;font-size:11px;letter-spacing:.12em}#osk .ok.on{background:rgba(111,242,214,.3)}#osk .ok.done{border-color:#8ffff0;color:#8ffff0}
 #osk .ok.psel,#osk .ok:hover{background:rgba(111,242,214,.35);border-color:#bffff6;box-shadow:0 0 12px rgba(111,242,214,.5);outline:none}
+#cpk{position:fixed;inset:0;z-index:31;display:grid;place-items:end center;padding:0 12px calc(var(--sb) + 4vh);background:rgba(4,3,10,.35)}
+#cpk .cpp{width:min(620px,100%);display:grid;gap:10px;padding:16px;border:1px solid rgba(111,242,214,.5);border-radius:10px;background:linear-gradient(180deg,rgba(18,70,78,.7),rgba(10,40,52,.85));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 0 40px rgba(111,242,214,.2);animation:dlgIn .3s cubic-bezier(.2,.8,.2,1)}
+#cpk .cph{display:flex;align-items:center;gap:12px}#cpk .cpt{flex:1;font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:#8ffff0;text-transform:uppercase}
+#cpk .cpv{width:64px;height:40px;border-radius:6px;border:2px solid rgba(255,255,255,.7);box-shadow:0 0 16px rgba(0,0,0,.5)}#cpk .cpx{font-family:var(--f-mono);font-size:13px;color:#e6fffb;min-width:70px}
+#cpk .cpr{display:grid;grid-template-columns:96px 40px 1fr 40px 46px;align-items:center;gap:8px;padding:6px 8px;border:1px solid transparent;border-radius:6px}
+#cpk .cpr.on{border-color:#8ffff0;background:rgba(111,242,214,.12);box-shadow:0 0 12px rgba(111,242,214,.3)}
+#cpk .cpl{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;color:var(--dim)}#cpk .cpn{font-family:var(--f-mono);font-size:11px;color:#e6fffb;text-align:right}
+#cpk .cpa{height:36px;border:1px solid rgba(111,242,214,.35);border-radius:5px;background:rgba(10,40,48,.6);color:#e6fffb;font-size:13px}
+#cpk .cpb{position:relative;height:26px;border-radius:13px;border:1px solid rgba(255,255,255,.35);touch-action:none;cursor:pointer}
+#cpk .cpm{position:absolute;top:-4px;width:12px;height:32px;margin-left:-6px;border-radius:4px;border:2px solid #fff;background:rgba(0,0,0,.25);box-shadow:0 0 8px rgba(0,0,0,.7);pointer-events:none}
+#cpk .cpbtns{display:flex;gap:8px;justify-content:flex-end}#cpk .ok{height:44px;padding:0 18px;border:1px solid rgba(111,242,214,.35);border-radius:5px;background:rgba(10,40,48,.5);color:#e6fffb;font-family:var(--f-display);font-size:12px;letter-spacing:.08em}
+#cpk .ok.done{border-color:#8ffff0;color:#8ffff0}#cpk .ok.psel,#cpk .ok:hover{background:rgba(111,242,214,.35);border-color:#bffff6;box-shadow:0 0 12px rgba(111,242,214,.5);outline:none}
+#cpk .ohint{font-family:var(--f-mono);font-size:10px;color:rgba(200,240,234,.7);text-align:center;letter-spacing:.05em}
+#wake{position:fixed;inset:0;z-index:14;pointer-events:auto;overflow:hidden}
+#wake .wvig{position:absolute;inset:0;background:radial-gradient(ellipse 70% 65% at 50% 50%,transparent 40%,rgba(60,4,4,.55) 80%,rgba(20,0,0,.9));pointer-events:none}
+#wake .wvisor{position:absolute;inset:-2%;pointer-events:none;background:radial-gradient(ellipse 78% 74% at 50% 52%,transparent 66%,rgba(4,12,16,.55) 84%,rgba(0,4,6,.96) 100%);box-shadow:inset 0 0 120px rgba(111,242,214,.08)}
+#wake .wcrack{position:absolute;right:0;top:0;width:46vw;height:46vh;pointer-events:none;opacity:.35}#wake .wcrack path{fill:none;stroke:#dff;stroke-width:1.1;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 2px #fff)}
+#wake .whud{position:absolute;top:9vh;display:grid;gap:4px;font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;color:#8ffff0;text-shadow:0 0 8px rgba(111,242,214,.7);opacity:0;transition:opacity .6s}
+#wake .whud.tl{left:9vw}#wake .whud.tr{right:9vw;text-align:right}#wake .whud b{font-weight:400;color:#c8fff6;letter-spacing:.24em}
+#wake .whud span{opacity:0;transform:translateX(-6px);transition:opacity .3s,transform .3s}#wake .whud span.on{opacity:.9;transform:none;animation:holoFlick 3s infinite}
+#wake .whud em{font-style:normal}#wake .whud .warn{color:#ffb35a;text-shadow:0 0 8px rgba(255,160,60,.8)}
+#wake.hudon .whud{opacity:1}
+#wake .wlink{position:absolute;left:50%;top:7vh;translate:-50% 0;display:flex;gap:8px;align-items:center;font-family:var(--f-mono);font-size:11px;letter-spacing:.2em;color:#8ffff0;opacity:0;transition:opacity .6s}
+#wake.hudon .wlink{opacity:.85}#wake .wlink .dot{width:7px;height:7px;border-radius:50%;background:#ffb35a;box-shadow:0 0 8px #ffb35a;animation:txDot .6s steps(2) infinite}
+#wake.linked .wlink .dot{background:#6ff2d6;box-shadow:0 0 8px #6ff2d6;animation:none}
+#wake .wlid{position:absolute;left:-15%;right:-15%;height:58%;background:#000;filter:blur(18px);pointer-events:none;will-change:transform}
+#wake .wlid.top{top:-6%;border-radius:0 0 50% 50%/0 0 40% 40%}#wake .wlid.bot{bottom:-6%;border-radius:50% 50% 0 0/40% 40% 0 0}
+#wake .wskip{position:absolute;right:4vw;bottom:4vh;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;color:rgba(200,240,234,.55)}
+/* VESTA in the helmet: the conversation is projected across the visor */
+.helmetDlg #dialog{left:50%;right:auto;top:auto;bottom:11vh;translate:-50% 0;width:min(960px,82vw);padding:22px 30px 16px;background:linear-gradient(180deg,rgba(111,242,214,.05),rgba(111,242,214,.1));border-color:rgba(111,242,214,.2);box-shadow:0 0 50px rgba(111,242,214,.12);-webkit-backdrop-filter:none;backdrop-filter:none}
+.helmetDlg #dText{font-size:clamp(17px,2.3vw,24px);max-height:36vh}.helmetDlg #dName{font-size:20px}.helmetDlg .opt{font-size:17px}.helmetDlg #dialog .hbeam{display:none}
 #osk .ohint{font-family:var(--f-mono);font-size:10px;color:rgba(200,240,234,.7);text-align:center;letter-spacing:.05em}
 /* ---- pack ---- */
 .pk{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(0,1.6fr);gap:18px;align-items:start}
@@ -6890,7 +6921,7 @@ const RAR=[{id:'common',name:'Common',mult:1,slots:0,w:60,col:0xd8d2e4},{id:'unc
 const CLS={sidearm:'Sidearm',rifle:'Rifle',scatter:'Scattergun',beam:'Beam',launcher:'Launcher',melee:'Melee'};
 // weapons: dmg per hit, rate per second, energy per shot (per second for beams), range in meters, speed of projectile
 const WEAPONS={
-  vs9:{name:'VS-9 Survival Pistol',cls:'sidearm',model:'survival',tier:1,dmg:12,rate:3,energy:6,range:30,speed:62,spread:.02,col:0x6ff2d6,desc:'Emergency sidearm from the Vesper\'s survival locker. Reliable and forgiving.'},
+  vs9:{name:'VS-9 Survival Pistol',cls:'sidearm',model:'survival',tier:1,dmg:12,rate:3,energy:6,range:30,speed:62,spread:.02,col:0x6ff2d6,desc:'Emergency sidearm from the Vesper\'s survival case. Reliable and forgiving.'},
   service:{name:'Halcyon Service Sidearm',cls:'sidearm',model:'service',tier:2,dmg:15,rate:3.2,energy:6,range:32,speed:66,spread:.018,col:0x8fd8ff,desc:'Standard issue for Halcyon Lines crews. Clean lines, clean shots.'},
   hammer:{name:'Kiln Hammer',cls:'sidearm',model:'hammer',tier:2,dmg:28,rate:1.5,energy:11,range:30,speed:58,spread:.012,col:0xffa94a,knock:1.4,desc:'A mining-camp revolver that throws overcharged slugs. Slow, heavy, satisfying.'},
   needler:{name:'Choir Needler',cls:'sidearm',model:'needler',tier:3,dmg:9,rate:7,energy:3,range:28,speed:80,spread:.04,col:0xc58cff,shock:.12,desc:'Fires crystal needles that sometimes jolt targets with stored charge.'},
@@ -8161,6 +8192,27 @@ PF.spire=(ctx,x,z,h=22)=>{const y=groundY(x,z),g=grp(ctx,x,y,z,0),P=ctx.P;
   glowAt(ctx,g,0,h+2.6,0,0x8fffe0,8,.5);addCol(x,z,2.6);
   const S={g,tip,rings,beam,lit:0};ctx.anim(dt=>{const t=performance.now()/1000;tip.rotation.y=t*.6;rings.forEach((r,i)=>{r.rotation.z=t*(.2+i*.12)*(i%2?-1:1);r.material.emissiveIntensity=lerp(r.material.emissiveIntensity,S.lit?1.4:.1+Math.max(0,Math.sin(t*.56))*.35,dt*2);});beam.material.opacity=lerp(beam.material.opacity,S.lit*.32,dt);});return S;};
 
+/* ---------- the Vesper's survival case, thrown clear in the crash ---------- */
+// A battered hard case half dug into the ground at an angle: dented shell, hazard bands, a scorched patch around it and a
+// blinking beacon. Its lid hangs ajar and swings open once looted (isOpen tells it when).
+PF.survivalCase=(ctx,x,z,ry,isOpen)=>{const P=ctx.P,y=groundY(x,z),g=grp(ctx,x,y,z,ry);const tilt=new THREE.Group();tilt.position.y=-.12;tilt.rotation.set(.16,0,-.11);g.add(tilt);
+  const shell=std(TEX.lander,{color:0xc8a070,metalness:.4,roughness:.8}),dark=MAT.hullDark;
+  P.add(tilt,shell,RB(1.3,.5,.72,.08,2),0,.25,0);P.add(tilt,dark,RB(1.36,.07,.78,.03,1),0,.5,0);
+  for(const sx of[-.5,.5])P.add(tilt,MAT.hazard,RB(.14,.52,.74,.02,1),sx,.25,0);
+  P.add(tilt,dark,RB(.34,.06,.05,.02,1),0,.3,.38);for(const sx of[-.3,.3])P.add(tilt,MAT.metal,RB(.1,.12,.05,.02,1),sx,.42,.38);
+  // dents and a torn corner
+  P.add(tilt,dark,RB(.32,.22,.1,.05,1),-.48,.22,.33,.2,.3,.15);P.add(tilt,MAT.metal,RB(.2,.06,.3,.02,1),.62,.12,-.28,.4,.5,.6);
+  // scorch and spilled debris
+  P.add(g,new THREE.MeshBasicMaterial({color:0x080604,transparent:true,opacity:.6,depthWrite:false}),new THREE.CircleGeometry(1.6,24),0,.04,0,-Math.PI/2,0,0,1,.75,1);
+  for(const [dx,dz,r] of[[1.1,.5,.4],[-.9,.8,1.3],[.4,-1,2.2],[-1.2,-.5,.7]])P.add(g,dark,RB(.22,.04,.14,.01,1),dx,.05,dz,.1,r,.2);
+  P.add(g,MAT.crateRed,RB(.26,.14,.18,.03,1),.95,.08,-.55,0,.7,.3);
+  // the lid on its hinge, ajar until opened
+  const hinge=new THREE.Group();hinge.position.set(0,.52,-.36);tilt.add(hinge);const lid=new THREE.Mesh(RB(1.3,.1,.72,.05,2),shell);lid.position.set(0,.04,.36);lid.castShadow=true;hinge.add(lid);
+  const band=new THREE.Mesh(RB(.6,.02,.3,.01,1),MAT.hazard);band.position.set(0,.1,.36);hinge.add(band);hinge.rotation.set(-.22,0,.06);
+  const bl=glowAt(ctx,tilt,.52,.62,.3,0xff8a3a,.5,.9);const lamp=new THREE.Mesh(sph(.04,8,6),MAT.amberGlow);lamp.position.set(.52,.54,.3);tilt.add(lamp);
+  ctx.anim(dt=>{const o=isOpen();const want=o?-1.9:-.22;hinge.rotation.x+=(want-hinge.rotation.x)*Math.min(1,dt*5);bl.visible=lamp.visible=!o&&Math.sin(performance.now()*.006)>0;});
+  addCol(x,z,.8);return g;};
+
 /* ---------- the Vesper (crashed or repaired) ---------- */
 PF.vesper=(ctx,x,z,th,o={})=>{if(MODELS.sabre)return sabreShip(ctx,x,z,th,o);const crashed=!!o.crashed;const SH={x,z},fwd={x:Math.sin(th),z:Math.cos(th)},rgt={x:Math.cos(th),z:-Math.sin(th)};
   const Wp=(lx,lz)=>({x:SH.x+rgt.x*lx+fwd.x*lz,z:SH.z+rgt.z*lx+fwd.z*lz});
@@ -8227,7 +8279,7 @@ function sabreShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.sabre;if(
   // the hull's collision follows the fuselage and the wing roots
   for(const lz of[-6,-3,0,3,6]){const q=Wp(0,lz);addCol(q.x,q.z,lz>5?1.5:2.3);}for(const sg of[-1,1]){const q=Wp(sg*W2*.3,-2.5);addCol(q.x,q.z,1.6);}
   const warm=new THREE.MeshStandardMaterial({color:0x2a1806,emissive:0xffa040,emissiveIntensity:.85,roughness:.5}),eng=new THREE.MeshStandardMaterial({color:0x101820,emissive:0x5ab8ff,emissiveIntensity:crashed?.5:1.2,roughness:.3});
-  const beacon=glowAt(ctx,body,0,sz.y*k+.3,-1,0xff3a3a,1.6,.8);for(const sg of[-1,1]){const n=new THREE.Mesh(sph(.12,10,8),eng);n.position.set(sg*W2*.18,sz.y*k*.42,-L/2+.4);body.add(n);}
+  const beacon=glowAt(ctx,body,0,sz.y*k+.3,-1,0xff3a3a,1.6,.8);
   const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:Wp(-W2*.28-1.2,-1.5),g};
   if(crashed){// nose down and rolled, sunk into the ground
     body.rotation.set(.085,0,.15);body.position.y=-1.75;g.updateMatrixWorld(true);
@@ -8852,7 +8904,7 @@ function revealWords(el,html){el.innerHTML=html;el.classList.remove('done');let 
 // a press while most of the text is still appearing just shows it all; late in the reveal it chooses straight away
 function dialogRevealing(){const el=$('#dText');if(el.classList.contains('done'))return false;el.classList.add('done');return performance.now()-revealWords.t0<revealWords.dur*.6;}
 // while talking, the scene shifts so the speaker stands left of centre, beside the transmission panel (wide screens only)
-function dlgView(on){const wide=innerWidth>760&&innerWidth>innerHeight;if(on&&wide&&!UI.custom){camera.setViewOffset(innerWidth,innerHeight,innerWidth*.14,0,innerWidth,innerHeight);UI.dlgView=true;}
+function dlgView(on){const wide=innerWidth>760&&innerWidth>innerHeight;if(on&&wide&&!UI.custom&&!INTRO.on){camera.setViewOffset(innerWidth,innerHeight,innerWidth*.14,0,innerWidth,innerHeight);UI.dlgView=true;}
   else if(UI.dlgView){UI.dlgView=false;if(!UI.custom)camera.clearViewOffset();}}
 function say(name,role,text,opts){dlgGen++;UI.dialog=true;const D=$('#dialog');D.hidden=false;D.style.animation='none';void D.offsetWidth;D.style.animation='';document.documentElement.classList.add('talking');
   $('#dTxT').textContent=(opts.some(o=>o.main)?'PRIORITY TRANSMISSION':'INCOMING TRANSMISSION')+' · CH '+String(10+(name.length*7)%89).padStart(2,'0');dlgView(true);
@@ -9010,7 +9062,7 @@ function showMemory(id,after){remember(id);say('Memory','FRAGMENT · '+MEMS[id].
 
 /* ---- Act I: Ossery b ---- */
 Q({id:'m01_wake',type:'main',act:1,title:'Crash Site',zone:'twilight',summary:'You woke in the wreck of the Vesper with no memory. VESTA, your suit assistant, picked up a colony beacon dayward of the crash: a settlement called Meridian.',
-  stages:[{text:'Salvage the survival locker in the wreck',obj:[{k:'use',id:'survival_locker',label:'Open the Vesper\'s survival locker',zone:'twilight',x:-55,z:146}]},
+  stages:[{text:'Salvage the survival case thrown from the wreck',obj:[{k:'use',id:'survival_locker',label:'Open the Vesper\'s survival case',zone:'twilight',x:-55,z:146}]},
     {text:'Head for the Meridian beacon',obj:[{k:'go',zone:'twilight',x:-30,z:84,r:20,label:'Cross the crevasse toward Meridian'}]},
     {text:'Reach Meridian Station',obj:[{k:'go',zone:'twilight',x:0,z:30,r:14,label:'Reach Meridian Station'}]}],
   reward:{xp:120}});
@@ -9492,7 +9544,7 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
     /* ---- crash site ---- */
     ctx.poi('crash',-60,150,'Crash Site',{r:26,ft:true});
     if(!G.flags.vesperFixed){const fx=PF.vesper(ctx,-60,150,-.5,{crashed:true});ctx.light(-58,TW_H.crash+3,148,0xff7a2a,1.6,18,true);
-      ctx.use('survival_locker',-55,146,'Open the survival locker',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});
+      const slk=ctx.use('survival_locker',-55,146,'Open the survival case',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});PF.survivalCase(ctx,-55,146,.9,slk.done);
       qUse(ctx,'cockpit_hatch',-63,156,'Cut open the cockpit hatch',{ok:()=>countItem('cutter')>0,act:()=>{give('recorder');FX.burst(new THREE.Vector3(-63,TW_H.crash+2,156),0xffc35a,40,4,.6,.1);}});}
     else{debris(ctx,-60,150,12,26);ctx.P.add(ctx.g,MAT.basalt,rockGeo(2,3),-60,TW_H.crash-1,150,0,0,0,9,1.2,4);}
     debris(ctx,-70,160,30,40);debris(ctx,-40,130,16,12);ctx.nodes('scrap',-62,146,24,6);
@@ -10009,7 +10061,7 @@ ZONES.ashfall={arch:COHORT_ARCH,id:'ashfall',name:'Ashfall',world:'Ashfall · Vo
 // ===== 60_ui.js =====
 /* ================= UI: state, toasts, HUD, tracker, minimap ================= */
 const UI={dialog:false,panel:false,title:true,loading:false,custom:false,customFirst:false,lookYaw:0,lookSpin:false,tab:'pack'};
-const modal=()=>UI.dialog||UI.panel||UI.loading;
+const modal=()=>UI.dialog||UI.panel||UI.loading||INTRO.on;
 const pad={on:false,active:false,blocked:!!(document.featurePolicy&&document.featurePolicy.allowsFeature&&!document.featurePolicy.allowsFeature('gamepad')),lx:0,ly:0,rx:0,ry:0,prev:[],fire:false,navT:0,navHeld:false,zoom:1};
 function setPadActive(v){if(pad.active===v)return;pad.active=v;document.documentElement.classList.toggle('pad',v);updateTouchVis();}
 function padButtons(root){const r=typeof root==='string'?$(root):root;return r?[...r.querySelectorAll('button,input[type=color]')].filter(b=>!b.hidden&&!b.disabled&&b.getClientRects().length>0):[];}
@@ -10311,7 +10363,7 @@ function flyTo(d){sfx('warp');$('#fade').style.opacity=1;cam.shake=.8;setTimeout
 /* ---------- character look and turntable ---------- */
 let lookTab='you',lookRaf=0;
 const NAMES=['Rho','Ash','Wren','Mira Sato','Jun Okoro','Ezra Lune','Noor Halden','Ilya Brandt','Kestrel','Sable Vance','Juno','Tavish','Ren Achebe','Orrin','Vale','Ione Kade'];
-function openLooks(first){UI.custom=true;UI.customFirst=!!first;UI.lookYaw=0;openPanel(true);setLookView();renderLooks();}
+function openLooks(first){lookTab='you';UI.custom=true;UI.customFirst=!!first;UI.lookYaw=0;openPanel(true);setLookView();renderLooks();}
 function setLookView(){if(!UI.custom){camera.clearViewOffset();return;}const Wd=innerWidth,Hd=innerHeight;if(Wd>720)camera.setViewOffset(Wd,Hd,-Wd*.2,0,Wd,Hd);else camera.setViewOffset(Wd,Hd,0,Hd*.22,Wd,Hd);}
 const lockedOK=u=>typeof u!=='string'||!!G.flags['look_'+u];
 // the special models: unlocked once per device with a password, then any townsperson or humanoid robot can be worn
@@ -10325,7 +10377,7 @@ function trySpecial(v){if((v||'').trim().toLowerCase()===SPECIAL_PW){try{localSt
 function renderLooks(){const b=sheet(),L=G.look,first=UI.customFirst,fi=padButtons(b).indexOf(document.activeElement),C=lookColors(L);
   const sw=(k,c,on)=>`<button class="sw${on?' on':''}" type="button" data-k="${k}" data-c="${c}" style="background:${hex6(c)}" aria-label="Color"></button>`;
   const auto=(k,lab)=>`<button class="chipbtn${L[k]==null?' on':''}" type="button" data-k="${k}" data-c="auto">${lab}</button>`;
-  const cpick=(k,v)=>`<label class="sw custom" title="Pick any color"><input type="color" data-cc="${k}" value="${hex6(v)}" aria-label="Pick any color"></label>`;
+  const cpick=k=>`<button class="sw custom" type="button" data-cpk="${k}" title="Pick any color" aria-label="Pick any color"></button>`;
   const chips=(k,list)=>list.map(([id,lab,u])=>lockedOK(u)?`<button class="chipbtn${L[k]===id?' on':''}" type="button" data-k="${k}" data-v="${id}">${lab.toUpperCase()}</button>`:`<button class="chipbtn" type="button" disabled title="Found somewhere in the Reach">🔒 ???</button>`).join('');
   const row=(t,h)=>`<div><h3>${t}</h3><div class="opts">${h}</div></div>`;let inner='';
   if(lookTab==='you')inner=`<div><h3>Name</h3><div class="opts"><input id="lookName" class="namein" maxlength="18" value="${esc(L.name)}" placeholder="Type a name" autocomplete="off" spellcheck="false"><button class="buy" type="button" id="lookKb">⌨ TYPE</button><button class="buy alt" type="button" id="lookRand">RANDOM</button></div></div>`+row('Character',chips('body',LOOK.body.filter(x=>x[0]!=='npc')))+row('Build',chips('build',LOOK.build))+row('Height',chips('height',LOOK.height));
@@ -10351,7 +10403,7 @@ function renderLooks(){const b=sheet(),L=G.look,first=UI.customFirst,fi=padButto
   b.querySelectorAll('[data-tab]').forEach(e=>e.onclick=()=>{lookTab=e.dataset.tab;if(lookTab==='back')UI.lookYaw=Math.PI;sfx('click');renderLooks();});
   b.querySelectorAll('[data-k][data-c]').forEach(e=>e.onclick=()=>{L[e.dataset.k]=e.dataset.c==='auto'?null:+e.dataset.c;sfx('click');apply();renderLooks();});
   b.querySelectorAll('[data-k][data-v]').forEach(e=>e.onclick=()=>{L[e.dataset.k]=e.dataset.v;sfx('click');apply();renderLooks();});
-  b.querySelectorAll('input[data-cc]').forEach(e=>{e.oninput=()=>{L[e.dataset.cc]=parseInt(e.value.slice(1),16);if(!lookRaf)lookRaf=requestAnimationFrame(()=>{lookRaf=0;refreshAvatar();});};e.onchange=()=>{saveSoon();renderLooks();};});
+  b.querySelectorAll('[data-cpk]').forEach(e=>e.onclick=()=>{sfx('click');openCPK(e.dataset.cpk);});
   b.querySelectorAll('[data-turn]').forEach(e=>e.onclick=()=>{UI.lookYaw+=(+e.dataset.turn)*Math.PI/4;UI.lookSpin=false;});b.querySelectorAll('[data-view]').forEach(e=>e.onclick=()=>{UI.lookYaw=+e.dataset.view;UI.lookSpin=false;});
   $('#lookSpin').onclick=()=>{UI.lookSpin=!UI.lookSpin;renderLooks();};
   const inp=$('#lookName');if(inp){inp.oninput=()=>{G.look.name=inp.value.trim();lastHud='';};$('#lookRand').onclick=()=>{G.look.name=pick(NAMES);renderLooks();};$('#lookKb').onclick=()=>openOSK(G.look.name,18,v=>{G.look.name=v;lastHud='';renderLooks();padFocus('#panelBody',padButtons('#panelBody').indexOf($('#lookKb')));},'Your name');}
@@ -10377,6 +10429,41 @@ function renderOSK(){const el=$('#osk');const up=osk.shift;const sel=padButtons(
 function oskKey(k){if(!osk)return;sfx('click');if(k==='done')return oskDone();if(k==='shift'){osk.shift=!osk.shift;return renderOSK();}
   if(k==='del')osk.v=osk.v.slice(0,-1);else if(osk.v.length<osk.max)osk.v+=k;osk.shift=!osk.v||osk.v.endsWith(' ');renderOSK();}
 function oskDone(){if(!osk)return;const o=osk;osk=null;UI.osk=false;$('#osk').hidden=true;sfx('click');o.onDone(o.v.trim());}
+/* ---------- colour picker (works with a controller, touch, mouse or keyboard) ---------- */
+// Three sliders (hue, saturation, brightness) with a live preview on the character. Controller: D-pad or left stick up and down
+// picks a slider, left and right moves it (hold to keep going); A keeps the colour, B puts the old one back.
+let cpk=null;
+const hsv2hex=(h,s,v)=>{const f=n=>{const k=(n+h/60)%6;return v-v*s*Math.max(0,Math.min(k,4-k,1));};return (Math.round(f(5)*255)<<16)|(Math.round(f(3)*255)<<8)|Math.round(f(1)*255);};
+function hex2hsv(x){const r=(x>>16&255)/255,g=(x>>8&255)/255,b=(x&255)/255,mx=Math.max(r,g,b),d=mx-Math.min(r,g,b);
+  let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360;}return {h,s:mx?d/mx:0,v:mx};}
+const CPK_ROWS=[['h','HUE',360],['s','SATURATION',1],['v','BRIGHTNESS',1]];
+function openCPK(k){const L=G.look,cur=lookColors(L)[k]??L[k]??0xffffff;cpk={k,orig:L[k],...hex2hsv(cur),row:0,btn:1};UI.cpk=true;
+  let el=$('#cpk');if(!el){el=document.createElement('div');el.id='cpk';document.body.appendChild(el);}el.hidden=false;renderCPK();}
+function cpkHex(){return hsv2hex(cpk.h,cpk.s,cpk.v);}
+function cpkApply(){G.look[cpk.k]=cpkHex();if(!lookRaf)lookRaf=requestAnimationFrame(()=>{lookRaf=0;refreshAvatar();});}
+function cpkPaint(){const el=$('#cpk');if(!el||!cpk)return;const hx=hex6(cpkHex()),pure=hex6(hsv2hex(cpk.h,1,1)),grey=hex6(hsv2hex(cpk.h,0,cpk.v)),full=hex6(hsv2hex(cpk.h,cpk.s,1));
+  el.querySelector('.cpv').style.background=hx;el.querySelector('.cpx').textContent=hx.toUpperCase();
+  const bars={h:'linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)',s:`linear-gradient(90deg,${grey},${hex6(hsv2hex(cpk.h,1,cpk.v))})`,v:`linear-gradient(90deg,#000,${full})`};
+  CPK_ROWS.forEach(([key,,mx],i)=>{const r=el.querySelector(`[data-row="${i}"]`);r.classList.toggle('on',cpk.row===i);r.querySelector('.cpb').style.background=bars[key];r.querySelector('.cpm').style.left=(cpk[key]/mx*100)+'%';
+    r.querySelector('.cpn').textContent=key==='h'?Math.round(cpk.h)+'°':Math.round(cpk[key]*100)+'%';});
+  el.querySelectorAll('[data-cb]').forEach((b,i)=>b.classList.toggle('psel',cpk.row===3&&cpk.btn===i));void pure;}
+function renderCPK(){const el=$('#cpk'),name={suit:'Under-suit',armor:'Armor plates',trim:'Trim and joints',accent:'Glow lines',visor:'Visor',skin:'Skin tone',hair:'Hair'}[cpk.k]||'Color';
+  el.innerHTML=`<div class="cpp"><div class="cph"><span class="cpt">${esc(name)}</span><span class="cpv"></span><span class="cpx"></span></div>
+    ${CPK_ROWS.map(([key,lab],i)=>`<div class="cpr" data-row="${i}"><span class="cpl">${lab}</span><button type="button" class="cpa" data-step="${i},-1">◀</button><div class="cpb" data-bar="${i}"><i class="cpm"></i></div><button type="button" class="cpa" data-step="${i},1">▶</button><span class="cpn"></span></div>`).join('')}
+    <div class="cpbtns"><button type="button" class="ok" data-cb="0">CANCEL</button><button type="button" class="ok done" data-cb="1">✓ USE THIS COLOR</button></div>
+    <div class="ohint">${pad.active?'D-pad up/down: pick a slider · left/right: adjust (hold to sweep) · A: use · B: cancel':'Drag a slider or tap the arrows · Enter to use · Esc to cancel'}</div></div>`;
+  el.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{const [i,d]=b.dataset.step.split(',').map(Number);cpk.row=i;cpkNudge(d*(i===0?6:.04));});
+  el.querySelectorAll('[data-bar]').forEach(bar=>{const i=+bar.dataset.bar,set=e=>{const r=bar.getBoundingClientRect(),t=clamp((e.clientX-r.left)/r.width,0,1),[key,,mx]=CPK_ROWS[i];cpk.row=i;cpk[key]=t*mx;cpkApply();cpkPaint();};
+    bar.onpointerdown=e=>{bar.setPointerCapture(e.pointerId);set(e);bar.onpointermove=set;};bar.onpointerup=bar.onpointercancel=()=>{bar.onpointermove=null;};});
+  el.querySelectorAll('[data-cb]').forEach(b=>b.onclick=()=>cpkClose(b.dataset.cb==='1'));cpkPaint();}
+function cpkNudge(d){if(!cpk||cpk.row>2)return;const [key,,mx]=CPK_ROWS[cpk.row];cpk[key]=key==='h'?((cpk.h+d)%360+360)%360:clamp(cpk[key]+d,0,1);cpkApply();cpkPaint();}
+function cpkMove(dy){if(!cpk)return;cpk.row=clamp(cpk.row+dy,0,3);sfx('click');cpkPaint();}
+function cpkClose(keep){if(!cpk)return;const k=cpk.k;if(keep)G.look[k]=cpkHex();else G.look[k]=cpk.orig;cpk=null;UI.cpk=false;$('#cpk').hidden=true;sfx('click');refreshAvatar();saveSoon();renderLooks();
+  const L=padButtons('#panelBody'),i=L.indexOf($(`#panelBody [data-cpk="${k}"]`));if(i>=0)padFocus('#panelBody',i);}
+// held input sweeps the active slider; speed builds up the longer it is held
+function cpkHold(x,dt){if(!cpk)return;if(!x){cpk.hold=0;return;}if(cpk.row===3){if(!cpk.hold){cpk.btn=x>0?1:0;cpkPaint();}cpk.hold=1;return;}
+  cpk.hold=(cpk.hold||0)+dt;const sp=cpk.row===0?60+Math.min(cpk.hold,1.5)*120:.18+Math.min(cpk.hold,1.5)*.35;cpkNudge(x*sp*dt);}
+
 /* ---------- help ---------- */
 function openHelp(){openPanel();const b=sheet();
   const rows=[['Move','W A S D or arrow keys','Drag on the left half of the screen','Left stick'],['Sprint','Hold Shift','SPRINT button (toggle)','Click the left stick (toggle)'],['Look around','Drag with the mouse','Drag on the right half of the screen','Right stick'],['Zoom (all the way in for first person)','Scroll wheel or + and −; V switches first and third person','Pinch with two fingers','D-pad up and down; click the right stick to switch first and third person'],['Jump','Space','JUMP button','B'],
@@ -10466,7 +10553,7 @@ function titleInput(kind){// kind: up, down, ok, back, any
   if(UI.panel)return false;if(TT.splash){titleDismissSplash();return true;}
   if(kind==='up')titleMove(-1);else if(kind==='down')titleMove(1);else if(kind==='ok')titleActivate();return true;}
 function showTitle(){UI.title=true;TT.splash=true;$('#title').classList.remove('menu');TT.shot=-1;TT.t=0;$('#title').hidden=false;$('#tsplash').hidden=false;$('#tmenu').hidden=true;
-  if(avatar){const h=TW_H.crash;avatar.root.visible=true;avatar.root.position.set(-53,groundY(-53,141),141);avatar.root.rotation.y=Math.atan2(-60+53,150-141);}refreshTitle();}
+  if(avatar){const h=TW_H.crash;avatar.root.visible=false;avatar.root.position.set(-53,groundY(-53,141),141);avatar.root.rotation.y=Math.atan2(-60+53,150-141);}refreshTitle();}
 // a live readout of what the browser reports, so a controller that isn't reaching the page is obvious
 function titlePadStatus(){const el=$('#padStatus');if(!el)return;let t;
   if(!navigator.getGamepads)t='This browser has no controller support';else if(pad.blocked)t='This view blocks controllers. Open the downloaded file in Safari';
@@ -10502,6 +10589,80 @@ try{window.focus();}catch(e){}$('#bCred').onclick=()=>openCredits();
 $('#title').addEventListener('pointerdown',e=>{if(UI.panel)return;if(TT.splash){titleDismissSplash();e.preventDefault();}});
 document.querySelectorAll('#tmenu .tm').forEach(b=>b.addEventListener('pointerenter',()=>{const i=titleItems().indexOf(b);if(i>=0&&i!==TT.sel)titleSelect(i);}));
 
+// ===== 63_intro.js =====
+/* ================= OPENING: waking up in the wreck ================= */
+// A new game opens locked in first person. You come to on your back, eyes fluttering, sit up, get to your feet and look
+// around through a concussed blur. VESTA then talks to you through the helmet HUD, and the view pulls out of the helmet to
+// third person for the first look at yourself (character creation). A or Enter skips ahead to VESTA.
+const INTRO={on:false,t:0,phase:'',beat:0,pullT:0};
+const WAKE_END=14.5;
+function wakeEl(){let el=$('#wake');if(el)return el;el=document.createElement('div');el.id='wake';el.hidden=true;
+  el.innerHTML=`<div class="wvig"></div><div class="wvisor"></div>
+    <svg class="wcrack" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true"><path d="M318 0 L300 40 L322 72 L296 118 L310 150 M300 40 L262 52 L240 86 M322 72 L358 96 L392 92 M296 118 L270 134 M310 150 L330 190 L318 214"/></svg>
+    <div class="whud tl"><b>SUIT REBOOT</b><span data-l="0">CORE ▸ OK</span><span data-l="1">INTEGRITY ▸ <em class="warn">61%</em></span><span data-l="2">O₂ RESERVE ▸ 94%</span><span data-l="3">HEART RATE ▸ <em class="hr">128</em></span></div>
+    <div class="whud tr"><span data-l="1">VISOR ▸ <em class="warn">CRACKED</em></span><span data-l="2">COMMS ▸ LOCAL</span><span data-l="3">NAV ▸ NO SIGNAL</span></div>
+    <div class="wlink"><span class="dot"></span><span class="wlt">VESTA LINK ▸ ESTABLISHING</span></div>
+    <div class="wlid top"></div><div class="wlid bot"></div><div class="wskip"></div>`;
+  document.body.appendChild(el);return el;}
+function startIntro(){const el=wakeEl();el.hidden=false;el.classList.remove('hudon','linked');INTRO.on=true;INTRO.t=0;INTRO.phase='wake';INTRO.beat=0;INTRO.face=player.face;
+  // look toward the burning wreck at one point
+  INTRO.wreck=Math.atan2(-60-player.x,150-player.z);
+  cam.prevDist=7;cam.dist=1;cam.fp=true;if(avatar)avatar.root.visible=false;cam.pitch=.32;player.act.kind=null;player.act.w=0;$('#hud').hidden=true;$('#hint').style.opacity=0;updateTouchVis();
+  el.querySelector('.wskip').textContent=pad.active?'A · skip ahead':isTouch?'Tap to skip ahead':'Enter · skip ahead';
+  el.onpointerdown=()=>{if(INTRO.phase==='wake')introSkip();};}
+function introSkip(){if(INTRO.phase!=='wake')return;INTRO.t=Math.max(INTRO.t,WAKE_END);}
+const _iL=new THREE.Vector3();
+function ease(a,b,t0,t1,t){return lerp(a,b,smooth(t0,t1,t));}
+// the view for each moment of waking: eye height, where it looks (yaw, pitch), head roll, blur and how open the eyes are
+function wakePose(t){const F=INTRO.face,dW=wrapA(INTRO.wreck-F);
+  let h=.3,pitch=1.25,yaw=F+Math.sin(t*.4)*.05,roll=.32,blur=9,open=0;
+  // eyelids: flutter open, close, open again
+  open=t<.6?0:t<1.4?smooth(.6,1.4,t)*.45:t<2?.45-smooth(1.4,2,t)*.4:t<3?.05+smooth(2,3,t)*.95:1;
+  blur=lerp(9,4,smooth(0,3.5,t));
+  // sit up
+  h=ease(h,.92,3.4,6,t);pitch=ease(pitch,-.2,3.4,6,t);roll=ease(roll,.08,3.4,6,t);
+  // stand, with a wobble
+  h=ease(h,1.62,6.2,8.4,t)+(t>6.2&&t<8.6?Math.sin(t*7)*.02:0);pitch=ease(pitch,.02,6.2,8.4,t);roll=ease(roll,-.06,6.2,8.4,t);blur=ease(blur,2.5,6,8.5,t);
+  // look around: the wreck, then the other way, then ahead
+  yaw+=ease(0,dW,8.6,10.4,t);yaw+=ease(0,-dW-.9,11.6,13.1,t);yaw+=ease(0,.9,13.2,14.4,t);
+  // disoriented: sway, and one dizzy spell where things swim and the eyes half close
+  const dz=Math.exp(-Math.pow((t-12.3)/.5,2));roll+=Math.sin(t*1.3)*.05*(t>6?1:0);blur+=(Math.sin(t*2.1)*.5+.5)*1.2*(t>8?1:0)+dz*4;open-=dz*.35;pitch-=dz*.12;
+  blur=Math.max(0,blur*(1-smooth(13.6,WAKE_END,t)));
+  return {h,pitch,yaw,roll,blur,open:clamp(open,0,1)};}
+function setIntroView(o){const eye=player.y+o.h,cp=Math.cos(o.pitch);camera.position.set(player.x,eye,player.z);
+  _iL.set(player.x+Math.sin(o.yaw)*cp,eye+Math.sin(o.pitch),player.z+Math.cos(o.yaw)*cp);camera.up.set(0,1,0);camera.lookAt(_iL);camera.rotateZ(o.roll);
+  cam.yaw=wrapA(o.yaw-Math.PI);}
+function setIntroFx(blur,open,vig){const el=$('#wake');renderer.domElement.style.filter=blur>.05?`blur(${blur.toFixed(2)}px) saturate(${(1-Math.min(blur,8)*.06).toFixed(2)})`:'';
+  el.querySelector('.wlid.top').style.transform=`translateY(${(-open*100).toFixed(1)}%)`;el.querySelector('.wlid.bot').style.transform=`translateY(${(open*100).toFixed(1)}%)`;
+  el.querySelector('.wvig').style.opacity=vig.toFixed(2);}
+function introTick(dt){if(!INTRO.on)return;INTRO.t+=dt;const t=INTRO.t,el=$('#wake');
+  if(INTRO.phase==='wake'){const o=wakePose(Math.min(t,WAKE_END));setIntroView(o);setIntroFx(o.blur,o.open,.85-smooth(6,WAKE_END,t)*.45+Math.sin(t*5.5)*.06);
+    // heartbeat, a thump on sitting up and landing on the feet
+    if(t>INTRO.beat&&t<WAKE_END){INTRO.beat=t+lerp(.75,1.1,smooth(0,12,t));sfx('thump');}
+    if(t>3.5&&!INTRO.sat){INTRO.sat=true;sfx('land');}if(t>7.8&&!INTRO.stood){INTRO.stood=true;sfx('land');}
+    // the suit's HUD boots line by line as the eyes clear
+    if(t>2.2)el.classList.add('hudon');el.querySelectorAll('[data-l]').forEach(s=>s.classList.toggle('on',t>2.4+(+s.dataset.l)*.9));
+    el.querySelector('.hr').textContent=Math.round(lerp(132,96,smooth(2,WAKE_END,t))+Math.sin(t*3)*2);
+    if(t>=WAKE_END){INTRO.phase='talk';el.classList.add('linked');el.querySelector('.wlt').textContent='VESTA LINK ▸ ONLINE';el.querySelector('.wskip').textContent='';INTRO.talkT=t;sfx('scan');setTimeout(introTalk,700);}
+    return;}
+  if(INTRO.phase==='talk'){const o=wakePose(WAKE_END),k=t-INTRO.talkT;o.yaw+=Math.sin(k*.35)*.05;o.pitch+=Math.sin(k*.5)*.02;o.roll=-.06+Math.sin(k*.6)*.015;setIntroView(o);setIntroFx(0,1,.35);return;}
+  if(INTRO.phase==='pull'){// out of the helmet to a third-person view facing you, where the look screen picks up
+    INTRO.pullT+=dt;const u=smooth(0,1,INTRO.pullT/2.2),o=wakePose(WAKE_END),eye=_iA.set(player.x,player.y+o.h,player.z),a=player.face,d=W.interior?2.8:3.4;
+    _iB.set(player.x+Math.sin(a)*d,player.y+1.45,player.z+Math.cos(a)*d);
+    // swing around the side rather than through the head
+    const mid=_iC.copy(eye).lerp(_iB,u);mid.addScaledVector(_iD.set(Math.cos(a),0,-Math.sin(a)),Math.sin(u*Math.PI)*1.4);mid.y+=Math.sin(u*Math.PI)*.35;
+    camera.position.copy(mid);camera.up.set(0,1,0);_iL.set(player.x+Math.sin(a)*(1-u)*3,player.y+lerp(o.h,1.05,u),player.z+Math.cos(a)*(1-u)*3);camera.lookAt(_iL);
+    el.style.opacity=(1-u).toFixed(2);if(INTRO.pullT>=2.2)endIntro();}}
+const _iA=new THREE.Vector3(),_iB=new THREE.Vector3(),_iC=new THREE.Vector3(),_iD=new THREE.Vector3();
+// VESTA speaks through the helmet: the conversation fills the visor
+function introTalk(){document.documentElement.classList.add('helmetDlg');UI.dlgLock=false;
+  const v=(text,opts)=>{say('VESTA','SUIT ASSISTANT · '+(opts.role||'ONLINE'),text,opts.list);UI.dlgLock=true;};
+  v('…Suit integrity sixty-one percent. Pilot vitals stable. Hello? Can you hear me?',{role:'REBOOTING',list:[{label:'I… hear you.',fn:()=>{
+    v('Good. Don\'t move too fast. The Vesper came down hard, and you hit your head very hard. Do you remember your name?',{list:[{label:'I… don\'t know.',fn:()=>{
+      v('Memory loss is common after a blow like that. It should come back. Let\'s start with something simple: the wreck\'s hull plating is polished enough to see yourself in. Take a look.',{list:[{label:'Look at my reflection',go:true,fn:introPull}]});}}]});}}]});}
+function introPull(){UI.dlgLock=false;closeDialog();document.documentElement.classList.remove('helmetDlg');INTRO.phase='pull';INTRO.pullT=0;cam.dist=cam.prevDist||7;renderer.domElement.style.filter='';}
+function endIntro(){INTRO.on=false;INTRO.phase='';const el=$('#wake');el.hidden=true;el.style.opacity='';renderer.domElement.style.filter='';$('#hud').hidden=false;openLooks(true);updateTouchVis();}
+
 // ===== 70_input.js =====
 /* ================= INPUT: keyboard, mouse, touch, controller ================= */
 const keys=new Set();
@@ -10517,6 +10678,8 @@ addEventListener('keydown',e=>{
   if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')){if(e.code==='Enter'||e.code==='Escape')e.target.blur();return;}
   const k=e.code;
   if(UI.loading){e.preventDefault();return;}
+  if(UI.cpk){if(k==='ArrowUp'||k==='KeyW')cpkMove(-1);else if(k==='ArrowDown'||k==='KeyS')cpkMove(1);else if(k==='ArrowLeft'||k==='KeyA')cpk.row===3?(cpk.btn=0,cpkPaint()):cpkNudge(cpk.row===0?-4:-.03);else if(k==='ArrowRight'||k==='KeyD')cpk.row===3?(cpk.btn=1,cpkPaint()):cpkNudge(cpk.row===0?4:.03);
+    else if(k==='Enter'||k==='NumpadEnter')cpkClose(cpk.row===3?cpk.btn===1:true);else if(k==='Escape')cpkClose(false);e.preventDefault();return;}
   if(UI.osk){if(k==='Enter'||k==='Escape')oskDone();else if(k==='Backspace')oskKey('del');else if(e.key.length===1)oskKey(e.key);e.preventDefault();return;}
   if(UI.panel){if(UI.holo&&(k==='KeyQ'||k==='BracketLeft')){holoTab(-1);e.preventDefault();return;}if(UI.holo&&(k==='KeyE'||k==='BracketRight')){holoTab(1);e.preventDefault();return;}
     if(k==='Escape'&&slotConfirm){cancelSlotConfirm();e.preventDefault();return;}
@@ -10530,6 +10693,7 @@ addEventListener('keydown',e=>{
     else if(k==='Escape'&&!UI.dlgLock)closeDialog();
     else if(MOVE_KEYS.has(k)&&!UI.dlgLock){closeDialog();keys.add(k);e.preventDefault();}
     return;}
+  if(INTRO.on){if(k==='Enter'||k==='NumpadEnter'||k==='Space')introSkip();e.preventDefault();return;}
   keys.add(k);
   if(k==='KeyH'||k==='F1'){openHelp();e.preventDefault();return;}
   if(k==='Space'){inp.jumpReq=.15;e.preventDefault();}
@@ -10636,12 +10800,14 @@ function pollPad(dt){padDiag(dt);
   if(vx||vy){if(pad.navT<=0||key!==pad.navKey){nav={x:vx,y:vy};pad.navT=pad.navHeld&&key===pad.navKey?.15:.4;pad.navHeld=true;pad.navKey=key;}else pad.navT-=dt;}else{pad.navT=0;pad.navHeld=false;pad.navKey='';}
   const ok=down(0),back=down(1);
   if(UI.loading)return;
+  if(UI.cpk){if(nav&&nav.y)cpkMove(nav.y);const hx=pad.dx||(Math.abs(pad.lx)>.3?pad.lx:0);cpkHold(hx,dt);if(ok){if(cpk.row===3)cpkClose(cpk.btn===1);else cpkClose(true);}else if(back)cpkClose(false);return;}
   if(UI.osk){padMenu('#oskKeys',nav,ok);if(back)oskDone();else if(down(2))oskKey('del');else if(down(3))oskKey(' ');else if(down(9))oskDone();return;}
   if(UI.panel){const root=UI.holo?'#holoBody':'#panelBody';if(UI.holo){if(down(4)){holoTab(-1);return;}if(down(5)){holoTab(1);return;}}padMenu(root,nav,ok);if(back&&slotConfirm){cancelSlotConfirm();return;}if(back||down(8)||down(9))closePanel();if(pad.ry)$(root).scrollTop+=pad.ry*dt*800;if(UI.custom&&pad.rx)UI.lookYaw-=pad.rx*dt*2.5;return;}
   if(UI.title){const any=now.some((v,i)=>v&&!prev[i])||Math.abs(pad.lx)>.5||Math.abs(pad.ly)>.5||Math.abs(pad.rx)>.5||Math.abs(pad.ry)>.5;
     if(TT.splash){if(any)titleInput('any');return;}
     if(nav&&nav.y)titleInput(nav.y<0?'up':'down');if(ok)titleInput('ok');if(down(8))openHelp();return;}
   if(UI.dialog){padMenu('#dOpts',nav,ok);if(back&&!UI.dlgLock)closeDialog();return;}
+  if(INTRO.on){if(ok)introSkip();return;}
   if(player.dead)return;
   cam.yaw-=pad.rx*dt*2.8;cam.pitch=clamp(cam.pitch+pad.ry*dt*1.8,-.15,1.25);
   pad.fire=now[5]||now[7];if(down(5)||down(7))inp.firePressed=true;
@@ -10702,8 +10868,8 @@ async function loadGame(d){applySave(d);refreshAvatar();await enterZone(G.zone,G
 async function newGame(){G=freshState();computeStats();refreshAvatar();playing=false;await enterZone('twilight','crash',{quiet:true,kicker:'OSSERY B',text:'Somewhere on the twilight band…'});
   playing=true;startQuest('m01_wake',true);G.track='m01_wake';beginPlay();const f=$('#fade');f.style.transition='none';f.style.opacity=1;
   requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='opacity 2.6s';f.style.opacity=0;setTimeout(()=>f.style.transition='',2800);}));
-  player.act.kind='kneel';player.act.w=1;player.act.t=0;player.act.dur=4;setTimeout(()=>{UI.dlgLock=false;say('VESTA','SUIT ASSISTANT · REBOOTING','…Suit integrity sixty-one percent. Pilot vitals stable. Hello? Can you hear me? You hit your head very hard. Do you remember your name?',[{label:'I… don\'t know.',go:true,fn:()=>{closeDialog();openLooks(true);}}]);UI.dlgLock=true;},2200);saveNow();}
-function afterFirstLooks(){vesta(`Good to meet you, ${nm()}. The Vesper\'s survival locker should still be intact. Look for the amber marker.`,9000);renderTracker();saveNow();}
+  startIntro();saveNow();}
+function afterFirstLooks(){vesta(`Good to meet you, ${nm()}. The Vesper\'s survival case was thrown clear in the crash. It should still be intact. Look for the amber marker.`,9000);renderTracker();saveNow();}
 async function quitToTitle(){saveNow();if(UI.dialog)closeDialog();if(UI.panel)closePanel();keys.clear();playing=false;$('#hud').hidden=true;$('#touch').hidden=true;$('#warn').hidden=true;warnState='';
   G=freshState();computeStats();refreshAvatar();await enterZone('twilight','town',{quiet:true,silent:true,kicker:'TIDELOCK',text:'Returning to the title screen…'});showTitle();}
 
@@ -10817,7 +10983,7 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
 
 /* ---------- boot ---------- */
 const clock=new THREE.Clock();
-function frame(){const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);drsTick(raw);try{update(dt);updateHUD(dt);}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
+function frame(){const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);drsTick(raw);try{update(dt);if(INTRO.on)introTick(dt);updateHUD(dt);}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
 addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);resizePost();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();sizeMap();FX.resize&&FX.resize();if(UI.custom)setLookView();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow();});
 addEventListener('pagehide',saveNow);
@@ -10832,7 +10998,7 @@ async function boot(){try{await loadAllModels();envInit();}catch(e){console.erro
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
