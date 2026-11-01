@@ -141,27 +141,44 @@ html.fp.hud-off .hbtns{opacity:.35}
 
 /* ---- conversations: cinematic bars, a nameplate tab and a glass panel ---- */
 #dlgBars i{position:fixed;left:0;right:0;height:0;background:#030207;z-index:14;transition:height .45s cubic-bezier(.2,.8,.2,1);pointer-events:none}
-#dlgBars i:first-child{top:0}#dlgBars i:last-child{bottom:0}html.talking #dlgBars i{height:6.5vh}
+#dlgBars i:first-child{top:0}#dlgBars i:last-child{bottom:0}html.talking #dlgBars i{height:4.5vh}
 html.talking #hud #vitals,html.talking #hud #tracker,html.talking #hud #mapwrap,html.talking #hud #compass,html.talking #hud #weaponHud,html.talking #hud #helm,html.talking #hud #zoneName{opacity:0;transition:opacity .3s}
-#dialog{z-index:15;position:fixed;left:50%;bottom:calc(var(--sb) + 3vh);transform:translateX(-50%);width:min(940px,calc(100vw - 28px));padding:24px 26px 16px;display:grid;gap:12px;
-  background:linear-gradient(180deg,rgba(26,20,42,.9),rgba(12,9,22,.94));border:1px solid rgba(170,150,220,.22);border-radius:4px;box-shadow:0 18px 60px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03) inset;
-  clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));animation:dlgIn .35s cubic-bezier(.2,.8,.2,1)}
-#dialog::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--dc,#6ff2d6) 18%,var(--dc,#6ff2d6) 60%,transparent);box-shadow:0 0 14px var(--dc,#6ff2d6)}
-#dialog.mainq{--dc:#ffc35a}
-@keyframes dlgIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
-#dHead{display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid rgba(170,150,220,.14)}#dHead::before{content:"";align-self:center;width:8px;height:8px;transform:rotate(45deg);background:var(--dc,#6ff2d6);box-shadow:0 0 10px var(--dc,#6ff2d6)}
-#dName{font-family:var(--f-display);font-size:16px;letter-spacing:.12em;color:#fff;text-shadow:0 0 10px var(--dc,#6ff2d6)}
-#dRole{font-family:var(--f-mono);font-size:9.5px;color:var(--dc,#6ff2d6);letter-spacing:.14em}
-#dText{font-size:18px;line-height:1.55;max-width:70ch;max-height:34vh;overflow:auto;color:#efe9f7;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+/* holographic transmission: a translucent projected panel beside the speaker, with scanlines, flicker and a projection-in animation */
+#dialog{--dc:#6ff2d6;z-index:15;position:fixed;left:auto;right:max(4vw,calc(var(--sr,0px) + 18px));top:50%;translate:0 -50%;width:min(520px,44vw);padding:16px 20px 12px;display:grid;gap:10px;
+  background:linear-gradient(180deg,rgba(40,140,150,.16),rgba(20,60,90,.22) 60%,rgba(20,40,70,.28));border:1px solid rgba(111,242,214,.28);border-radius:2px;
+  box-shadow:0 0 28px rgba(111,242,214,.16),inset 0 0 40px rgba(111,242,214,.07);-webkit-backdrop-filter:blur(3px) saturate(1.15);backdrop-filter:blur(3px) saturate(1.15);
+  transform-origin:50% 50%;animation:holoIn .55s cubic-bezier(.2,.8,.2,1) both,holoFlick 7s 1s infinite;color:#e8fbff;overflow:hidden}
+#dialog.mainq{--dc:#ffc35a;border-color:rgba(255,195,90,.32);background:linear-gradient(180deg,rgba(150,110,40,.14),rgba(70,50,30,.22) 60%,rgba(50,35,25,.28));box-shadow:0 0 28px rgba(255,195,90,.14),inset 0 0 40px rgba(255,195,90,.06)}
+#dialog::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(180deg,rgba(160,255,240,.07) 0 1px,transparent 1px 3px);animation:holoDrift 6s linear infinite;mix-blend-mode:screen}
+#dialog::after{content:"";position:absolute;left:0;right:0;height:30%;top:-30%;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(160,255,240,.08) 60%,transparent);animation:holoBand 4.5s 1.2s linear infinite}
+#dialog .hc{position:absolute;width:14px;height:14px;border:2px solid var(--dc);opacity:.85;filter:drop-shadow(0 0 4px var(--dc));pointer-events:none}
+#dialog .hc.tl{left:4px;top:4px;border-right:0;border-bottom:0}#dialog .hc.tr{right:4px;top:4px;border-left:0;border-bottom:0}#dialog .hc.bl{left:4px;bottom:4px;border-right:0;border-top:0}#dialog .hc.br{right:4px;bottom:4px;border-left:0;border-top:0}
+#dialog .hbeam{position:absolute;left:10%;right:10%;bottom:0;height:2px;background:var(--dc);box-shadow:0 0 12px var(--dc),0 0 26px var(--dc);opacity:.75;animation:holoBeam 2.4s ease-in-out infinite}
+@keyframes holoIn{0%{opacity:0;transform:scaleY(.02) scaleX(.6);filter:brightness(3)}35%{opacity:1;transform:scaleY(.04) scaleX(1);filter:brightness(2.4)}70%{transform:scaleY(1.03);filter:brightness(1.3)}80%{opacity:.55}88%{opacity:1}100%{transform:none;filter:none}}
+@keyframes holoFlick{0%,93%,100%{opacity:1}94%{opacity:.72}95%{opacity:1}96.5%{opacity:.84}97%{opacity:1}}
+@keyframes holoDrift{to{background-position:0 60px}}
+@keyframes holoBand{0%{top:-30%}55%,100%{top:110%}}
+@keyframes holoBeam{0%,100%{opacity:.5;left:14%;right:14%}50%{opacity:.9;left:6%;right:6%}}
+#dTx{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.2em;color:var(--dc);opacity:.85}
+#dTx .dot{width:7px;height:7px;border-radius:50%;background:var(--dc);box-shadow:0 0 8px var(--dc);animation:txDot 1.1s steps(2) infinite}
+#dTx .bars{display:inline-flex;gap:2px;align-items:flex-end;height:10px;margin-left:auto}#dTx .bars i{width:3px;background:var(--dc);animation:txBar 1.4s ease-in-out infinite}
+#dTx .bars i:nth-child(1){height:30%}#dTx .bars i:nth-child(2){height:55%;animation-delay:.15s}#dTx .bars i:nth-child(3){height:80%;animation-delay:.3s}#dTx .bars i:nth-child(4){height:100%;animation-delay:.45s}
+@keyframes txDot{50%{opacity:.25}}@keyframes txBar{50%{opacity:.3}}
+#dHead{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:1px solid rgba(111,242,214,.2)}
+#dName{font-family:var(--f-display);font-size:17px;letter-spacing:.12em;color:#fff;text-shadow:0 0 12px var(--dc),0 0 2px var(--dc)}
+#dRole{font-family:var(--f-mono);font-size:9.5px;color:var(--dc);letter-spacing:.14em}
+#dText{font-size:17px;line-height:1.55;max-height:30vh;overflow:auto;color:#e9fdff;text-shadow:0 0 8px rgba(111,242,214,.35),0 1px 2px rgba(0,0,0,.6)}
 #dText .w{opacity:0;animation:wIn .35s forwards}#dText.done .w{animation:none;opacity:1}
 @keyframes wIn{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:none}}
-#dOpts{display:grid;gap:6px;max-height:32vh;overflow:auto;padding-top:4px;border-top:1px solid rgba(170,150,220,.14)}
-.opt{position:relative;text-align:left;padding:10px 14px 10px 12px;background:rgba(255,255,255,.03);border:1px solid transparent;border-radius:3px;font-size:16px;display:flex;gap:12px;align-items:center;transition:background .18s,border-color .18s,padding .18s;opacity:0;animation:optIn .3s forwards}
-.opt:hover,.opt:focus-visible,.pad .opt:focus,.opt.psel{border-color:rgba(111,242,214,.55);background:linear-gradient(90deg,rgba(111,242,214,.16),rgba(111,242,214,.02));padding-left:18px;outline:none}
-@keyframes optIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.opt .k{flex:none;display:inline-grid;place-items:center;min-width:22px;height:22px;border:1px solid rgba(170,150,220,.4);border-radius:4px;font-family:var(--f-mono);font-size:10.5px;color:var(--dim)}
-.opt.go{color:var(--amber)}.opt.go .k{border-color:rgba(255,195,90,.5);color:var(--amber)}.opt.main{color:#ffe08a}.opt.main .k{border-color:#ffc35a;color:#ffc35a;box-shadow:0 0 8px rgba(255,195,90,.4)}.opt.dim{color:var(--dim)}
-#dHint{font-family:var(--f-mono);font-size:10px;color:#8f84a8;letter-spacing:.06em;text-align:right}
+#dOpts{display:grid;gap:5px;max-height:30vh;overflow:auto;padding-top:6px;border-top:1px solid rgba(111,242,214,.2)}
+.opt{position:relative;text-align:left;padding:8px 12px 8px 10px;background:rgba(111,242,214,.05);border:1px solid rgba(111,242,214,.1);border-left:2px solid rgba(111,242,214,.35);border-radius:1px;font-size:15px;color:#e3fbff;display:flex;gap:10px;align-items:center;transition:background .18s,border-color .18s,padding .18s,box-shadow .18s;opacity:0;animation:optIn .3s forwards}
+.opt:hover,.opt:focus-visible,.pad .opt:focus,.opt.psel{border-color:rgba(111,242,214,.7);background:linear-gradient(90deg,rgba(111,242,214,.24),rgba(111,242,214,.04));padding-left:16px;box-shadow:0 0 14px rgba(111,242,214,.25);outline:none}
+@keyframes optIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+.opt .k{flex:none;display:inline-grid;place-items:center;min-width:20px;height:20px;border:1px solid rgba(111,242,214,.45);border-radius:2px;font-family:var(--f-mono);font-size:10px;color:#9feee0}
+.opt.go{color:var(--amber)}.opt.go .k{border-color:rgba(255,195,90,.5);color:var(--amber)}.opt.main{color:#ffe08a;border-left-color:#ffc35a}.opt.main .k{border-color:#ffc35a;color:#ffc35a;box-shadow:0 0 8px rgba(255,195,90,.4)}.opt.dim{color:#8fb8c0}
+#dHint{font-family:var(--f-mono);font-size:9.5px;color:#7fbfc0;letter-spacing:.06em;text-align:right;opacity:.8}
+/* portrait and narrow screens: bottom of the screen, still a translucent hologram */
+@media (max-width:760px),(orientation:portrait){#dialog{left:50%;right:auto;top:auto;bottom:calc(var(--sb) + 2vh);translate:-50% 0;width:calc(100vw - 24px);transform-origin:50% 100%}}
 
 .modal{z-index:20;position:fixed;inset:0;display:grid;place-items:center;background:rgba(8,5,14,.6);padding:16px}
 .modal.side{background:transparent;place-items:center start;padding-left:max(16px,env(safe-area-inset-left,0px))}
@@ -432,6 +449,8 @@ html.talking #hud #vitals,html.talking #hud #tracker,html.talking #hud #mapwrap,
 </div>
 <div id="dlgBars"><i></i><i></i></div>
 <div id="dialog" hidden>
+  <i class="hc tl"></i><i class="hc tr"></i><i class="hc bl"></i><i class="hc br"></i><i class="hbeam"></i>
+  <div id="dTx"><span class="dot"></span><span id="dTxT">INCOMING TRANSMISSION</span><span class="bars"><i></i><i></i><i></i><i></i></span></div>
   <div id="dHead"><span id="dName"></span><span id="dRole"></span></div>
   <div id="dText"></div>
   <div id="dOpts"></div>
@@ -6446,7 +6465,7 @@ function steadyBone(an,k,kYaw,kRoll){const b=an.B[k],R=an.rest[k];if(!b||!R)retu
   const d=_sh3.copy(R).invert().premultiply(q);_she.setFromQuaternion(d,'YXZ');_she.y*=1-kYaw;_she.z*=1-kRoll;d.setFromEuler(_she);q.copy(d).multiply(R);
   const pq=b.parent.getWorldQuaternion(new THREE.Quaternion()).premultiply(mi);b.quaternion.copy(pq.invert().multiply(q));b.updateMatrixWorld(true);}
 // running: calm the chest's twist and keep the head level, so the character looks where it is going
-function steadyUpper(an,w){an.m.updateMatrixWorld(true);steadyBone(an,'Torso',.4*w,.3*w);steadyBone(an,'Chest',.6*w,.5*w);steadyBone(an,'Neck',.8*w,.8*w);steadyBone(an,'Head',w,w);}
+function steadyUpper(an,w){an.m.updateMatrixWorld(true);steadyBone(an,'Torso',.8*w,.6*w);steadyBone(an,'Chest',.9*w,.7*w);steadyBone(an,'Neck',.8*w,.8*w);steadyBone(an,'Head',w,w);}
 const _qa=new THREE.Quaternion(),_e2=new THREE.Euler();
 function rot(b,x,y,z,w=1,anim){if(!b||w<=0)return;if(anim&&!anim.touched.has(b))anim.touched.set(b,b.quaternion.clone());_e2.set(x*w,y*w,z*w);b.quaternion.multiply(_qa.setFromEuler(_e2));}
 // small procedural touches on top of the clips: head turns and idle gestures
@@ -8781,13 +8800,17 @@ function revealWords(el,html){el.innerHTML=html;el.classList.remove('done');let 
   revealWords.t0=performance.now();revealWords.dur=i*28;clearTimeout(revealWords.t);revealWords.t=setTimeout(()=>el.classList.add('done'),i*28+400);return i*28;}
 // a press while most of the text is still appearing just shows it all; late in the reveal it chooses straight away
 function dialogRevealing(){const el=$('#dText');if(el.classList.contains('done'))return false;el.classList.add('done');return performance.now()-revealWords.t0<revealWords.dur*.6;}
+// while talking, the scene shifts so the speaker stands left of centre, beside the transmission panel (wide screens only)
+function dlgView(on){const wide=innerWidth>760&&innerWidth>innerHeight;if(on&&wide&&!UI.custom){camera.setViewOffset(innerWidth,innerHeight,innerWidth*.14,0,innerWidth,innerHeight);UI.dlgView=true;}
+  else if(UI.dlgView){UI.dlgView=false;if(!UI.custom)camera.clearViewOffset();}}
 function say(name,role,text,opts){dlgGen++;UI.dialog=true;const D=$('#dialog');D.hidden=false;D.style.animation='none';void D.offsetWidth;D.style.animation='';document.documentElement.classList.add('talking');
+  $('#dTxT').textContent=(opts.some(o=>o.main)?'PRIORITY TRANSMISSION':'INCOMING TRANSMISSION')+' · CH '+String(10+(name.length*7)%89).padStart(2,'0');dlgView(true);
   $('#dName').textContent=name;$('#dRole').textContent=role||'';D.classList.toggle('mainq',opts.some(o=>o.main));const tms=revealWords($('#dText'),text);
   const box=$('#dOpts');box.innerHTML='';dlgOpts=opts;
   opts.forEach((o,i)=>{const b=document.createElement('button');b.type='button';b.className='opt'+(o.go?' go':'')+(o.main?' main':'')+(o.dim?' dim':'');b.style.animationDelay=(Math.min(tms,900)/1000+i*.05)+'s';b.innerHTML=`<span class="k">${pad.active||isTouch?'›':i+1}</span><span>${o.label}</span>`;b.onclick=()=>{if(dialogRevealing())return;b.blur();sfx('click');o.fn();};box.appendChild(b);});
   $('#dHint').textContent=pad.active?'D-pad to highlight · A to choose · B walks away':isTouch?'Tap a reply, or start moving to walk away.':(opts.length>1?`Press 1–${Math.min(9,opts.length)} to reply · Enter picks the first · Esc or any movement key walks away`:'Press 1 or Enter to reply · Esc or any movement key walks away');
   updateTouchVis();padFocus('#dOpts');}
-function closeDialog(){UI.dialog=false;UI.dlgLock=false;document.documentElement.classList.remove('talking');$('#dialog').hidden=true;dlgNpc=null;endTalk();updateTouchVis();}
+function closeDialog(){dlgView(false);UI.dialog=false;UI.dlgLock=false;document.documentElement.classList.remove('talking');$('#dialog').hidden=true;dlgNpc=null;endTalk();updateTouchVis();}
 const bye=(l='Goodbye.')=>({label:l,fn:closeDialog});
 function vesta(msg,dur=7000){toast('VESTA · '+msg,'teal',dur);}
 function openNPCDialog(n){const D=n.D;dlgNpc=n;
