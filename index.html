@@ -6427,6 +6427,14 @@ function bindToBone(root,bone,group,offset){
   const off=offset.clone().multiply(rs).applyQuaternion(inv).divide(_abs);group.position.copy(off);bone.add(group);return group;}
 function boneOrigin(root,bone){root.updateMatrixWorld(true);const p=new THREE.Vector3();bone.getWorldPosition(p);root.worldToLocal(p);return p;}
 
+// Put a skinned model's bones in their bind pose (the pose the mesh was modelled in), read from the skin's inverse bind
+// matrices. Root bones keep their placement, so this works whatever transform the armature sits under. Returns an undo.
+const _bpP=new THREE.Vector3(),_bpQ=new THREE.Quaternion(),_bpS=new THREE.Vector3();
+function bindPose(model){const W=new Map();model.traverse(x=>{if(!x.isSkinnedMesh)return;const sk=x.skeleton;sk.bones.forEach((b,i)=>{if(!W.has(b)&&sk.boneInverses[i])W.set(b,sk.boneInverses[i].clone().invert());});});
+  const saved=[];for(const [b,w] of W){if(!b.parent||!W.has(b.parent))continue;saved.push([b,b.position.clone(),b.quaternion.clone()]);
+    W.get(b.parent).clone().invert().multiply(w).decompose(_bpP,_bpQ,_bpS);b.position.copy(_bpP);b.quaternion.copy(_bpQ);}
+  model.updateMatrixWorld(true);return ()=>{for(const [b,p,q] of saved){b.position.copy(p);b.quaternion.copy(q);}model.updateMatrixWorld(true);};}
+
 /* ---------- animation controller ---------- */
 // 'q' is the Quaternius rig shared by the player's spacesuit and every townsperson; 'robot' is RobotExpressive.
 class Animator{
@@ -6580,6 +6588,9 @@ function buildRiderBody(root,model,o){const M=MODELS[o.id],map=o.map;if(!M)retur
   const mats=[];body.traverse(x=>{if(!x.isMesh)return;x.castShadow=true;x.receiveShadow=true;x.frustumCulled=false;const m=x.material=x.material.clone();mats.push(m);if(o.paint)o.paint(m);});
   const SB={},TB={};model.traverse(x=>{if(x.isBone)SB[x.name]=x;});body.traverse(x=>{if(x.isBone)TB[x.name.replace(/_\d+$/,'')]=x;});const T=k=>TB[map[k]];
   const pairs=Object.keys(map).filter(k=>SB[k]&&T(k));if(pairs.length<12||!SB.Hips||!T('Hips')||!T('FootL')||!T('FootR')||!(T('Head')||T('Chest')))return null;
+  // measure both skeletons in their bind poses: measured mid-animation (an idle stance with the hips turned against the chest),
+  // that turn would be built in backwards and show up as a twisted torso whenever the clips square the body up
+  const unpose=bindPose(model);bindPose(body);
   const wp=b=>root.worldToLocal(b.getWorldPosition(new THREE.Vector3()));const upd=()=>root.updateMatrixWorld(true);upd();
   // turn the model upright and facing the same way as the rig, then match height and stand it on the same spot
   const basis=(head,hips,l,r)=>{const u=wp(head).sub(wp(hips)).normalize(),x=wp(r).sub(wp(l));x.addScaledVector(u,-x.dot(u)).normalize();const f=new THREE.Vector3().crossVectors(x,u);return new THREE.Matrix4().makeBasis(x,u,f);};
@@ -6598,7 +6609,7 @@ function buildRiderBody(root,model,o){const M=MODELS[o.id],map=o.map;if(!M)retur
   const hip0s=wp(SB.Hips),pel=T('Hips'),pel0=wp(pel),hipK=(pel0.y-wp(T('FootL')).y)/Math.max(.01,hip0s.y-wp(SB.FootL).y);
   const order=[];body.traverse(x=>{if(x.isBone)order.push(x);});
   const fL=T('FootL'),fR=T('FootR'),footRest=Math.min(fL?wp(fL).y:9,fR?wp(fR).y:9);let lift=0;// parents come before children
-  const W={},tmp=new THREE.Quaternion(),pv=new THREE.Vector3();
+  const W={},tmp=new THREE.Quaternion(),pv=new THREE.Vector3();unpose();
   return {body,wrap,mats,T,handR:T('WristR'),armR:T('LowerArmR'),sync(){root.updateMatrixWorld(true);
     for(const b of order){const P=b.parent.isBone?W[b.parent.uuid]:relQ(b.parent,new THREE.Quaternion()),e=off[b.uuid];let w;
       if(e){w=relQ(e.s,new THREE.Quaternion()).multiply(e.o);b.quaternion.copy(tmp.copy(P).invert().multiply(w));}else w=P.clone().multiply(b.quaternion);W[b.uuid]=w;}
