@@ -6590,7 +6590,7 @@ function buildRiderBody(root,model,o){const M=MODELS[o.id],map=o.map;if(!M)retur
   const pairs=Object.keys(map).filter(k=>SB[k]&&T(k));if(pairs.length<12||!SB.Hips||!T('Hips')||!T('FootL')||!T('FootR')||!(T('Head')||T('Chest')))return null;
   // measure both skeletons in their bind poses: measured mid-animation (an idle stance with the hips turned against the chest),
   // that turn would be built in backwards and show up as a twisted torso whenever the clips square the body up
-  const unpose=bindPose(model);bindPose(body);
+  const unpose=bindPose(model),unposeB=bindPose(body);
   const wp=b=>root.worldToLocal(b.getWorldPosition(new THREE.Vector3()));const upd=()=>root.updateMatrixWorld(true);upd();
   // turn the model upright and facing the same way as the rig, then match height and stand it on the same spot
   const basis=(head,hips,l,r)=>{const u=wp(head).sub(wp(hips)).normalize(),x=wp(r).sub(wp(l));x.addScaledVector(u,-x.dot(u)).normalize();const f=new THREE.Vector3().crossVectors(x,u);return new THREE.Matrix4().makeBasis(x,u,f);};
@@ -6603,13 +6603,20 @@ function buildRiderBody(root,model,o){const M=MODELS[o.id],map=o.map;if(!M)retur
   {const lo=skinBox(model,root).min.y,lb=skinBox(body,root).min.y;if(isFinite(lo)&&isFinite(lb)){wrap.position.y+=lo-lb;upd();}}
   // rest poses in the character's own space
   const rq=new THREE.Quaternion(),qi=new THREE.Quaternion();const relQ=(o,out)=>{root.getWorldQuaternion(qi).invert();return out.copy(qi).multiply(o.getWorldQuaternion(rq));};
-  const off={};for(const k of pairs){const s=SB[k],t=T(k);const Rs=relQ(s,new THREE.Quaternion()),Rt=relQ(t,new THREE.Quaternion());let Ra=new THREE.Quaternion();
+  // Arms, hands and fingers are measured in the models' own resting poses instead (arms down on both): against the rig's T-pose,
+  // matching each bone's direction alone leaves the forearm and hand rolled outward.
+  const ARM=/^(UpperArm|LowerArm|Wrist|Index|Middle|Ring|Pinky|Thumb)/;const off={};
+  const measure=keys=>{for(const k of keys){const s=SB[k],t=T(k);const Rs=relQ(s,new THREE.Quaternion()),Rt=relQ(t,new THREE.Quaternion());let Ra=new THREE.Quaternion();
     const c=RIG_CHILD[k];if(c&&SB[c]&&T(c)){const ds=wp(SB[c]).sub(wp(s)).normalize(),dt=wp(T(c)).sub(wp(t)).normalize();Ra.setFromUnitVectors(dt,ds);}
-    off[t.uuid]={s,o:Rs.clone().invert().multiply(Ra).multiply(Rt)};}
+    off[t.uuid]={s,o:Rs.clone().invert().multiply(Ra).multiply(Rt)};}};
+  measure(pairs.filter(k=>!ARM.test(k)));unpose();unposeB();upd();measure(pairs.filter(k=>ARM.test(k)));bindPose(model);const unposeB2=bindPose(body);
   const hip0s=wp(SB.Hips),pel=T('Hips'),pel0=wp(pel),hipK=(pel0.y-wp(T('FootL')).y)/Math.max(.01,hip0s.y-wp(SB.FootL).y);
   const order=[];body.traverse(x=>{if(x.isBone)order.push(x);});
   const fL=T('FootL'),fR=T('FootR'),footRest=Math.min(fL?wp(fL).y:9,fR?wp(fR).y:9);let lift=0;// parents come before children
   const W={},tmp=new THREE.Quaternion(),pv=new THREE.Vector3();unpose();
+  // and give the body back its own pose: bones the skin never uses (some finger and helper bones) have no real bind data and
+  // would otherwise be left wherever the bind matrices put them (at the model's origin, by its feet)
+  unposeB2();
   return {body,wrap,mats,T,handR:T('WristR'),armR:T('LowerArmR'),sync(){root.updateMatrixWorld(true);
     for(const b of order){const P=b.parent.isBone?W[b.parent.uuid]:relQ(b.parent,new THREE.Quaternion()),e=off[b.uuid];let w;
       if(e){w=relQ(e.s,new THREE.Quaternion()).multiply(e.o);b.quaternion.copy(tmp.copy(P).invert().multiply(w));}else w=P.clone().multiply(b.quaternion);W[b.uuid]=w;}
