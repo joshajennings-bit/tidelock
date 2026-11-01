@@ -6740,8 +6740,8 @@ function buildAvatar(L){
   // an alternate body rides the rig; the suit and its gear stay in place, unseen, to drive it
   // a special model: any rigged townsperson or humanoid robot, with its colours shifted
   const spn=L.body==='npc'&&MODELS[L.npc]&&!NPC_CLIP[L.npc]?{mdl:L.npc,hue:(L.npcHue||0)*Math.PI/180,sat:L.npcSat??1,val:L.npcVal??1}:null;
-  const rider=spn?buildRiderBody(root,model,{id:spn.mdl,map:NPC_RIG[spn.mdl]||RPM_MAP,paint:m=>npcPaint(m,spn,!!NPC_RIG[spn.mdl])}):L.body==='soldier'?buildRiderBody(root,model,{id:'soldier',map:CC_MAP,paint:m=>{m.envMap=protaEnv();m.envMapIntensity=.6;m.color.setRGB(1,1,1).lerp(lin(C.armor),.35);}}):L.body==='prota'?buildRiderBody(root,model,{id:'prota',map:PROTA_MAP,paint:m=>{m.envMap=protaEnv();m.envMapIntensity=1.2;
-    m.color.setRGB(1,1,1).lerp(lin(C.armor),.7).multiplyScalar(1.7);m.metalness=.55;m.roughness=.55;m.emissive=lin(C.accent);m.emissiveIntensity=2.4;}}):null;if(rider)model.traverse(o=>{if(o.isMesh)o.visible=false;});
+  const rider=spn?buildRiderBody(root,model,{id:spn.mdl,map:NPC_RIG[spn.mdl]||RPM_MAP,paint:m=>npcPaint(m,spn,!!NPC_RIG[spn.mdl])}):L.body==='soldier'?buildRiderBody(root,model,{id:'soldier',map:CC_MAP,paint:m=>{m.envMap=protaEnv();m.envMapIntensity=.6;if(m.map)bodyTint(m,'soldier',C);else m.color.copy(lin(C.trim)).multiplyScalar(.5);}}):L.body==='prota'?buildRiderBody(root,model,{id:'prota',map:PROTA_MAP,paint:m=>{m.envMap=protaEnv();m.envMapIntensity=1.2;
+    bodyTint(m,'prota',C);m.metalness=.55;m.roughness=.55;m.emissive=lin(C.accent);m.emissiveIntensity=2.4;}}):null;if(rider)model.traverse(o=>{if(o.isMesh)o.visible=false;});
   // first-person left forearm that rises into view when the wrist terminal opens
   const fpLeft=new THREE.Group();fpLeft.visible=false;scene.add(fpLeft);{const sm=std(TEX.fabric,{color:C.suit,roughness:.8}),gm=std(TEX.rubber,{color:C.trim,roughness:.7});
     const s1=new THREE.Mesh(cyl(.055,.065,.42,16),sm);s1.position.y=-.2;fpLeft.add(s1);const band=new THREE.Mesh(tor(.068,.02,8,24),dark);band.rotation.x=Math.PI/2;band.position.y=-.03;fpLeft.add(band);
@@ -6809,6 +6809,24 @@ function hueMatrix(h,s,v){const c=Math.cos(h)*s,sn=Math.sin(h)*s,R=[[1,0,0],[0,c
   const M=mul(_hi,mul(R,_hy)).map(r=>r.map(x=>x*v));return new THREE.Matrix3().set(...M[0],...M[1],...M[2]);}
 function hueFx(m,h,s=1,v=1){if(!h&&s===1&&v===1)return;const M=hueMatrix(h,s,v);m.customProgramCacheKey=()=>'huefx';
   m.onBeforeCompile=sh=>{sh.uniforms.uHueM={value:M};sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform mat3 uHueM;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.rgb=max(uHueM*diffuseColor.rgb,0.);');};m.needsUpdate=true;}
+// Recolour the textured operative and soldier by region, so each colour choice lands where its name says. Every texel is sorted by
+// its own colour (bright plates, dark under-suit, mid-grey trim and joints, saturated glow lines) and takes the chosen colour for
+// that region, keeping the texture's own shading as detail. Tiny highlights are left as painted.
+const BT_GLSL={
+  soldier:`float wG=smoothstep(.28,.42,mx-mn)*smoothstep(.45,.6,mx),wA=smoothstep(.4,.52,tl)*(1.-wG),wS=(1.-smoothstep(.15,.24,tl))*(1.-wG),wT=max(0.,1.-wG-wA-wS);
+    float dA=tl/.72,dS=tl/.1,dT=tl/.3,wK=0.;`,
+  prota:`float dk=1.-smoothstep(.25,.29,tl),bl=smoothstep(.022,.042,br),wK=smoothstep(.6,.66,tl),wG=0.,wS=dk*bl,wT=dk*(1.-bl),wA=(1.-dk)*(1.-wK);
+    float dA=tl/.37,dS=tl/.18,dT=tl/.2;`};
+function bodyTint(m,kind,C){const U={uBtS:{value:lin(C.suit)},uBtA:{value:lin(C.armor)},uBtT:{value:lin(C.trim)},uBtG:{value:lin(C.accent)}};m.color.setRGB(1,1,1);
+  m.customProgramCacheKey=()=>'bt-'+kind;
+  m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uBtS,uBtA,uBtT,uBtG;')
+    .replace('#include <map_fragment>',`#include <map_fragment>
+    vec3 tS=pow(max(diffuseColor.rgb,vec3(0.)),vec3(1./2.2));float tl=dot(tS,vec3(1./3.)),br=tS.b-tS.r,mx=max(tS.r,max(tS.g,tS.b)),mn=min(tS.r,min(tS.g,tS.b));
+    ${BT_GLSL[kind]}
+    #define BTD(d) pow(clamp(d,.45,1.7),2.2)
+    vec3 btC=uBtS*wS*BTD(dS)+uBtA*wA*BTD(dA)+uBtT*wT*BTD(dT)+uBtG*wG*.7+diffuseColor.rgb*wK;
+    diffuseColor.rgb=btC/max(wS+wA+wT+wG+wK,1e-3);`)
+    .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=uBtG*wG*1.6;');};m.needsUpdate=true;}
 const NPC_KEEP=/Body|Skin|Eye|Teeth/i;
 function npcPaint(m,nm,robot){m.envMap=protaEnv();m.envMapIntensity=robot?.9:.4;if(robot||!NPC_KEEP.test(m.name||''))hueFx(m,(nm.hue||0)*(/Hair|Beard/i.test(m.name||'')?.25:1),nm.sat||1,nm.val||1);}
 // the hovering drone and the boxy walker play their own clips through a small stand-in for the animator
@@ -10312,7 +10330,7 @@ function renderLooks(){const b=sheet(),L=G.look,first=UI.customFirst,fi=padButto
   const row=(t,h)=>`<div><h3>${t}</h3><div class="opts">${h}</div></div>`;let inner='';
   if(lookTab==='you')inner=`<div><h3>Name</h3><div class="opts"><input id="lookName" class="namein" maxlength="18" value="${esc(L.name)}" placeholder="Type a name" autocomplete="off" spellcheck="false"><button class="buy" type="button" id="lookKb">⌨ TYPE</button><button class="buy alt" type="button" id="lookRand">RANDOM</button></div></div>`+row('Character',chips('body',LOOK.body.filter(x=>x[0]!=='npc')))+row('Build',chips('build',LOOK.build))+row('Height',chips('height',LOOK.height));
   if(lookTab==='colors')inner=row('Under-suit',PAL.map(c=>sw('suit',c,L.suit===c)).join('')+cpick('suit',L.suit))+row('Armor plates',auto('armor','AUTO')+PAL.map(c=>sw('armor',c,L.armor===c)).join('')+cpick('armor',C.armor))+row('Trim and joints',auto('trim','AUTO')+PAL.map(c=>sw('trim',c,L.trim===c)).join('')+cpick('trim',C.trim))
-    +row('Trim and glow',GLOWS.map(c=>sw('accent',c,L.accent===c)).join('')+cpick('accent',L.accent))+row('Visor',auto('visor','MATCH GLOW')+GLOWS.map(c=>sw('visor',c,L.visor===c)).join('')+cpick('visor',C.visor))+'<p class="note">The rainbow circle at the end of each row picks any color.</p>';
+    +row('Glow lines',GLOWS.map(c=>sw('accent',c,L.accent===c)).join('')+cpick('accent',L.accent))+row('Visor',auto('visor','MATCH GLOW')+GLOWS.map(c=>sw('visor',c,L.visor===c)).join('')+cpick('visor',C.visor))+'<p class="note">The rainbow circle at the end of each row picks any color.</p>';
   if(lookTab==='suit')inner=row('Outfit',chips('outfit',LOOK.outfit))+row('Suit pattern',chips('pattern',LOOK.pattern))+row('Shoulders',chips('shoulders',LOOK.shoulders))+row('Finish',chips('finish',LOOK.finish))+row('Chest emblem',chips('emblem',LOOK.emblem));
   if(lookTab==='head')inner=row('Helmet',chips('helmet',LOOK.helmet))+(L.helmet==='none'?row('Face',chips('face',LOOK.face))+row('Hair style',chips('hairstyle',LOOK.hairstyle))+row('Skin tone',auto('skin','DEFAULT')+SKINS.map(c=>sw('skin',c,L.skin===c)).join('')+cpick('skin',L.skin??SKINS[1]))+row('Hair',auto('hair','DEFAULT')+HAIRS.map(c=>sw('hair',c,L.hair===c)).join('')+cpick('hair',L.hair??HAIRS[1])):'<p class="note">Choose “No helmet” to pick a face, hair style, skin tone and hair color.</p>');
   if(lookTab==='back')inner=row('Backpack',chips('pack',LOOK.pack))+'<p class="note">Use BACK below to see it.</p>';
@@ -10322,7 +10340,7 @@ function renderLooks(){const b=sheet(),L=G.look,first=UI.customFirst,fi=padButto
       inner=row('Model',`<button class="chipbtn${cur?'':' on'}" type="button" data-spm="">USE MY SUIT</button>`+specialList().map(([m,l])=>`<button class="chipbtn${cur===m?' on':''}" type="button" data-spm="${m}">${esc(l).toUpperCase()}</button>`).join(''))
         +(cur?row('Colours',step('npcHue',30,'Colour shift',(L.npcHue||0)+'°')+step('npcSat',.1,'Vividness',Math.round((L.npcSat??1)*100)+'%')+step('npcVal',.05,'Brightness',Math.round((L.npcVal??1)*100)+'%')+'<button class="buy alt" type="button" id="spReset">RESET</button>')
           +'<p class="note">Colour shift turns the clothes, hair and paint round the colour wheel; skin stays natural. Outfit, helmet and backpack apply to the Spacesuit only.</p>':'');}}
-  if(L.body!=='suit'&&(lookTab==='suit'||lookTab==='head'||lookTab==='back'))inner='<p class="note">'+(L.body==='prota'?'The Sci-fi operative':L.body==='npc'?'A special model':'The Sci-fi soldier')+' comes fully suited, so outfit, helmet and backpack choices apply to the Spacesuit only. On the COLORS tab, Armor plates tints it'+(L.body==='prota'?' and Trim and glow sets its light lines':'')+'.</p>';
+  if(L.body!=='suit'&&(lookTab==='suit'||lookTab==='head'||lookTab==='back'))inner='<p class="note">'+(L.body==='prota'?'The Sci-fi operative':L.body==='npc'?'A special model':'The Sci-fi soldier')+' comes fully suited, so outfit, helmet and backpack choices apply to the Spacesuit only. '+(L.body==='npc'?'':'On the COLORS tab, Under-suit, Armor plates, Trim and joints and Glow lines each recolour that part of it.')+'</p>';
   const nLocked=['outfit','helmet','emblem'].reduce((n,k)=>n+LOOK[k].filter(x=>!lockedOK(x[2])).length,0);
   b.innerHTML=`<h2>${first?'Your Reflection':'Locker'} <button class="x" type="button" id="xLook">${first?'DONE':'CLOSE · ESC'}</button></h2>
     <p class="note">${first?'Your visor is cracked, but your reflection is clear enough. The name on your collar has been scratched off. Who are you?':'Change how you look. Drag the view, or use the buttons, to turn around.'}</p>
