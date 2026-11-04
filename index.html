@@ -8941,7 +8941,9 @@ function completeQuest(id){const d=QUESTS[id],s=G.q[id];if(!s||s.st==='done')ret
   for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k);}}
 function nextTrack(){const act=Object.keys(G.q).filter(k=>G.q[k].st==='active');return act.find(k=>QUESTS[k].type==='main')||act[0]||null;}
 function checkObjectives(){for(const id in G.q){const s=G.q[id];if(s.st!=='active')continue;const d=QUESTS[id];if(!d)continue;const st=d.stages[s.s];if(!st)continue;
-  st.obj.forEach((o,i)=>{if(o.k==='go'&&(!o.zone||o.zone===W.id)&&Math.hypot(player.x-o.x,player.z-o.z)<(o.r||6)&&!s.p[i]){s.p[i]=1;}});
+  st.obj.forEach((o,i)=>{// a named enemy (a boss) you already beat before this step began still counts
+    if(o.k==='killId'&&!s.p[i]&&o.id&&Object.values(G.zs||{}).some(z=>z&&z.killed&&z.killed[o.id])){s.p[i]=1;}
+    if(o.k==='go'&&(!o.zone||o.zone===W.id)&&Math.hypot(player.x-o.x,player.z-o.z)<(o.r||6)&&!s.p[i]){s.p[i]=1;}});
   if(stageDone(id)&&!st.obj.some(o=>o.k==='talk'||o.k==='deliver'))advance(id);}}
 Bus.on('kill',(type,e)=>{for(const id in G.q){const s=G.q[id];if(s.st!=='active')continue;const st=QUESTS[id].stages[s.s];st.obj.forEach((o,i)=>{if(o.k==='kill'&&((o.types||[o.type]).includes(type))&&(!o.zone||o.zone===W.id)){s.p[i]=Math.min(o.n,(s.p[i]||0)+1);if(s.p[i]<=o.n)toast(`${o.label||'Defeated'} · ${s.p[i]}/${o.n}`);}
   if(o.k==='killId'&&e.id===o.id)s.p[i]=1;});}checkObjectives();renderTracker();});
