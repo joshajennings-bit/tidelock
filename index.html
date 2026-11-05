@@ -10061,7 +10061,7 @@ function vkWall(ctx,ax,az,bx,bz,nx,nz,o={}){const y0=W.floorY;let ux=bx-ax,uz=bz
   for(let i=0;i<n;i++){const p=vkPiece('wall');if(!p)break;const g=new THREE.Group();g.add(p);p.position.x=-1.63;g.scale.set(VK.DEPTH,1,sl/VK.TILE);
     g.position.set(ax+ux*i*sl,y0+1.55,az+uz*i*sl);g.rotation.y=ry;ctx.g.add(g);}
   // solid: a thin box along the panel face
-  const mx=(ax+bx)/2-nx*.32,mz=(az+bz)/2-nz*.32;ctx.plat({x:mx,z:mz,hw:Math.abs(ux)>.5?L/2:.18,hd:Math.abs(ux)>.5?.18:L/2,rot:0,top:y0+VK.H,bot:y0-1});}
+  const mx=(ax+bx)/2-nx*.28,mz=(az+bz)/2-nz*.28;ctx.plat({x:mx,z:mz,hw:Math.abs(ux)>.5?L/2:.3,hd:Math.abs(ux)>.5?.3:L/2,rot:0,top:y0+VK.H,bot:y0-1});}// solid through the panel's whole depth
 // a wall with doorways: gaps listed as [centre offset from A, width]
 function vkWallGaps(ctx,ax,az,bx,bz,nx,nz,gaps=[]){const L=Math.hypot(bx-ax,bz-az),ux=(bx-ax)/L,uz=(bz-az)/L;let t=0;
   for(const [c,w] of [...gaps].sort((a,b)=>a[0]-b[0])){vkWall(ctx,ax+ux*t,az+uz*t,ax+ux*(c-w/2),az+uz*(c-w/2),nx,nz);t=c+w/2;}vkWall(ctx,ax+ux*t,az+uz*t,bx,bz,nx,nz);}
@@ -10077,7 +10077,9 @@ function vkDeck(ctx,x0,x1,z0,z1,o={}){const y0=W.floorY,nx=Math.ceil((x1-x0)/VK.
 // a framed doorway with two panels that slide apart when you come near
 function vkDoor(ctx,x,z,along,w,o={}){const y0=W.floorY,g=grp(ctx,x,y0,z,along==='x'?0:Math.PI/2),P=ctx.P,h=2.5;
   for(const s of[-1,1]){P.add(g,MAT.metal,RB(.22,h+.3,.7,.04,1),s*(w/2+.11),(h+.3)/2,0);P.add(g,o.glow||MAT.tealGlow,RB(.04,h,.72,.01,1),s*(w/2+.02),h/2,0);}
-  P.add(g,MAT.metal,RB(w+.66,.35,.7,.05,1),0,h+.18,0);P.add(g,o.glow||MAT.amberGlow,RB(w*.6,.05,.72,.01,1),0,h+.02,0);
+  P.add(g,MAT.metal,RB(w+.66,.35,.7,.05,1),0,h+.18,0);
+  // the frame is solid to the camera (you walk under the lintel; it only stops the camera settling inside it)
+  {const ax=along==='x';ctx.plat({x,z,hw:ax?w/2+.35:.36,hd:ax?.36:w/2+.35,rot:0,top:y0+VK.H,bot:y0+h-.05,nocollide:true});}P.add(g,o.glow||MAT.amberGlow,RB(w*.6,.05,.72,.01,1),0,h+.02,0);
   const panels=[];for(const s of[-1,1]){const pm=new THREE.Mesh(RB(w/2,h,.12,.03,1),MAT.hullDark);pm.position.set(s*w/4,h/2,0);g.add(pm);const st=new THREE.Mesh(RB(.06,h*.8,.13,.01,1),o.glow||MAT.tealGlow);st.position.set(s*-.05,0,0);pm.add(st);panels.push({m:pm,s});}
   let open=0;ctx.anim(dt=>{const want=Math.hypot(player.x-x,player.z-z)<3.4||o.jammed&&o.jammed()?1:0;if(o.jammed&&o.jammed())open+=(.45+Math.sin(performance.now()*.004)*.05-open)*Math.min(1,dt*3);else open+=(want-open)*Math.min(1,dt*5);
     for(const p of panels)p.m.position.x=p.s*(w/4+open*w*.5);});}
@@ -11019,11 +11021,12 @@ function drawZoneMap(cv){const c=cv.getContext('2d'),S=cv.width,k=S/W.size,P=(x,
   {const m=W.size>300?100:W.size>120?50:20,len=m*k;c.fillStyle='rgba(8,10,18,.7)';c.fillRect(20,S-50,len+70,32);c.fillStyle='#c8fff6';c.fillRect(30,S-30,len,4);c.fillRect(30,S-38,2,12);c.fillRect(30+len-2,S-38,2,12);
     c.font='600 16px sans-serif';c.textAlign='left';c.textBaseline='middle';c.fillText(m+' m',38+len,S-30);}
   c.strokeStyle='rgba(111,242,214,.35)';c.lineWidth=2;c.strokeRect(1,1,S-2,S-2);}
-function renderMap(){ftSync();const box=$('#menuBody');const L=ftList(),here=W.id;
+// travel between regions and worlds is the Vesper's job (her star map); the map only jumps between ◆ points in the region you're in
+function renderMap(){ftSync();const box=$('#menuBody');const here=W.id,L=ftList().filter(g=>g.zone===here);
   const groups=L.map(g=>`<div class="ftg${g.zone===here?' here':''}"><div class="ftz"><b>${esc(ZONES[g.zone].name)}</b><small>${esc(ZONES[g.zone].world||'')}${g.zone===here?' · YOU ARE HERE':''}</small></div>${g.pts.map(p=>`<button class="ftb" type="button" data-ft="${g.zone}|${esc(p.id)}"><span class="fd">◆</span>${esc(p.n)}</button>`).join('')}</div>`).join('');
   box.innerHTML=`<div class="mapwrap"><div class="mapc"><canvas id="mapCanvas" width="1024" height="1024"></canvas>
       <p class="note">${esc(W.def.name)} · ${esc(W.def.world||'')}${W.mapShot?'':' · charting…'} <span class="mkey"><i class="k1"></i> fast travel <i class="k2"></i> landmark <i class="k3"></i> your task</span></p></div>
-    <div class="ftl"><h3>Fast travel</h3><p class="note">Every ◆ you've found, in every region you've visited. Other worlds are a short Vesper flight.</p>${groups||'<p class="note">Explore to find places marked ◆.</p>'}</div></div>`;
+    <div class="ftl"><h3>Fast travel</h3><p class="note">Jump between the ◆ points you've found in this region. To reach other regions and worlds, fly the Vesper.</p>${groups||'<p class="note">Explore to find places marked ◆.</p>'}</div></div>`;
   const cv=$('#mapCanvas');drawZoneMap(cv);if(!W.mapShot)requestMapShot(()=>{if(UI.holo&&UI.tab==='map'&&$('#mapCanvas'))renderMap();});
   box.querySelectorAll('[data-ft]').forEach(e=>e.onclick=()=>{const [z,id]=e.dataset.ft.split('|');fastTravel(z,id);});}
 
@@ -11340,7 +11343,8 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
     if(avatar&&avatar.fpLeft){const L=avatar.fpLeft;cam.holoT=lerp(cam.holoT||0,UI.holo?1:0,clamp(dt*7,0,1));L.visible=cam.holoT>.02;if(L.visible){const k=smooth(0,1,cam.holoT);_fpV.set(-.2,lerp(-.75,-.22,k),-.46).applyQuaternion(camera.quaternion);L.position.copy(camera.position).add(_fpV);L.quaternion.copy(camera.quaternion).multiply(_fpTilt);}}}
   else{if(avatar&&avatar.sleeve)avatar.sleeve.visible=false;if(avatar&&avatar.fpLeft)avatar.fpLeft.visible=false;cam.tx=lerp(cam.tx,player.x,clamp(dt*10,0,1));cam.ty=lerp(cam.ty,player.y+1.7,clamp(dt*8,0,1));cam.tz=lerp(cam.tz,player.z,clamp(dt*10,0,1));
     const cp=Math.cos(cam.pitch),dist=W.interior?Math.min(cam.dist,6.5):cam.dist;let dist2=dist;
-    for(let i=1;i<=12;i++){const t=dist*i/12;const x=cam.tx+Math.sin(cam.yaw)*cp*t,z=cam.tz+Math.cos(cam.yaw)*cp*t,y=cam.ty+Math.sin(cam.pitch)*t;if(solidAt(x,y,z)){dist2=Math.max(1.4,t-dist/12);break;}}
+    // probe in small steps (thin interior walls) and stop a little short of anything solid
+    const N=W.interior?40:16;for(let i=1;i<=N;i++){const t=dist*i/N;const x=cam.tx+Math.sin(cam.yaw)*cp*t,z=cam.tz+Math.cos(cam.yaw)*cp*t,y=cam.ty+Math.sin(cam.pitch)*t;if(solidAt(x,y,z)){dist2=Math.max(1.2,t-(W.interior?.45:dist/12));break;}}
     cam.cur=lerp(cam.cur,dist2,clamp(dt*(dist2<cam.cur?14:3),0,1));
     let cx=cam.tx+Math.sin(cam.yaw)*cp*cam.cur,cz=cam.tz+Math.cos(cam.yaw)*cp*cam.cur,cy=cam.ty+Math.sin(cam.pitch)*cam.cur;
     cy=Math.max(cy,(W.interior?W.floorY:groundY(cx,cz))+.6);if(W.water)cy=Math.max(cy,W.water.y+.4);if(W.interior)cy=Math.min(cy,W.ceiling-.25);
