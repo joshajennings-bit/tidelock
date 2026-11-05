@@ -7610,7 +7610,7 @@ function updateEnemies(dt,paused){
       e.provoked=Math.max(0,e.provoked-dt);e.cd=Math.max(0,e.cd-dt);const home=Math.hypot(e.x-e.hx,e.z-e.hz);
       if(e.wind>0){e.wind-=dt;if(e.wind<=0){e.lunge=.25;if(d<T.reach+.9&&!player.dead){if(player.onGround||T.fly)hurtPlayer(e.dmg,e);else floatText('Dodged',player.x,player.y+2.2,player.z,'xp');}}}
       if(e.fleeT>0){e.fleeT-=dt;const ax=e.x-e.fx,az=e.z-e.fz,ad=Math.hypot(ax,az)||1;tx=e.x+ax/ad*6;tz=e.z+az/ad*6;speed=T.speed*1.1;e.state='wander';}
-      else if(T.ai==='boss')speed=bossAI(e,dt,d,dx,dz);
+      else if(T.ai==='boss'){tx=player.x;tz=player.z;speed=bossAI(e,dt,d,dx,dz);}// a boss that returns a speed walks at you
       else if(e.state==='return'){tx=e.hx;tz=e.hz;speed=T.speed;if(home<3){e.state='wander';e.hp=e.maxHp;}}
       else if((d<T.aggro*(PS.scan?1+PS.scan/100:1)||e.provoked>0)&&home<e.leash&&!player.dead){
         e.state='chase';
@@ -7633,7 +7633,7 @@ function updateEnemies(dt,paused){
       if(d<T.r+.5&&d>.01&&!T.fly){e.x-=dx/d*(T.r+.5-d);e.z-=dz/d*(T.r+.5-d);}}
     e.phase+=speed*dt*2.4;e.lunge=Math.max(0,e.lunge-dt);
     const gy=groundY(e.x,e.z);e.y=T.fly?lerp(e.y,gy+e.fly+Math.sin(e.t*1.7)*.4,clamp(dt*3,0,1)):gy;
-    m.g.position.set(e.x,e.y,e.z);m.g.rotation.y=e.face;
+    m.g.position.set(e.x,e.y+(e.air||0),e.z);m.g.rotation.y=e.face;
     e.animAcc=(e.animAcc||0)+dt;if(m.g.visible&&(e.T.ai==='boss'||inView(e.x,e.y+1,e.z,(e.T.r||1)+2.5))){animateEnemy(e,e.animAcc,speed);e.animAcc=0;}
     if(e.flash>0){e.flash-=dt;if(m.mat&&m.mat.emissive){m.mat.emissive.setHex(0xffffff);m.mat.emissiveIntensity=e.flash*5;}}else if(m.mat&&m.mat.emissive){m.mat.emissive.setHex(e.frozen>0?0x6fd8ff:e.baseEm);m.mat.emissiveIntensity=e.frozen>0?.6:e.baseEi;}
   }
@@ -7665,6 +7665,17 @@ function updateWaves(dt){for(let i=waves.length-1;i>=0;i--){const w=waves[i];w.r
 function bossAI(e,dt,d,dx,dz){const T=e.T;if(d>T.aggro&&e.provoked<=0)return 0;e.state='chase';e.face+=wrapA(Math.atan2(dx,dz)-e.face)*clamp(dt*4,0,1);const phase2=e.hp<e.maxHp*.5;
   if(!e.announced){e.announced=true;bossBar(e);}
   if(T.boss==='warden'||T.boss==='keeper'){
+    // mid-leap: an arc onto the spot you were standing, marked by a ring, then a crash and a shockwave
+    if(e.leap){const L=e.leap;L.t+=dt;const k=Math.min(1,L.t/L.dur),t=e.m.tele;e.x=lerp(L.x0,L.x1,k);e.z=lerp(L.z0,L.z1,k);e.air=Math.sin(k*Math.PI)*L.h;
+      if(t){t.visible=true;t.position.set(L.x1,groundY(L.x1,L.z1)+.15,L.z1);t.scale.setScalar(3.4);t.material.opacity=.3+k*.5;}
+      if(k>=1){e.leap=null;e.air=0;if(t)t.visible=false;sfx('slam');cam.shake=.45;shockwave(e,phase2);if(Math.hypot(player.x-e.x,player.z-e.z)<3.4&&player.onGround)hurtPlayer(e.dmg,e);e.cd=T.cd*.6;e.best=d;e.stuck=0;}return 0;}
+    // can't get at you (you're above him, or he's made no headway for a while): shard volleys, then a leap
+    if(d<=T.reach||d<(e.best??1e9)-1.5){e.best=d;e.stuck=0;}else e.stuck=(e.stuck||0)+dt;
+    const high=player.y-e.y>2.2;e.volT=(e.volT??2.5)-dt;e.leapCd=(e.leapCd??4)-dt;
+    if(!(e.windup>0)&&d>T.reach&&(high||e.stuck>2)&&e.volT<=0){e.volT=phase2?1.8:2.8;sfx('zap');
+      enemyShoot(Object.assign({},e,{T:Object.assign({},T,{shoot:{dmg:13,col:0xb98cff,rate:1,speed:19}})}),phase2?5:3);}
+    if(!(e.windup>0)&&d>T.reach+1&&d<36&&(e.stuck>4||high&&e.stuck>1.5)&&e.leapCd<=0){e.leapCd=phase2?6:9;
+      e.leap={t:0,dur:.9+d*.02,x0:e.x,z0:e.z,x1:player.x,z1:player.z,h:6+Math.max(0,player.y-e.y)};sfx('warp');return 0;}
     if(e.windup>0){e.windup-=dt;const k=1-e.windup/.75;const t=e.m.tele;if(t){t.visible=true;t.position.set(e.x,groundY(e.x,e.z)+.15,e.z);t.scale.setScalar(.5+k*3.8);t.material.opacity=.25+k*.45;}if(e.windup<=0){if(t)t.visible=false;sfx('slam');shockwave(e,phase2);if(phase2&&T.boss==='keeper')setTimeout(()=>shockwave(e,true),500);e.cd=T.cd*(phase2?.7:1);}return 0;}
     if(T.shoot){e.shootT-=dt;if(e.shootT<=0){e.shootT=phase2?.45:1/T.shoot.rate;enemyShoot(e,phase2?3:1);}}
     if(d>T.reach){return T.speed*(phase2?1.3:1);}if(e.cd<=0)e.windup=.75;return 0;}
