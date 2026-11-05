@@ -9543,9 +9543,11 @@ function jelly(ctx,x,z,s=1){const y=groundY(x,z)+rr(2.5,5),g=grp(ctx,x,y,z,0);le
     bell=new THREE.Mesh(sph(.9*s,28,12,0,6.3,0,1.5),m);g.add(bell);for(let i=0;i<7;i++){const a=i/7*6.28,t=new THREE.Mesh(cyl(.02*s,.008*s,2.4*s,4),m);t.position.set(Math.cos(a)*.5*s,-1.2*s,Math.sin(a)*.5*s);g.add(t);}}
   glowAt(ctx,g,0,0,0,0x6fd8ff,3.4*s,.45);const ph=rr(0,6);ctx.anim(()=>{const t=performance.now()/1000+ph;g.position.y=y+Math.sin(t*.7)*.6;const p=Math.sin(t*2);bell.scale.set(1+p*.07,1-p*.06,1+p*.07);g.rotation.y=t*.2;});return g;}
 // quest-only interaction with a pulsing marker while a task needs it
-function qUse(ctx,id,x,z,label,o={}){const y=o.y!==undefined?o.y:(W.interior?W.floorY:groundY(x,z));const mk=glowAt(ctx,null,x,y+(o.h||1.6),z,0xffc35a,1.6,.8);mk.visible=false;
-  ctx.anim(()=>{mk.visible=needsUse(id)&&!(o.ok&&!o.ok());if(mk.visible)mk.scale.setScalar(1.4+Math.sin(performance.now()*.005)*.3);});
-  return ctx.use(id,x,z,label,Object.assign({},o,{ok:()=>needsUse(id)&&(o.ok?o.ok():true),y}));}
+// is this spot named by a "use" step in any task? (a spot that only hands over an item a task asks you to have is not)
+function questUses(id){for(const k in QUESTS)for(const st of QUESTS[k].stages)if(st.obj.some(o=>o.k==='use'&&o.id===id))return true;return false;}
+function qUse(ctx,id,x,z,label,o={}){const tied=questUses(id),need=()=>tied?needsUse(id):true;const y=o.y!==undefined?o.y:(W.interior?W.floorY:groundY(x,z));const mk=glowAt(ctx,null,x,y+(o.h||1.6),z,0xffc35a,1.6,.8);mk.visible=false;
+  ctx.anim(()=>{mk.visible=need()&&!(o.ok&&!o.ok());if(mk.visible)mk.scale.setScalar(1.4+Math.sin(performance.now()*.005)*.3);});
+  return ctx.use(id,x,z,label,Object.assign({},o,{ok:()=>need()&&(o.ok?o.ok():true),y}));}
 // bosses tied to a task appear once the task is active
 function qBoss(ctx,qid,type,id,x,z,lvl,o={}){(W.bossIds=W.bossIds||[]).push(id);(W.qbosses=W.qbosses||[]).push({qid,type,id,x,z,lvl,o,spawned:false});}
 function updateQBosses(){if(!W.qbosses)return;const st=zoneState(W.id);for(const b of W.qbosses){if(b.spawned||st.killed[b.id])continue;if(qActive(b.qid)&&(!b.o.cond||b.o.cond())){b.spawned=true;spawnEnemy(b.type,b.x,b.z,b.lvl,Object.assign({id:b.id},b.o));}}}
