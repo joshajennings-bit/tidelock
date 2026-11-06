@@ -291,7 +291,7 @@ html.talking #hud #vitals,html.talking #hud #tracker,html.talking #hud #mapwrap,
 #cpk .cpbtns{display:flex;gap:8px;justify-content:flex-end}#cpk .ok{height:44px;padding:0 18px;border:1px solid rgba(111,242,214,.35);border-radius:5px;background:rgba(10,40,48,.5);color:#e6fffb;font-family:var(--f-display);font-size:12px;letter-spacing:.08em}
 #cpk .ok.done{border-color:#8ffff0;color:#8ffff0}#cpk .ok.psel,#cpk .ok:hover{background:rgba(111,242,214,.35);border-color:#bffff6;box-shadow:0 0 12px rgba(111,242,214,.5);outline:none}
 #cpk .ohint{font-family:var(--f-mono);font-size:10px;color:rgba(200,240,234,.7);text-align:center;letter-spacing:.05em}
-#wake{position:fixed;inset:0;z-index:14;pointer-events:auto;overflow:hidden}
+#wake{position:fixed;inset:0;z-index:14;pointer-events:auto;overflow:hidden}#wake.linked{pointer-events:none}
 #wake .wvig{position:absolute;inset:0;background:radial-gradient(ellipse 70% 65% at 50% 50%,transparent 40%,rgba(60,4,4,.55) 80%,rgba(20,0,0,.9));pointer-events:none}
 #wake .wvisor{position:absolute;inset:-2%;pointer-events:none;background:radial-gradient(ellipse 78% 74% at 50% 52%,transparent 66%,rgba(4,12,16,.55) 84%,rgba(0,4,6,.96) 100%);box-shadow:inset 0 0 120px rgba(111,242,214,.08)}
 #wake .wcrack{position:absolute;right:0;top:0;width:46vw;height:46vh;pointer-events:none;opacity:.35}#wake .wcrack path{fill:none;stroke:#dff;stroke-width:1.1;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 2px #fff)}
@@ -10140,9 +10140,12 @@ function vkView(){const c=mkCanvas(1024);c.height=512;const g=c.getContext('2d')
   const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
 function exitVesper(){const fixed=!!G.flags.vesperFixed,to=fixed?(G.shipAt||'twilight'):'twilight';sfx('door');
   enterZone(to,fixed?'ship':'crash').then(()=>{const r=W.vesperRamp;if(r){placePlayer(r.x,r.z,r.face);cam.yaw=wrapA(r.face+Math.PI);}});}
-ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fueled and almost spaceworthy.',kind:'interior',size:80,floorY:0,ceiling:3,seed:5,lvl:[1,1],sky:INT_SKY,
+ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fueled and almost spaceworthy.',kind:'interior',size:80,floorY:0,ceiling:3,seed:5,lvl:[1,1],sky:{...INT_SKY,hemi:[0xc8cce0,0x2e2c38,1.05],sunInt:.35},bloom:{threshold:1.2,strength:.45},
   tempAt:()=>20,entries:{ramp:{x:0,z:-.6,face:0},bridge:{x:0,z:12,face:0}},spawn:{x:0,z:-.6,face:0},
   build(ctx){const P=ctx.P,broken=!G.flags.vesperFixed,y0=W.floorY,X=5.5;
+    // the ceiling light strips glow, but softly enough that the panels around them can still be read
+    if(MODELS.shipkit)MODELS.shipkit.scene.traverse(q=>{if(q.isMesh&&q.material.name==='metal'&&!q.material.userData._dim){q.material.userData._dim=true;q.material.color.multiplyScalar(.74);}
+      if(q.isMesh&&q.material.emissive&&q.material.emissive.r>.5){const m=q.material,u=m.userData;if(u._pb)delete u._pb;m.emissiveIntensity=.22;if(!u._dim){u._dim=true;m.color.multiplyScalar(.5);m.emissive.setRGB(.85,.92,1);}}});
     if(!MODELS.shipkit){PF.room(ctx,0,0,11,32,3.2,{});}
     /* ---- shell: decks, outer hull walls, partitions with doorways ---- */
     const well=[-1.7,1.7,-6.6,-2.2];// the open belly hatch in the cargo deck
@@ -10160,7 +10163,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fu
       ctx.plat({x:0,z:16.9,hw:X,hd:.25,rot:0,top:y0+VK.H,bot:y0-1});
       if(MODELS.sterm){const t=MODELS.sterm.scene.clone(true),fit=new THREE.Group();fit.add(t);const b=new THREE.Box3().setFromObject(fit),s=b.getSize(new THREE.Vector3()),k=2.6/s.x,cn=b.getCenter(new THREE.Vector3());
         fit.scale.setScalar(k);fit.position.set(-cn.x*k,-b.min.y*k,-cn.z*k);const g=grp(ctx,0,y0,15,Math.PI);g.add(fit);
-        t.traverse(q=>{if(q.isMesh){q.material=q.material.clone();if(q.material.emissiveMap||q.material.emissive){q.material.emissiveIntensity=broken?.35:1.4;}q.userData.term=true;}});
+        t.traverse(q=>{if(q.isMesh){q.material=q.material.clone();if(q.material.emissiveMap||q.material.emissive){q.material.emissiveIntensity=broken?.3:.85;}q.userData.term=true;}});
         if(broken)ctx.anim(()=>{const on=Math.random()>.08;t.traverse(q=>{if(q.isMesh&&q.material.emissiveMap)q.material.emissiveIntensity=on?.35+Math.random()*.2:0;});});}
       ctx.box(0,15,1.7,.8,0,1.2);
       const seat=(x,z,ry)=>{if(!MODELS.schair)return;const c=MODELS.schair.scene.clone(true),fit=new THREE.Group();fit.add(c);const b=new THREE.Box3().setFromObject(fit),s=b.getSize(new THREE.Vector3()),k=1.35/s.y,cn=b.getCenter(new THREE.Vector3());
@@ -10176,18 +10179,18 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fu
       ctx.anim(()=>{lens.material.color.setHex(broken&&Math.random()<.15?0x103030:broken?0x2a6a62:0x8ffff0);});
       ctx.npc('vesta',-3.4,12.6,Math.PI/2);
       ctx.use('starmap',0,13.9,()=>broken?'Check the navigation terminal':'Open the star map',{persist:false,act:()=>{if(broken){toast('Navigation offline. The Vesper needs repairs before she can fly.','',3500);sfx('deny');return;}openStarMap();}});
-      ctx.light(0,y0+2.8,12.5,broken?0xff3a2a:0xd8e6ff,broken?.7:1.3,14);ctx.light(0,y0+1.3,15.4,0x5ae0ff,broken?.3:1,6);}
+      ctx.light(0,y0+2.8,12.5,broken?0xff3a2a:0xd8e6ff,broken?0.49:0.91,14);ctx.light(0,y0+1.3,15.4,0x5ae0ff,broken?0.21:0.7,6);}
     /* ---- quarters: bunk, locker, table and your note ---- */
     {ctx.bed(4.4,7.4,Math.PI/2);ctx.locker(4.9,1.4,-Math.PI/2);PF.table(ctx,3,4.2,0,1.1,.7,{stools:1});PF.shelf(ctx,4.9,4.3,-Math.PI/2,1.6);
       ctx.log('vs_note',3,4.2,'A note in your own handwriting','“If you\'re reading this, it worked, and you don\'t remember. Trust VESTA. Don\'t trust Halcyon. Find the second spire.” You don\'t remember writing it.',{y:.85});
-      ctx.light(3.6,y0+2.7,4.5,broken?0xff3a2a:0xffd0a0,broken?.5:1,9);}
+      ctx.light(3.6,y0+2.7,4.5,broken?0xff3a2a:0xffd0a0,broken?0.35:0.7,9);}
     /* ---- med bay: the med pod ---- */
     {const g=grp(ctx,-3.9,y0,4.5,0);P.add(g,MAT.metal,RB(1.1,.7,2.3,.1,1),0,.35,0);P.add(g,MAT.white,RB(.9,.14,2,.06,1),0,.76,0);
       const lid=new THREE.Mesh(sph(.62,24,12,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0x9fe8ff,transparent:true,opacity:.22,roughness:.05,metalness:.3,depthWrite:false}));lid.scale.set(1,.6,1.8);lid.position.y=.8;g.add(lid);
       P.add(g,MAT.tealGlow,RB(1.12,.04,2.32,.01,1),0,.7,0);P.add(ctx.g,MAT.metal,RB(.9,1.6,.5,.06,1),-4.9,y0+.8,1.6);P.add(ctx.g,MAT.tealGlow,RB(.4,.12,.52,.01,1),-4.9,y0+1.3,1.6);P.add(ctx.g,MAT.tealGlow,RB(.12,.4,.52,.01,1),-4.9,y0+1.3,1.6);
-      ctx.box(-3.9,4.5,.6,1.2,0,1);ctx.heal(-2.9,4.5,broken?'Use the med pod (emergency power)':'Use the med pod');ctx.light(-3.6,y0+2.6,4.5,broken?0xff3a2a:0xb8ffe8,broken?.5:1,9);}
+      ctx.box(-3.9,4.5,.6,1.2,0,1);ctx.heal(-2.9,4.5,broken?'Use the med pod (emergency power)':'Use the med pod');ctx.light(-3.6,y0+2.6,4.5,broken?0xff3a2a:0xb8ffe8,broken?0.35:0.7,9);}
     /* ---- corridor ---- */
-    for(const z of[2,6.5])ctx.light(0,y0+2.8,z,broken?0xff2a1a:0xffe2c0,broken?.45:.9,8);
+    for(const z of[2,6.5])ctx.light(0,y0+2.8,z,broken?0xff2a1a:0xffe2c0,broken?0.32:0.63,8);
     /* ---- cargo bay: crates, and the belly hatch down to the ground ---- */
     {PF.crates(ctx,-4,-5.5,4,8);PF.crates(ctx,4,-2.5,3,3);PF.barrels(ctx,4.2,-6.6,3,4);PF.shelf(ctx,-4.9,-1.6,Math.PI/2,2.4);
       const [wx0,wx1,wz0,wz1]=well,ww=wx1-wx0;
@@ -10197,7 +10200,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fu
       P.add(ctx.g,MAT.hazard,RB(ww,.1,.2,.02,1),0,y0+.02,wz1);
       // daylight (or red emergency light) coming up through the hatch
       const glow=new THREE.Mesh(new THREE.PlaneGeometry(ww,wz1-wz0),new THREE.MeshBasicMaterial({color:broken?0xff8a5a:0xffe6b8,transparent:true,opacity:.9}));glow.rotation.x=-Math.PI/2;glow.position.set(0,y0-2.2,(wz0+wz1)/2);ctx.g.add(glow);
-      ctx.light(0,y0+.4,(wz0+wz1)/2,broken?0xff7a4a:0xffe0b0,1.4,9);ctx.light(0,y0+2.8,-4,broken?0xff2a1a:0xffc890,broken?.5:1,10);
+      ctx.light(0,y0+.4,(wz0+wz1)/2,broken?0xff7a4a:0xffe0b0,0.98,9);ctx.light(0,y0+2.8,-4,broken?0xff2a1a:0xffc890,broken?0.35:0.7,10);
       const label=()=>'Walk down the ramp to '+(G.flags.vesperFixed?shipName(G.shipAt||'twilight'):'the crash site');
       ctx.inter({pos:()=>({x:0,z:(wz0+wz1)/2+1.2}),r:2.4,label,ok:()=>true,act:exitVesper});
       // stepping onto the ramp takes you down it
@@ -10206,7 +10209,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fu
     {ctx.bench(4.4,-12,-Math.PI/2);
       const g=grp(ctx,-3.2,y0,-12,0);P.add(g,MAT.metal,cyl(1,1,.3,24),0,.15,0);const core=new THREE.Mesh(cyl(.55,.55,2.4,24),new THREE.MeshStandardMaterial({color:0x103040,emissive:broken?0xff5a2a:0x5ab8ff,emissiveIntensity:1.4,transparent:true,opacity:.85}));core.position.y=1.5;g.add(core);
       for(let i=0;i<4;i++)P.add(g,MAT.metal,tor(.68,.06,8,24),0,.5+i*.65,0,Math.PI/2,0,0);P.add(g,MAT.metal,cyl(1,1,.3,24),0,2.85,0);ctx.box(-3.2,-12,1.1,1.1,0,3);
-      ctx.light(-3.2,y0+1.8,-12,broken?0xff5a2a:0x5ab8ff,1.3,10);ctx.anim(()=>{core.material.emissiveIntensity=broken?(Math.random()<.1?.2:1):1.2+Math.sin(performance.now()*.004)*.25;});
+      ctx.light(-3.2,y0+1.8,-12,broken?0xff5a2a:0x5ab8ff,0.91,10);ctx.anim(()=>{core.material.emissiveIntensity=broken?(Math.random()<.1?.2:1):1.2+Math.sin(performance.now()*.004)*.25;});
       for(const x of[-1.5,1.5])P.add(ctx.g,MAT.metal,cyl(.12,.12,7,10),x,y0+2.7,-11.5,Math.PI/2,0,0);PF.crates(ctx,3.8,-14,3,6);}
     /* ---- before the repair: the decks took a beating ---- */
     if(broken){const sparks=[[X-.6,2.4,-3],[-X+.6,2.2,6],[1.2,2.9,3],[-2,2.9,-11],[2.5,2.7,12]],smokes=[[-3,2.9,-11],[3,2.9,-4],[0,2.9,6]];
@@ -10946,7 +10949,11 @@ function wakePose(t){const F=INTRO.face,dW=wrapA(INTRO.wreck-F);
 function setIntroView(o){const eye=player.y+o.h,cp=Math.cos(o.pitch);camera.position.set(player.x,eye,player.z);
   _iL.set(player.x+Math.sin(o.yaw)*cp,eye+Math.sin(o.pitch),player.z+Math.cos(o.yaw)*cp);camera.up.set(0,1,0);camera.lookAt(_iL);camera.rotateZ(o.roll);
   cam.yaw=wrapA(o.yaw-Math.PI);}
-function setIntroFx(blur,open,vig){const el=$('#wake');renderer.domElement.style.filter=blur>.05?`blur(${blur.toFixed(2)}px) saturate(${(1-Math.min(blur,8)*.06).toFixed(2)})`:'';
+// Safari (and every iOS browser) handles a CSS filter on the WebGL canvas badly: it reads the whole frame back every frame.
+// There the dazed blur becomes a dimming of the view instead, which costs nothing.
+const WEBKIT_BLUR=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)||(/AppleWebKit/.test(navigator.userAgent)&&!/Chrome|Chromium|CriOS|Edg|Firefox|FxiOS/.test(navigator.userAgent));
+function introRes(blur){renderer.domElement.style.opacity=blur>.05?(1-Math.min(blur,9)*.055).toFixed(2):'';}
+function setIntroFx(blur,open,vig){const el=$('#wake');if(WEBKIT_BLUR){renderer.domElement.style.filter='';introRes(blur);}else renderer.domElement.style.filter=blur>.05?`blur(${blur.toFixed(2)}px) saturate(${(1-Math.min(blur,8)*.06).toFixed(2)})`:'';
   el.querySelector('.wlid.top').style.transform=`translateY(${(-open*100).toFixed(1)}%)`;el.querySelector('.wlid.bot').style.transform=`translateY(${(open*100).toFixed(1)}%)`;
   el.querySelector('.wvig').style.opacity=vig.toFixed(2);}
 function introTick(dt){if(!INTRO.on)return;INTRO.t+=dt;const t=INTRO.t,el=$('#wake');
@@ -10974,8 +10981,8 @@ function introTalk(){document.documentElement.classList.add('helmetDlg');UI.dlgL
   v('…Suit integrity sixty-one percent. Pilot vitals stable. Hello? Can you hear me?',{role:'REBOOTING',list:[{label:'I… hear you.',fn:()=>{
     v('Good. Don\'t move too fast. The Vesper came down hard, and you hit your head very hard. Do you remember your name?',{list:[{label:'I… don\'t know.',fn:()=>{
       v('Memory loss is common after a blow like that. It should come back. Let\'s start with something simple: the wreck\'s hull plating is polished enough to see yourself in. Take a look.',{list:[{label:'Look at my reflection',go:true,fn:introPull}]});}}]});}}]});}
-function introPull(){UI.dlgLock=false;closeDialog();document.documentElement.classList.remove('helmetDlg');INTRO.phase='pull';INTRO.pullT=0;cam.dist=cam.prevDist||7;renderer.domElement.style.filter='';}
-function endIntro(){INTRO.on=false;INTRO.phase='';const el=$('#wake');el.hidden=true;el.style.opacity='';renderer.domElement.style.filter='';$('#hud').hidden=false;openLooks(true);updateTouchVis();}
+function introPull(){UI.dlgLock=false;closeDialog();document.documentElement.classList.remove('helmetDlg');INTRO.phase='pull';INTRO.pullT=0;cam.dist=cam.prevDist||7;renderer.domElement.style.filter='';introRes(0);}
+function endIntro(){INTRO.on=false;INTRO.phase='';const el=$('#wake');el.hidden=true;el.style.opacity='';renderer.domElement.style.filter='';introRes(0);$('#hud').hidden=false;openLooks(true);updateTouchVis();}
 
 // ===== 64_map.js =====
 /* ================= MAP: a real top-down chart of each zone, and fast travel ================= */
@@ -11414,7 +11421,15 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
 
 /* ---------- boot ---------- */
 const clock=new THREE.Clock();
-function frame(){const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);drsTick(raw);try{update(dt);if(INTRO.on)introTick(dt);updateHUD(dt);if(MAPSHOT.req)takeMapShot();}catch(e){console.error(e);if(!window.__tlErr){window.__tlErr=e;}}renderFrame(dt);requestAnimationFrame(frame);}
+// one failing part must never stop the loop: the next frame is booked first, and every stage is guarded on its own
+function tlFail(e,where){console.error(where,e);if(!window.__tlErr){window.__tlErr=e;try{toast('Something went wrong ('+where+'): '+String(e&&e.message||e).slice(0,140).replace(/</g,'&lt;'),'',9000);}catch(_){}}}
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();tlFail(new Error('the graphics context was lost (memory)'),'gpu');});
+function frame(){requestAnimationFrame(frame);const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);
+  try{drsTick(raw);}catch(e){tlFail(e,'resolution');DRS.on=false;}
+  try{update(dt);updateHUD(dt);if(MAPSHOT.req)takeMapShot();}catch(e){tlFail(e,'update');}
+  // the opening runs on its own clock (real time, so a slow device doesn't stretch it) and keeps going even if something else fails
+  if(INTRO.on)try{introTick(Math.min(raw,.25)*(window.__tlTimeScale||1));}catch(e){tlFail(e,'intro');if(INTRO.phase==='wake')INTRO.t=WAKE_END;else if(INTRO.phase==='pull')endIntro();}
+  try{renderFrame(dt);}catch(e){tlFail(e,'render');if(POST.composer){POST.composer=null;try{boostAll(false);}catch(_){}}}}
 addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);resizePost();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();sizeMap();FX.resize&&FX.resize();if(UI.custom)setLookView();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow();});
 addEventListener('pagehide',saveNow);
