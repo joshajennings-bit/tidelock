@@ -7939,7 +7939,7 @@ function spawnNPC(id,x,z,o={}){const D=NPCS[id]||o.def;if(!D)return null;
   if(beh.type==='stand')addCol(x,z,.5);
   W.npcs.push(n);
   if(D.look&&D.look.body==='xbot')n.holo=true;
-  W.inter.push({pos:()=>n,r:3.2,label:()=>'Talk to '+D.name,ok:()=>!n.hidden&&!n.ko,act:()=>startTalk(n),npc:n});
+  W.inter.push({pos:()=>n,r:3.2,label:()=>'Talk to '+D.name,ok:()=>!n.hidden&&!n.ko&&(!D.canTalk||D.canTalk()),act:()=>startTalk(n),npc:n});
   return n;}
 function spawnCrowd(cx,cz,r,count,o={}){const bodies=['soldier','michelle'],tints=[0x8a7a6a,0x6a7a8a,0xa08a6a,0x7a6a8a,0x5a6a5a,0x9a8a7a,0x6a5a4a,0x8a8aa0,0x3a5a8a,0x8a3a3a,0x3a7a5a,0xc9a06a];
   for(let i=0;i<count;i++){const name=pick(CROWD_NAMES)+' '+pick(['Ostrander','Achebe','Lund','Varga','Sato','Okoro','Reyes','Brandt','Halden','Mercer','Ng','Petrov','Dube','Kova']);
@@ -9341,9 +9341,21 @@ PPL('tem',{zone:'ashfall',name:'Brother Tem',role:'THE CHOIR',look:{body:'soldie
 PPL('ryn',{zone:'ashfall',name:'Ryn Castellan',role:'COHORT DESERTER',look:{body:'soldier',tint:0x5a5a62,visor:0xff4a5e,scarf:0xa0302a},beh:{type:'stand'},greet:'Put the gun down. I\'m done with the Cohort. Mostly.'});
 PPL('oriel2',{zone:'ashfall',name:'Sister Oriel',role:'THE CHOIR',look:{body:'michelle',tint:0x8a8a9a,coat:0x5a5a6a,halo:true,accent:0x8fffe0,hat:'hood'},beh:{type:'stand'},greet:'The Ark is waking. I can feel it in my teeth.',cond:()=>!!G.flags.orielFree});
 /* ---- the Vesper ---- */
-PPL('vesta',{zone:'vesper',name:'VESTA',role:'SHIP INTELLIGENCE',look:{body:'xbot',tint:0x6ff2d6,tint2:0x1a4a44,scale:1.15},beh:{type:'stand'},greet:()=>`Systems nominal, ${nm()}. Mostly. Where to?`,
-  topics:[{label:'How are you holding up?',text:'Most of my memory is still missing, like yours. I\'m rebuilding it from the ship\'s logs, one sector at a time.'},{label:'Any advice?',text:()=>`You\'re level ${G.lvl}. Upgrade your gear at a workbench, keep your liner rated for where you\'re going, and spend your perk points. Also: jump over the shockwaves.`}],
-  services:[{label:'Open the star map.',fn:()=>openStarMap()}]});
+// VESTA can only speak from her projector once it has a working emitter; until the Vesper flies, she talks about the repair
+const VR_SYS=[['vr_hull','the hull breach'],['vr_coupling','the drive coupling'],['vr_coolant','the coolant line'],['vr_power','the power trunk'],['vr_nav','navigation']];
+const vrLeft=()=>VR_SYS.filter(([f])=>!G.flags[f]).map(([,n])=>n);
+const listAnd=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+PPL('vesta',{zone:'vesper',name:'VESTA',role:'SHIP INTELLIGENCE',look:{body:'xbot',tint:0x6ff2d6,tint2:0x1a4a44,scale:1.15},beh:{type:'stand'},
+  canTalk:()=>!!(G.flags.vesperFixed||G.flags.vr_emitter),
+  greet:()=>{if(G.flags.vesperFixed)return `Systems nominal, ${nm()}. Mostly. Where to?`;const l=vrLeft();
+    if(l.length)return `It's good to see you properly, ${nm()}. The projector holds, but the ship doesn't yet: ${listAnd(l)} still need work. She isn't going anywhere until they're done.`;
+    if(!G.flags.vr_reactor)return 'Every system is patched. The reactor is still cold, though. Restart it in engineering and we\'ll find out whether your welding holds.';
+    return 'Reactor\'s up and everything is holding. Mostly. Let\'s not stay parked in a ditch.';},
+  topics:[{label:'What still needs fixing?',cond:()=>!G.flags.vesperFixed,text:()=>{const l=vrLeft();return l.length?`Still broken: ${listAnd(l)}. Tamsin's list tells you where each part comes from, and the tracker has it too. Fit each part where the damage is and I'll check it.`:G.flags.vr_reactor?'Nothing aboard. Whatever is out there scratching at the hull, on the other hand…':'Nothing but the reactor itself. Engineering, the core housing. Gently.';}},
+    {label:'How are you holding up?',text:()=>G.flags.vesperFixed?'Most of my memory is still missing, like yours. I\'m rebuilding it from the ship\'s logs, one sector at a time.':'The Kestrel\'s emitter is a strange fit, like wearing someone else\'s coat. And half my memory is still scattered across damaged storage. I\'ll manage.'},
+    {label:'Can you plot us a course?',cond:()=>!G.flags.vesperFixed,text:()=>G.flags.vr_nav?'Navigation can see the stars now, but I won\'t plot a course for a ship that can\'t fly. Finish the repairs first.':'With what? The navigation core burned out in the crash. The star map is dark until it\'s replaced.'},
+    {label:'Any advice?',text:()=>`You\'re level ${G.lvl}. Upgrade your gear at a workbench, keep your liner rated for where you\'re going, and spend your perk points. Also: jump over the shockwaves.`}],
+  services:[{label:'Open the star map.',cond:()=>!!G.flags.vesperFixed,fn:()=>openStarMap()}]});
 
 // ===== 41_main.js =====
 /* ================= MAIN STORY: The Long Signal ================= */
@@ -10361,7 +10373,10 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
       // no beam column around her: just the figure standing on the lens
       ctx.anim(()=>{lens.material.color.setHex(broken&&Math.random()<.15?0x103030:broken?0x2a6a62:0x8ffff0);});
       {const vn=ctx.npc('vesta',-3.4,12.6,Math.PI/2);if(broken)vdGlitchHolo(ctx,vn,-3.4,12.6);}
-      ctx.use('starmap',0,13.9,()=>broken?'Check the navigation terminal':'Open the star map',{persist:false,act:()=>{if(broken){toast('Navigation offline. The Vesper needs repairs before she can fly.','',3500);sfx('deny');return;}openStarMap();}});
+      // while her projector is failing she can't speak from it, only through your suit
+      if(broken)ctx.inter({pos:()=>({x:-3.4,z:12.6}),r:3,label:()=>'Check VESTA\'s projector',ok:()=>!G.flags.vr_emitter,act:()=>{sfx('deny');
+        vesta(G.flags.vesperFixed?'':qStage('m09_grounded')>=GR.REPAIR?'That\'s my projector, or what\'s left of its emitter. The Kestrel Dawn\'s emitter should fit. Until then I\'m only in your suit.':'That\'s my projector. The emitter cracked when we hit. I can\'t hold a shape out there, so I\'m staying in your suit for now.',8000);}});
+      ctx.use('starmap',0,13.9,()=>broken?'Check the navigation terminal':'Open the star map',{persist:false,act:()=>{if(broken){toast(G.flags.vr_nav?'Navigation core online, but the Vesper can\'t fly yet. No course to plot until the repairs are finished.':'Navigation offline. The core burned out in the crash and the display is smashed.','',4000);sfx('deny');return;}openStarMap();}});
       ctx.light(0,y0+2.8,12.5,broken?0xff3a2a:0xd8e6ff,broken?0.49:0.91,14);ctx.light(0,y0+1.3,15.4,0x5ae0ff,broken?0.21:0.7,6);}
     /* ---- quarters: bunk, locker, table and your note ---- */
     {ctx.bed(4.4,7.4,Math.PI/2);ctx.locker(4.9,1.4,-Math.PI/2);PF.table(ctx,3,4.2,0,1.1,.7,{stools:1});PF.shelf(ctx,4.9,4.3,-Math.PI/2,1.6);
