@@ -8080,31 +8080,41 @@ function disposeZone(){
   W.arch=null;W.cullChunks=[];W.grid=new Map();W.plats=[];W.hazards=[];W.inter=[];W.pickups=[];W.npcs=[];W.enemies=[];W.anims=[];W.travel=[];W.pois=[];W.keepout=[];W.safe=[];W.qbosses=[];W.useIds=[];W.bossIds=[];W.water=null;W.H=null;W.group=null;W.flares&&(W.flares.length=0);
   clearProjectiles&&clearProjectiles();
 }
-async function enterZone(id,entry,opts={}){
+// Loading can never leave the player stuck on the loading screen: each stage is named, a failure is reported on screen with
+// the stage it happened in and the player is put into whatever was built, and a long wait says what it is waiting on.
+const ZL={stage:'',id:''};
+async function enterZone(id,entry,opts={}){ZL.stage='start';ZL.id=id;const t0=performance.now();
+  const wd=setInterval(()=>{if(!UI.loading)return;if(performance.now()-t0>20000){const p=$('#ldP');if(p)p.textContent='Still loading… ('+ZL.stage+')';}},2000);
+  try{await enterZoneRun(id,entry,opts);}
+  catch(e){tlFail(e,'loading '+id+' · '+ZL.stage);
+    try{if(W.group&&!W.group.parent)scene.add(W.group);const def=ZONES[id],en=(entry&&def.entries&&def.entries[entry])||def.spawn||{x:0,z:0,face:0};placePlayer(en.x,en.z,en.face||0);G.zone=id;G.entry=entry||null;}catch(_){}
+    $('#loading').hidden=true;UI.loading=false;}
+  finally{clearInterval(wd);}}
+async function enterZoneRun(id,entry,opts={}){
   const def=ZONES[id];if(!def){toast('That destination is not available yet.');return;}
   const L=$('#loading');$('#ldK').textContent=opts.kicker||(def.world?def.world.toUpperCase():'TRAVELING');$('#ldT').textContent=def.name;$('#ldP').textContent=opts.text||def.blurb||'';L.hidden=false;
   UI.loading=true;await nextFrame();await nextFrame();
-  disposeZone();rng=mulberry(def.seed||1);
+  ZL.stage='clearing the last area';disposeZone();rng=mulberry(def.seed||1);
   W.id=id;W.def=def;W.interior=def.kind==='interior';W.floorY=def.floorY||0;W.ceiling=def.ceiling||Infinity;
-  const ctx=makeCtx(def);W.group=ctx.g;
+  ZL.stage='terrain';const ctx=makeCtx(def);W.group=ctx.g;
   if(W.interior){W.size=def.size||120;W.half=W.size/2;}
   else buildTerrain(def,ctx);
   await nextFrame();
-  applySky(def);
+  ZL.stage='sky';applySky(def);
   if(def.keep)for(const k of (typeof def.keep==='function'?def.keep():def.keep))W.keepout.push(k);
   if(def.flora)for(const f of def.flora){FLORA[f.type]&&FLORA[f.type](ctx,f);}
   await nextFrame();
-  kit(ctx);def.build(ctx);if(def.arch)archBuild(ctx,def.arch);
-  ctx.P.build();if(ctx.envB)ctx.envB.build(ctx.g);
-  if(W.interior)buildInteriorMap();
-  scene.add(ctx.g);setLights(ctx.lights);W.lights=ctx.lights;postScan();postZone(def);
+  ZL.stage='building';kit(ctx);def.build(ctx);if(def.arch)archBuild(ctx,def.arch);
+  ZL.stage='assembling';ctx.P.build();if(ctx.envB)ctx.envB.build(ctx.g);
+  ZL.stage='map';if(W.interior)buildInteriorMap();
+  ZL.stage='lights';scene.add(ctx.g);setLights(ctx.lights);W.lights=ctx.lights;postScan();postZone(def);
   // arrival
   const e=(entry&&def.entries&&def.entries[entry])||def.spawn||{x:0,z:0,face:0};
-  placePlayer(e.x,e.z,e.face||0);
+  ZL.stage='arrival';placePlayer(e.x,e.z,e.face||0);
   G.zone=id;G.entry=entry||null;zoneState(id);G.visited[id]=true;
   if(!opts.silent)Bus.emit('zone',id);
   ftSync();W.mapShot=null;requestMapShot();
-  await nextFrame();L.hidden=true;UI.loading=false;
+  ZL.stage='first frame';await nextFrame();L.hidden=true;UI.loading=false;ZL.stage='done';
   if(!opts.quiet)showBanner(def.world||'',def.name);
   saveSoon();
 }
@@ -10140,7 +10150,7 @@ function vkView(){const c=mkCanvas(1024);c.height=512;const g=c.getContext('2d')
   const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
 function exitVesper(){const fixed=!!G.flags.vesperFixed,to=fixed?(G.shipAt||'twilight'):'twilight';sfx('door');
   enterZone(to,fixed?'ship':'crash').then(()=>{const r=W.vesperRamp;if(r){placePlayer(r.x,r.z,r.face);cam.yaw=wrapA(r.face+Math.PI);}});}
-ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',blurb:'Patched, fueled and almost spaceworthy.',kind:'interior',size:80,floorY:0,ceiling:3,seed:5,lvl:[1,1],sky:{...INT_SKY,hemi:[0xc8cce0,0x2e2c38,1.05],sunInt:.35},bloom:{threshold:1.2,strength:.45},
+ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return G.flags.vesperFixed?'Patched, fueled and almost spaceworthy.':'Crash-damaged and running on emergency power.';},kind:'interior',size:80,floorY:0,ceiling:3,seed:5,lvl:[1,1],sky:{...INT_SKY,hemi:[0xc8cce0,0x2e2c38,1.05],sunInt:.35},bloom:{threshold:1.2,strength:.45},
   tempAt:()=>20,entries:{ramp:{x:0,z:-.6,face:0},bridge:{x:0,z:12,face:0}},spawn:{x:0,z:-.6,face:0},
   build(ctx){const P=ctx.P,broken=!G.flags.vesperFixed,y0=W.floorY,X=5.5;
     // the ceiling light strips glow, but softly enough that the panels around them can still be read
@@ -11423,6 +11433,7 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
 const clock=new THREE.Clock();
 // one failing part must never stop the loop: the next frame is booked first, and every stage is guarded on its own
 function tlFail(e,where){console.error(where,e);if(!window.__tlErr){window.__tlErr=e;try{toast('Something went wrong ('+where+'): '+String(e&&e.message||e).slice(0,140).replace(/</g,'&lt;'),'',9000);}catch(_){}}}
+addEventListener('error',e=>{if(e.error)tlFail(e.error,'script');});addEventListener('unhandledrejection',e=>tlFail(e.reason,'task'));
 renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();tlFail(new Error('the graphics context was lost (memory)'),'gpu');});
 function frame(){requestAnimationFrame(frame);const raw=clock.getDelta(),dt=Math.min(raw,.1)*(window.__tlTimeScale||1);
   try{drsTick(raw);}catch(e){tlFail(e,'resolution');DRS.on=false;}
