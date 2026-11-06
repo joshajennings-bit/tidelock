@@ -9191,7 +9191,7 @@ Bus.on('item',()=>{checkObjectives();renderTracker();});
 Bus.on('use',useId=>{for(const id in G.q){const s=G.q[id];if(s.st!=='active')continue;const st=QUESTS[id].stages[s.s];st.obj.forEach((o,i)=>{if(o.k==='use'&&o.id===useId)s.p[i]=1;});}checkObjectives();renderTracker();});
 Bus.on('flag',()=>{checkObjectives();renderTracker();});
 function setFlag(f,v=true){G.flags[f]=v;Bus.emit('flag',f);}
-function objText(o,p){if(o.k==='kill')return `${o.label} · ${Math.min(p||0,o.n)}/${o.n}`;if(o.k==='have')return `${o.label} · ${Math.min(countItem(o.item),o.n)}/${o.n}`;return o.label;}
+function objText(o,p){if(o.k==='flag'&&o.item&&!G.flags[o.flag])return `${o.label} · ${Math.min(countItem(o.item),o.n)}/${o.n}`;if(o.k==='kill')return `${o.label} · ${Math.min(p||0,o.n)}/${o.n}`;if(o.k==='have')return `${o.label} · ${Math.min(countItem(o.item),o.n)}/${o.n}`;return o.label;}
 function curObjectives(id){const s=G.q[id];if(!s||s.st!=='active')return [];const st=QUESTS[id].stages[s.s];return st.obj.map((o,i)=>({o,p:s.p[i],done:objDone(o,s.p[i])}));}
 // where the tracker marker should point for the first unfinished objective
 function questTarget(id){const list=curObjectives(id).filter(x=>!x.done);if(!list.length)return null;const o=list[0].o;
@@ -9415,23 +9415,54 @@ Q({id:'m08_spire',type:'main',act:1,giver:'vey',req:()=>qDone('m05_relays'),titl
     {text:'Activate the spire',obj:[{k:'use',id:'spire1',label:'Touch the Signal Spire',zone:'nightward',x:0,z:224}]},
     {text:'Tell Dr. Vey what you saw',obj:[{k:'talk',npc:'vey',label:'Tell Dr. Vey about the spire',opt:'★ The spire woke up.',text:'An aurora on the dark side, and the orbital echo just turned into a beacon. It\'s coming from Anchorage, the Halcyon station in orbit. Your ship was going there after the spire. If we want answers, someone has to fly up and ask. And that means the Vesper has to fly.'}]}],
   reward:{xp:900,cr:300,items:[{id:'spirekey'}],perk:1},onComplete:()=>{}});
-Q({id:'m09_grounded',type:'main',act:1,giver:'tamsin',req:()=>qDone('m08_spire'),title:'Grounded',zone:'twilight',summary:'The Vesper can fly again with three parts: a flux coupling from the Kiln Hollow foundry, a navigation core from the wreck of the Kestrel Dawn on the Nightward Expanse, and hull sealant.',
-  ask:'Can the Vesper fly again?',offer:'She can, if you bring me three things. A flux coupling: Oduya\'s foundry in Kiln Hollow can cast one if you bring the metal. A navigation core: the Kestrel Dawn went down on the Expanse years ago, east of Cold Harbor, and her core should be intact in the cold. And hull sealant: I can mix it from polymer and chitin. Get me those and I\'ll tow her to the pad.',accept:'I\'ll get the parts.',
-  stages:[{text:'Gather the Vesper\'s repair parts',obj:[{k:'have',item:'coupling',n:1,label:'Flux coupling (Foreman Oduya, Kiln Hollow)',zone:'dayward',at:{x:0,z:180}},{k:'have',item:'navcore',n:1,label:'Navigation core (Kestrel Dawn wreck, Nightward Expanse)',zone:'nightward',at:{x:190,z:120}},{k:'have',item:'sealant',n:1,label:'Hull sealant (craft with Tamsin: 6 polymer, 6 chitin)',npc:'tamsin'}]},
-    {text:'Bring the parts to Tamsin',obj:[{k:'talk',npc:'tamsin',label:'Bring the parts to Tamsin',opt:'★ I have all three parts.',text:'Coupling, core, sealant. Give me a day. … There. She\'s on the landing pad, patched and fueled. She won\'t win any beauty contests, but she\'ll reach orbit. Climb aboard and talk to VESTA on the bridge when you\'re ready.'}]},
+// Grounded: the repair. Survey the wreck system by system, report to Tamsin, then gather and fit the parts for six systems
+// yourself (each one visibly recovers aboard), restart the reactor, drive off what its noise brings, and lift her out of the furrow.
+K('hullplate','Hull Plate','A torn plate of the Vesper\'s own hull, salvaged from the crash debris. Still good metal.','▤');
+K('coolant','Cryo-coolant Cell','Dr. Varga\'s coolant, cold enough to frost the casing.','❄');
+K('wiring','Superconductor Wiring','A spool of Builder-era superconductor from the ruins. Still flawless.','≋');
+K('emitter','Holo Emitter','The Kestrel Dawn\'s projector emitter. VESTA should be able to use it.','◎');
+const GR={ASSESS:0,REPORT:1,REPAIR:2,REACTOR:3,DEFEND:4,LIFT:5,FLY:6};
+Q({id:'m09_grounded',type:'main',act:1,giver:'tamsin',req:()=>qDone('m08_spire'),title:'Grounded',zone:'twilight',summary:'The Vesper took a beating coming down. Find out exactly what is broken, gather parts from across the Reach, fit them yourself, and get her back in the air.',
+  ask:'Can the Vesper fly again?',offer:'Maybe. She came down hard, and I won\'t guess what\'s broken from out here. Climb aboard and run diagnostics on everything: navigation, the drive core, the power trunk, the hull. You\'ll have to force a couple of doors. Come back and tell me what you find, and I\'ll work out a parts list.',accept:'I\'ll survey the damage.',
+  stages:[{text:'Survey the damage aboard the Vesper',obj:[
+      {k:'use',id:'vs_diag_nav',label:'Run diagnostics on the navigation terminal (bridge)',zone:'vesper',x:-.9,z:14.1},
+      {k:'use',id:'vs_diag_core',label:'Inspect the drive core (engineering)',zone:'vesper',x:-1.7,z:-11.2},
+      {k:'use',id:'vs_diag_power',label:'Trace the power fault (crew quarters)',zone:'vesper',x:4.1,z:6},
+      {k:'use',id:'vs_diag_hull',label:'Inspect the hull breach (cargo bay)',zone:'vesper',x:4.1,z:-4}]},
+    {text:'Tell Tamsin what the Vesper needs',obj:[{k:'talk',npc:'tamsin',label:'Report the damage to Tamsin',opt:'★ I surveyed the Vesper.',text:'That\'s a long list. All right. The hull: salvage plates from your own debris field and I\'ll mix sealant to weld them in. The drive coupling is cracked, so Oduya\'s foundry will have to cast a new one. The coolant line burst, and Dr. Varga at Cold Harbor keeps cryo-coolant. The power trunk is fried: the Builder ruins are full of superconductor wiring nobody\'s touched in a thousand years. Navigation needs the Kestrel Dawn\'s core, and pull her holo emitter while you\'re in there so VESTA has a face again. Fit each part as you get it. I\'ll talk you through it over comms.'}]},
+    {text:'Repair the Vesper, system by system',obj:[
+      {k:'flag',flag:'vr_hull',item:'hullplate',n:4,label:'Hull: salvage 4 plates from the crash debris, weld them in with Tamsin\'s sealant (cargo bay)',zone:'twilight',at:{x:-48,z:122}},
+      {k:'flag',flag:'vr_coupling',item:'coupling',n:1,label:'Drive: fit a flux coupling from Oduya\'s foundry (Kiln Hollow)',zone:'dayward',at:{x:0,z:180}},
+      {k:'flag',flag:'vr_coolant',item:'coolant',n:1,label:'Coolant: replace the burst line with Dr. Varga\'s cryo-coolant (Cold Harbor)',zone:'nightward',at:{x:30,z:-194}},
+      {k:'flag',flag:'vr_power',item:'wiring',n:1,label:'Power: rewire the trunk with superconductor wiring (Builder Ruins)',zone:'twilight',at:{x:-256,z:-136}},
+      {k:'flag',flag:'vr_nav',item:'navcore',n:1,label:'Navigation: install the Kestrel Dawn\'s core (Nightward Expanse)',zone:'nightward',at:{x:198,z:112}},
+      {k:'flag',flag:'vr_emitter',item:'emitter',n:1,label:'VESTA: replace her projector\'s emitter (Kestrel Dawn wreck)',zone:'nightward',at:{x:183,z:116}}]},
+    {text:'Restart the reactor',obj:[{k:'use',id:'vs_reactor',label:'Restart the Vesper\'s reactor (engineering)',zone:'vesper',x:-1.7,z:-11.2}]},
+    {text:'Drive off the skitters drawn by the reactor',obj:[{k:'kill',type:'skitter',n:6,zone:'twilight',label:'Skitters driven off around the Vesper',at:{x:-46,z:138}}]},
+    {text:'Lift off with VESTA',obj:[{k:'talk',npc:'vesta',label:'Tell VESTA to take her up (Vesper bridge)',opt:'★ Let\'s get her out of this ditch.',text:'Reactor stable. Hull holding. Navigation\'s found the stars again, and so have I. Hold on to something. … There. Meridian\'s pad is clear, and Tamsin is waving at us with both arms.'}]},
     {text:'Fly the Vesper to Anchorage',obj:[{k:'go',zone:'anchorage',x:0,z:-44,r:14,label:'Fly to Anchorage station (Vesper bridge, star map)'}]}],
-  reward:{xp:900,cr:200},onComplete:()=>{}});
-Bus.on('qstage',(id,s)=>{if(id==='m09_grounded'&&s===2){for(const k of ['coupling','navcore','sealant'])removeItem(k,1);setFlag('vesperFixed');G.shipAt='twilight';
-  if(W.id==='twilight')setTimeout(()=>{closeDialog();enterZone('twilight','ship',{kicker:'A DAY LATER',text:'Tamsin\'s crew tows the Vesper to Meridian\'s landing pad and patches her up.'});},400);}});
+  reward:{xp:1400,cr:300},onComplete:()=>{}});
+Bus.on('qstart',id=>{if(id==='m09_grounded')G.q[id].v2=1;});
+Bus.on('qstage',(id,s)=>{if(id==='m09_grounded'&&s===GR.FLY){setFlag('vesperFixed');G.shipAt='twilight';
+  setTimeout(()=>{closeDialog();enterZone('twilight','ship',{kicker:'LIFT-OFF',text:'The Vesper tears free of the furrow, climbs over the crash site and settles on Meridian\'s landing pad.'});},500);}
+  if(id==='m09_grounded'&&s===GR.DEFEND)setTimeout(()=>vesta('Reactor\'s live, and loud. Something outside heard it. Lots of somethings. Skitters, coming for the hull.'),900);});
+// saves from before the longer repair: put an active repair back at the survey (parts already held still count), or at the flight if she already flies
+function migrateGrounded(){const q=G.q.m09_grounded;if(!q||q.v2)return;q.v2=1;if(q.st!=='active')return;q.s=G.flags.vesperFixed?GR.FLY:GR.ASSESS;q.p=[];}
 // side jobs that produce the repair parts
-Q({id:'s_coupling',type:'side',giver:'oduya',req:()=>qActive('m09_grounded')&&!countItem('coupling'),title:'Foundry Debt',zone:'dayward',summary:'Oduya will cast a flux coupling if you bring the metal: 6 alloy plates and 3 power cells.',
+Q({id:'s_coupling',type:'side',giver:'oduya',req:()=>qActive('m09_grounded')&&!countItem('coupling')&&!G.flags.vr_coupling,title:'Foundry Debt',zone:'dayward',summary:'Oduya will cast a flux coupling if you bring the metal: 6 alloy plates and 3 power cells.',
   ask:'★ I need a flux coupling cast.',offer:'A flux coupling? For a starship? You want my foundry to do a starship part. … For you, fine. Bring me six alloy plates and three power cells and I\'ll pour it tonight.',accept:'I\'ll bring the metal.',
   stages:[{text:'Bring metal for the coupling',obj:[{k:'deliver',npc:'oduya',item:'alloy',n:6,label:'Bring 6 alloy plates to Oduya',opt:'Here\'s the alloy.',text:'Good plate.'},{k:'deliver',npc:'oduya',item:'powercell',n:3,label:'Bring 3 power cells to Oduya',opt:'Here are the power cells.',text:'Charged, too.'}]}],
   reward:{xp:150,items:[{id:'coupling'}]}});
-Q({id:'s_sealant',type:'side',giver:'tamsin',req:()=>qActive('m09_grounded')&&!countItem('sealant'),title:'Sealing the Breach',zone:'twilight',summary:'Tamsin can mix hull sealant from 6 polymer sheets and 6 skitter chitin.',
+Q({id:'s_sealant',type:'side',giver:'tamsin',req:()=>qActive('m09_grounded')&&!countItem('sealant')&&!G.flags.vr_hull,title:'Sealing the Breach',zone:'twilight',summary:'Tamsin can mix hull sealant from 6 polymer sheets and 6 skitter chitin.',
   ask:'★ About that hull sealant…',offer:'Six polymer sheets and six skitter chitin. The chitin is the secret. Light, flexible, nearly airtight once it sets.',accept:'I\'ll gather them.',
   stages:[{text:'Bring materials for the sealant',obj:[{k:'deliver',npc:'tamsin',item:'polymer',n:6,label:'Bring 6 polymer sheets',opt:'Here\'s the polymer.'},{k:'deliver',npc:'tamsin',item:'chitin',n:6,label:'Bring 6 skitter chitin',opt:'Here\'s the chitin.'}]}],
   reward:{xp:120,items:[{id:'sealant'}]}});
+
+Q({id:'s_coolant',type:'side',giver:'varga',req:()=>qActive('m09_grounded')&&qStage('m09_grounded')>=GR.REPAIR&&!countItem('coolant')&&!G.flags.vr_coolant,title:'Cold Storage',zone:'nightward',summary:'Dr. Varga will part with a cryo-coolant cell if you clear the frost skitters chewing through Cold Harbor\'s coolant lines.',
+  ask:'★ I need cryo-coolant for my ship.',offer:'Coolant I have. What I don\'t have is a working perimeter: frost skitters have been gnawing the lines out on the ice, and every cell I send out there comes back empty. Thin them out, five or so, and I\'ll fill you a cell myself.',accept:'I\'ll deal with the skitters.',
+  stages:[{text:'Clear the frost skitters on the ice',obj:[{k:'kill',type:'frost',n:5,zone:'nightward',label:'Frost skitters cleared'}]},
+    {text:'Collect the coolant from Dr. Varga',obj:[{k:'talk',npc:'varga',label:'Collect the coolant from Dr. Varga',opt:'★ Your lines are clear.',text:'So I see. One cryo-coolant cell, filled to the seal. Keep it upright and don\'t lick the casing.'}]}],
+  reward:{xp:180,items:[{id:'coolant'}]}});
 
 /* ---- Act II: Anchorage ---- */
 Q({id:'m10_anchorage',type:'main',act:2,auto:true,req:()=>qDone('m09_grounded'),title:'Neutral Ground',zone:'anchorage',summary:'Anchorage security flagged the Vesper as stolen the moment you docked. Find out who filed the report.',
@@ -9868,6 +9899,12 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
       const slk=ctx.use('survival_locker',-46.4,146,'Open the survival case',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});PF.survivalCase(ctx,-46.4,146,.9,slk.done);
       // the crashed ship can be boarded: its ramp hangs open
       ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Climb into the Vesper',ok:()=>!INTRO.on,act:()=>enterZone('vesper','ramp')});
+      // the repair: plates of your own hull to salvage along the furrow, and what the reactor's noise brings
+      {const crW=(u,v)=>({x:CR.x+CR.fx*u+CR.fz*v,z:CR.z+CR.fz*u-CR.fx*v}),pm=new THREE.MeshStandardMaterial({color:0x8a8e96,roughness:.4,metalness:.45,side:THREE.DoubleSide,envMap:SABRE_ENV||null});
+        [[-22,-10],[-40,11],[-49,-7],[-63,5],[-12,-13],[7,-13]].forEach(([u,v],i)=>{const q=crW(u,v),y=groundY(q.x,q.z),id='salv_'+i,st=ctx.state();
+          const m=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1.6,10,1,true,i,.7),pm);m.position.set(q.x,y+.5,q.z);m.rotation.set(.5,i*1.3,1.2);ctx.g.add(m);ctx.anim(()=>{m.visible=!st.flags['used_'+id];});
+          qUse(ctx,id,q.x,q.z,'Pry loose a usable hull plate',{ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!G.flags.vr_hull&&countItem('hullplate')<4,act:()=>{give('hullplate');sfx('pick');const n=countItem('hullplate');if(n>=4)vesta('That\'s four plates. Enough to close the breach once Tamsin\'s sealant is in hand.');}});});
+        if(qStage('m09_grounded')===GR.DEFEND)ctx.enemies('skitter',-44,136,16,7);}
       qUse(ctx,'cockpit_hatch',-71.9,156.1,'Cut open the cockpit hatch',{ok:()=>countItem('cutter')>0,act:()=>{give('recorder');FX.burst(new THREE.Vector3(-71.9,TW_H.crash+2,156.1),0xffc35a,40,4,.6,.1);}});}
     else{debris(ctx,-60,150,12,26);ctx.P.add(ctx.g,MAT.basalt,rockGeo(2,3),-60,TW_H.crash-1,150,0,0,0,9,1.2,4);}
     debris(ctx,-70,160,30,40);debris(ctx,-40,130,16,12);ctx.nodes('scrap',-62,146,24,6);
@@ -9904,6 +9941,9 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
     /* ---- Builder ruins ---- */
     ctx.poi('ruins',-250,-130,'Builder Ruins',{r:34});ruins(ctx,-250,-130,28,22);ctx.nodes('shard',-250,-130,24,5);ctx.enemies('skitter',-250,-130,20,5,5);
     qBoss(ctx,'s_prospect','brood','ruinbrood',-252,-128,6,{name:'Ruin Brood Mother',scale:1.15});ctx.chest('tw_ruins',-262,-120,{kind:'locked'});ctx.glyph('g_tw4',-238,-150);
+    // a cable trunk of Builder superconductor, still flawless, in the collapsed gallery
+    {const g=grp(ctx,-256,TW_H.ruins,-136,.4);ctx.P.add(g,MAT.basalt,RB(2.4,.5,1.2,.1,1),0,.25,0);for(let i=0;i<5;i++)ctx.P.add(g,i%2?MAT.tealGlow:MAT.metal,cyl(.07,.07,2.6,8),-.2+i*.1,.62,0,0,0,Math.PI/2);
+      qUse(ctx,'ruin_wiring',-256,-136,'Strip the superconductor wiring',{ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!G.flags.vr_power&&!countItem('wiring'),act:()=>{give('wiring');vesta('Superconductor, and not a fault in it. Whoever built this place built it to outlast them.');}});}
     ctx.use('ruin_wall',-246,-122,'Study the carvings',{act:()=>{if(!G.mem.includes('ruins'))showMemory('ruins');}});
     ctx.log('tw_ruins',-258,-142,'Prospector\'s scratch notes','“Twenty-four glyphs, scattered across the Reach. Touch them all, old Jory says, and you\'ll learn their alphabet. Jory says a lot of things.” — P.A.');
     /* ---- Pell's camp ---- */
@@ -10108,7 +10148,8 @@ ZONES.nightward={arch:HARBOR_ARCH,bloom:{threshold:1.0,strength:1.1},id:'nightwa
     ctx.poi('kestrel',190,120,'Wreck of the Kestrel Dawn',{r:30});
     {const y=NW_H.kestrel,s=PF.shuttle(ctx,190,y-1.2,120,.8,3.4,0x9aa0b0);s.rotation.z=.3;s.rotation.x=.12;ctx.col(190,120,6);const a=toW(190,120,.8,0,9),b=toW(190,120,.8,0,-9);ctx.col(a.x,a.z,4);ctx.col(b.x,b.z,4);debris(ctx,190,120,22,30);
       const d=decal(['KESTREL DAWN','HALCYON LINES · KD-04'],6,1,{fg:'#2a2436'});d.position.set(194,y+4,124);d.rotation.y=.8+Math.PI/2;ctx.g.add(d);ctx.light(196,y+2,114,0xff3a2a,1,12,true);
-      qUse(ctx,'kestrel_core',198,112,'Pull the Kestrel Dawn\'s navigation core',{persist:false,ok:()=>qActive('m09_grounded')&&!countItem('navcore')&&!G.flags.vesperFixed,act:()=>{give('navcore');vesta('Navigation core recovered. Tamsin will want this.');}});
+      qUse(ctx,'kestrel_core',198,112,'Pull the Kestrel Dawn\'s navigation core',{persist:false,ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!countItem('navcore')&&!G.flags.vr_nav&&!G.flags.vesperFixed,act:()=>{give('navcore');vesta('Navigation core recovered. Tamsin will want this.');}});
+      qUse(ctx,'kestrel_emitter',183,116,'Pull the Kestrel Dawn\'s holo emitter',{persist:false,ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!countItem('emitter')&&!G.flags.vr_emitter,act:()=>{give('emitter');vesta('Her emitter. The Kestrel\'s assistant used it for years. I\'ll try to make it mine.');}});
       ctx.enemies('frost',190,120,20,5,12);ctx.enemies('brood',204,140,6,1,13);ctx.chest('nw_kestrel',180,110,{kind:'locked',lockText:'The Kestrel\'s secure locker. It needs a Data Chip.'});
       ctx.log('nw_kestrel',184,128,'Kestrel Dawn captain\'s log','“Halcyon wants us to scan the spire and leave. No landing. Our passenger, the girl from the Choir, keeps humming. The navigator says the instruments hum back.”');}
     /* ---- Anik and the snares ---- */
@@ -10305,7 +10346,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
           g.updateMatrixWorld(true);if(scr.length){const bb=new THREE.Box3();scr.forEach(q=>bb.expandByObject(q));const c=bb.getCenter(new THREE.Vector3()),sz2=bb.getSize(new THREE.Vector3());
             const ck=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(.6,sz2.x*.9),Math.max(.4,sz2.y*.8)),new THREE.MeshBasicMaterial({map:vdCrackTex(),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4}));
             ck.position.set(c.x,c.y,bb.min.z-.015);ck.rotation.y=Math.PI;ctx.g.add(ck);}
-          let st=0;ctx.anim(dt=>{st-=dt;if(st<-rf(3,9))st=rf(.05,.18);const on=st>0;scr.forEach((q,i)=>{q.material.emissiveIntensity=on&&i===0?rf(.1,.5):0;});});}}
+          let st=0;ctx.anim(dt=>{if(G.flags.vr_nav){scr.forEach(q=>{q.material.emissiveIntensity=.45;});return;}st-=dt;if(st<-rf(3,9))st=rf(.05,.18);const on=st>0;scr.forEach((q,i)=>{q.material.emissiveIntensity=on&&i===0?rf(.1,.5):0;});});}}
       ctx.box(0,15,1.7,.8,0,1.2);
       const seat=(x,z,ry,down)=>{if(!MODELS.schair)return;const c=MODELS.schair.scene.clone(true),fit=new THREE.Group();fit.add(c);const b=new THREE.Box3().setFromObject(fit),s=b.getSize(new THREE.Vector3()),k=1.35/s.y,cn=b.getCenter(new THREE.Vector3());
         fit.scale.setScalar(k);fit.position.set(-cn.x*k,-b.min.y*k,-cn.z*k);const g=grp(ctx,x,y0,z,ry);g.add(fit);c.traverse(q=>{if(q.isMesh)q.castShadow=true;});ctx.col(x,z,.45);
@@ -10351,7 +10392,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
     {ctx.bench(4.4,-12,-Math.PI/2);
       const g=grp(ctx,-3.2,y0,-12,0);P.add(g,MAT.metal,cyl(1,1,.3,24),0,.15,0);const core=new THREE.Mesh(cyl(.55,.55,2.4,24),new THREE.MeshStandardMaterial({color:0x103040,emissive:broken?0xff5a2a:0x5ab8ff,emissiveIntensity:1.4,transparent:true,opacity:.85}));core.position.y=1.5;g.add(core);
       for(let i=0;i<4;i++)P.add(g,MAT.metal,tor(.68,.06,8,24),0,.5+i*.65,0,Math.PI/2,0,0);P.add(g,MAT.metal,cyl(1,1,.3,24),0,2.85,0);ctx.box(-3.2,-12,1.1,1.1,0,3);
-      ctx.light(-3.2,y0+1.8,-12,broken?0xff5a2a:0x5ab8ff,0.91,10);ctx.anim(()=>{core.material.emissiveIntensity=broken?.42*dmgFlick(performance.now()/1000,9):1.2+Math.sin(performance.now()*.004)*.25;});
+      ctx.light(-3.2,y0+1.8,-12,broken?0xff5a2a:0x5ab8ff,0.91,10);ctx.anim(()=>{if(broken&&G.flags.vr_coupling&&!core.userData.fixed){core.userData.fixed=1;core.material.emissive.setHex(0x5ab8ff);}core.material.emissiveIntensity=broken&&G.flags.vr_reactor?1+Math.sin(performance.now()*.004)*.2:broken&&G.flags.vr_coupling?.35:broken?.42*dmgFlick(performance.now()/1000,9):1.2+Math.sin(performance.now()*.004)*.25;});
       for(const x of[-1.5,1.5])P.add(ctx.g,MAT.metal,cyl(.12,.12,7,10),x,y0+2.7,-11.5,Math.PI/2,0,0);PF.crates(ctx,3.8,-14,3,6);}
     /* ---- before the repair: the decks took a beating ---- */
     if(broken){const smokes=[[-3,2.9,-11],[3,2.9,-4],[0,2.9,6]];
@@ -10440,15 +10481,15 @@ function vdShards(ctx,x,y,z,r,n){const M=vdMats();for(let i=0;i<n;i++){const s=n
 function vdStrips(ctx){const dead=[],fl=[];ctx.g.traverse(q=>{if(!q.isMesh||!q.material||q.material.name!=='Material.004')return;
     const r=Math.random();if(r<.4){if(!dead[0]){const m=q.material.clone();m.emissiveIntensity=0;m.color.setRGB(.12,.12,.13);dead[0]=m;}q.material=dead[0];}
     else{const k=Math.floor(Math.random()*3);if(!fl[k]){const m=q.material.clone();m.emissive.setRGB(1,.55,.45);m.userData.seed=k*5.3+1;fl[k]=m;}q.material=fl[k];}});
-  ctx.anim(()=>{const t=performance.now()/1000;for(const m of fl)if(m)m.emissiveIntensity=.34*dmgFlick(t,m.userData.seed);});}
+  ctx.anim(()=>{const t=performance.now()/1000,pw=G.flags.vr_power;for(const m of fl)if(m){m.emissiveIntensity=pw?.3:.34*dmgFlick(t,m.userData.seed);if(pw)m.emissive.setRGB(.85,.92,1);}});}
 // sparks spitting from torn conduits, each on its own irregular beat, with the recorded spark sound nearby
 function vdSparks(ctx,sites){const y0=W.floorY,next=sites.map(()=>rf(.5,4));
-  ctx.anim(dt=>{for(let i=0;i<sites.length;i++){next[i]-=dt;if(next[i]>0)continue;const v=sites[i],big=Math.random()<.3;next[i]=big?rf(2.5,6):rf(.9,3.5);
+  ctx.anim(dt=>{for(let i=0;i<sites.length;i++){next[i]-=dt;if(next[i]>0)continue;const v=sites[i],big=Math.random()<.3;next[i]=big?rf(2.5,6):rf(.9,3.5);if(G.flags.vr_power&&Math.random()<.75)continue;
       const n=big?26:12;for(let j=0;j<n;j++)FX.spawn(v[0],v[1],v[2],rf(-1.8,1.8),rf(-.6,big?2.6:1.6),rf(-1.8,1.8),{life:rf(.25,.75),size:rf(.03,.08),c0:0xffffff,c1:0xffa040,drag:1.1,grav:9});
       sparkSound(v[0],v[2],big?.55:.32);}});}
 // a burst coolant line venting steam, with a hiss when you're close
 function vdSteam(ctx,x,y,z,dx,dz){const M=vdMats(),puffs=[];for(let i=0;i<14;i++){const s=new THREE.Sprite(M.steam.clone());s.userData.t=i/14;ctx.g.add(s);puffs.push(s);}let hiss=0;
-  ctx.anim(dt=>{const t=performance.now()/1000,gust=.6+.4*Math.max(0,Math.sin(t*1.7));for(const s of puffs){const u=s.userData;u.t=(u.t+dt*.6)%1;s.position.set(x+dx*u.t*2.2,y-u.t*.6+u.t*u.t*.9,z+dz*u.t*2.2);s.scale.setScalar(.25+u.t*1.6);s.material.opacity=.32*gust*(1-u.t)*Math.min(1,u.t*8);}
+  ctx.anim(dt=>{if(G.flags.vr_coolant){for(const s of puffs)s.visible=false;return;}const t=performance.now()/1000,gust=.6+.4*Math.max(0,Math.sin(t*1.7));for(const s of puffs){const u=s.userData;u.t=(u.t+dt*.6)%1;s.position.set(x+dx*u.t*2.2,y-u.t*.6+u.t*u.t*.9,z+dz*u.t*2.2);s.scale.setScalar(.25+u.t*1.6);s.material.opacity=.32*gust*(1-u.t)*Math.min(1,u.t*8);}
     hiss-=dt;if(hiss<=0){hiss=rf(1.2,2.4);const d=Math.hypot(x-player.x,z-player.z);if(d<10)noise(1.1,.035*(1-d/10)*gust,5200,'highpass');}});}
 // VESTA's projector is failing: her figure tears into bands, jumps and cuts out, and a cloud of error voxels flickers around it
 function vdGlitchHolo(ctx,n,x,z){if(!n)return;let uG=null;n.P.root.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.uG)uG=o.material.userData.uG;});
@@ -10456,7 +10497,7 @@ function vdGlitchHolo(ctx,n,x,z){if(!n)return;let uG=null;n.P.root.traverse(o=>{
   const tag=(()=>{const c=mkCanvas(256);c.height=64;const g=c.getContext('2d');g.fillStyle='rgba(255,90,60,.95)';g.font='bold 22px monospace';g.textAlign='center';g.fillText('PROJECTION FAULT',128,28);g.font='16px monospace';g.fillText('ERR 0x5E · SIGNAL LOST',128,52);
     const t=new THREE.CanvasTexture(c);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));s.scale.set(1.3,.33,1);s.position.set(x,y0+2.35,z);ctx.g.add(s);return s;})();
   const m4=new THREE.Matrix4();let burst=0,gap=1;
-  ctx.anim(dt=>{const t=performance.now()/1000;burst-=dt;if(burst<-gap){burst=rf(.06,.45);gap=rf(.3,2.2);}const on=burst>0,out=on&&Math.random()<.25;
+  ctx.anim(dt=>{if(G.flags.vr_emitter){if(uG)uG.value=0;for(const c of kids){c.position.set(0,0,0);c.scale.set(1,1,1);}cubes.visible=false;tag.visible=false;return;}const t=performance.now()/1000;burst-=dt;if(burst<-gap){burst=rf(.06,.45);gap=rf(.3,2.2);}const on=burst>0,out=on&&Math.random()<.25;
     if(uG)uG.value=on?1:.6;
     for(const c of kids){if(out){c.scale.setScalar(.0001);continue;}c.position.set(on?rf(-.14,.14):Math.sin(t*23)*.01,on?rf(-.05,.05):0,on?rf(-.08,.08):0);c.scale.set(on?rf(.75,1.5):1,on?rf(.8,1.08):1,1);}
     cubes.visible=on||Math.random()<.03;if(cubes.visible){for(let i=0;i<N;i++){const h=rf(.1,2.05),r=(.12+.2*Math.sin(h*2.1))*rf(.4,1.3),a=rf(0,6.3);m4.makeTranslation(x+Math.cos(a)*r+rf(-.08,.08),y0+.25+h,z+Math.sin(a)*r);cubes.setMatrixAt(i,m4);}cubes.instanceMatrix.needsUpdate=true;}
@@ -10485,8 +10526,36 @@ function vesperDamage(ctx,X){const P=ctx.P,y0=W.floorY,sp=[];
   {sp.push(vdCable(ctx,.6,-10.2,1.7),vdCable(ctx,3,-13.6,1.2),vdCable(ctx,-1.2,-14.2,1));sp.push(vdHangPanel(ctx,-.8,-9.4,Math.PI));vdSag(ctx,1,-14.6,4.8,-12.5,.8);
     P.add(ctx.g,MAT.metal,cyl(.12,.12,2.4,10),1.6,y0+.12,-9.6,0,.6,Math.PI/2);// a pipe shaken down off its brackets
     vdSteam(ctx,1.5,y0+2.65,-10.6,.35,.15);vdDebris(ctx,-5,5,-14.8,-8.4,20);sp.push([-1.5,y0+2.7,-12.6]);}
-  vdSparks(ctx,sp);vdStrips(ctx);
-  for(const l of ctx.lights)l.flicker=2;}
+  vdSparks(ctx,sp);vdStrips(ctx);vesperRepairs(ctx,X);
+  // the lights: failing until the power trunk is rewired, red emergency light until the reactor is back
+  ctx.anim(()=>{const pw=!!G.flags.vr_power,rx=!!G.flags.vr_reactor;for(const d of ctx.lights){d.flicker=pw?0:2;if(rx&&!d._warm){d._warm=1;d.color=0xffe0c0;d.i=Math.max(d.i,.6);}}});}
+// The repair, done aboard: a diagnostic point for each system while you survey, then a place to fit each part, then the reactor.
+function vesperRepairs(ctx,X){const y0=W.floorY,stg=()=>qStage('m09_grounded');
+  const diag=(id,x,z,label,line)=>qUse(ctx,id,x,z,label,{ok:()=>stg()===GR.ASSESS,act:()=>{vesta(line,9000);FX.burst(new THREE.Vector3(x,y0+1.2,z),0x6ff2d6,14,2,.4,.05);}});
+  diag('vs_diag_nav',-.9,14.1,'Run diagnostics on the navigation terminal','Navigation is dead. The core burned out on impact and the display is smashed. Without a core we can\'t find our way off a parking pad, let alone to orbit.');
+  diag('vs_diag_core',-1.7,-11.2,'Inspect the drive core','The drive core is intact, but its flux coupling cracked, and the coolant line beside it has burst. Restart the reactor like this and it melts.');
+  diag('vs_diag_power',X-1.4,6,'Trace the power fault','Found it: the main power trunk behind this panel. Fused solid. Everything aboard is running on emergency cells, which is why the lights won\'t hold.');
+  diag('vs_diag_hull',X-1.4,-4,'Inspect the hull breach','The breach goes right through both hull layers. We need plating to close it and sealant to make it hold. She won\'t keep air in orbit like this.');
+  // fitting the parts: each one changes the ship as it goes in
+  const fit=(x,z,label,flag,need,done)=>ctx.inter({pos:()=>({x,z}),r:2.2,label:()=>label,ok:()=>stg()>=GR.REPAIR&&!G.flags[flag]&&need.every(([k,n])=>countItem(k)>=n),
+    act:()=>{for(const [k,n] of need)removeItem(k,n);setFlag(flag);sfx('thump');FX.burst(new THREE.Vector3(x,y0+1.3,z),0xffc35a,36,3.5,.6,.08);sparkSound(x,z,.55);done&&done();checkObjectives();renderTracker();saveSoon();
+      const left=['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'].filter(f=>!G.flags[f]).length;if(!left)setTimeout(()=>vesta('That\'s every system. All that\'s left is to wake the reactor. Engineering.'),4200);}});
+  fit(X-1.4,-4,'Weld the hull plates over the breach and seal them','vr_hull',[['hullplate',4],['sealant',1]],()=>vesta('Plates welded, sealant curing. She\'ll hold air again.'));
+  fit(-1.7,-11.2,'Fit the new flux coupling','vr_coupling',[['coupling',1]],()=>vesta('Coupling seated. The core\'s field is stable, for now.'));
+  fit(1.5,-10.1,'Replace the burst coolant line','vr_coolant',[['coolant',1]],()=>vesta('New line, full charge of coolant. That should stop the steam.'));
+  fit(X-1.4,6,'Rewire the power trunk','vr_power',[['wiring',1]],()=>vesta('Power trunk rewired. Main power is back on the lights, at least.'));
+  fit(.9,14.2,'Install the navigation core','vr_nav',[['navcore',1]],()=>vesta('Navigation core installed. The screen\'s still cracked, but I can see the stars on it.'));
+  fit(-2.5,12.1,'Fit the holo emitter into VESTA\'s projector','vr_emitter',[['emitter',1]],()=>vesta('Oh. That\'s better. I can see myself again. Thank you.'));
+  qUse(ctx,'vs_reactor',-1.7,-11.2,'Restart the reactor',{ok:()=>stg()===GR.REACTOR,act:()=>{setFlag('vr_reactor');sfx('scan');for(let i=0;i<4;i++)setTimeout(()=>{FX.burst(new THREE.Vector3(-3.2,y0+1.5,-12),0x8fd8ff,40,4,.7,.1);sfx('thump');},i*450);}});
+  // the breach in the cargo bay's starboard wall: the dusk outside showing through torn plating, until it is welded shut
+  {const V=vdMats(),c=mkCanvas(256),g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#2a1830');gr.addColorStop(.7,'#8a4038');gr.addColorStop(1,'#c8704a');g.fillStyle=gr;g.fillRect(0,0,256,256);
+    const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const sky=new THREE.Mesh(new THREE.CircleGeometry(1,20),new THREE.MeshBasicMaterial({map:t}));sky.scale.set(.9,1.05,1);sky.position.set(X-.6,y0+1.5,-4);sky.rotation.y=-Math.PI/2;ctx.g.add(sky);
+    const pet=crashPetals(ctx.g,new THREE.Vector3(X-.62,y0+1.5,-4),new THREE.Vector3(0,0,1),new THREE.Vector3(0,1,0),new THREE.Vector3(-1,0,0),.85,1,11,V.plate,[.4,1]);
+    const patch=new THREE.Group();patch.position.set(X-.66,y0+1.5,-4);ctx.g.add(patch);const pm=new THREE.MeshStandardMaterial({color:0x7a7e86,roughness:.45,metalness:.5});
+    [[0,.35,1.3,.75],[0,-.4,1.2,.8],[.05,0,.6,1.9]].forEach(([dz,dy,w,h],i)=>{const m=new THREE.Mesh(RB(.05,h,w,.01,1),pm);m.position.set(-.02*i,dy,dz);m.rotation.x=(i-1)*.08;patch.add(m);});
+    const seam=new THREE.Mesh(tor(.95,.025,6,32),new THREE.MeshStandardMaterial({color:0x3a3a3c,roughness:.8,metalness:.6}));seam.rotation.y=Math.PI/2;seam.scale.set(1,1.05,.9);patch.add(seam);
+    ctx.light(X-1.2,y0+1.5,-4,0xff9a6a,.5,5);
+    ctx.anim(()=>{const f=!!G.flags.vr_hull;sky.visible=pet.visible=!f;patch.visible=f;});}}
 
 // ===== 54_z_calder.js =====
 /* ================= ZONE: Calder (a lagoon world) ================= */
@@ -11558,6 +11627,7 @@ async function beginPlay(){cam.dist=Math.max(cam.dist,2.6);initAudio();UI.title=
   $('#hint').style.opacity=1;$('#hint').textContent=isTouch?'Left side: move · Right side: look · Pinch: zoom':'WASD move · Shift sprint · Space jump · Drag to look · F or click: fire · E use · R swap · Q quick item · I pack · J journal · M map';setTimeout(()=>$('#hint').style.opacity=0,14000);}
 async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
   const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}
+  migrateGrounded();
   for(const id in G.q)if(G.q[id].st==='active'&&!(G.q[id].p||[]).length)initStage(id);beginPlay();showBanner(W.def.world||'',W.def.name);saveNow();}
 async function newGame(){startSting();G=freshState();computeStats();refreshAvatar();playing=false;await enterZone('twilight','crash',{quiet:true,kicker:'OSSERY B',text:'Somewhere on the twilight band…'});
   playing=true;startQuest('m01_wake',true);G.track='m01_wake';beginPlay();const f=$('#fade');f.style.transition='none';f.style.opacity=1;
