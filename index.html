@@ -7679,7 +7679,7 @@ function updateEnemies(dt,paused){
         if(e.state==='chase'){e.state=home>8?'return':'wander';e.windup=0;}
         if(e.state==='wander'){e.wt-=dt;if(e.wt<=0){e.wt=rf(2,5);const a=Math.random()*6.28,r=Math.random()*9;e.wx=e.hx+Math.cos(a)*r;e.wz=e.hz+Math.sin(a)*r;}if(Math.hypot(e.wx-e.x,e.wz-e.z)>.6){tx=e.wx;tz=e.wz;speed=T.speed*.32;}}}
       if(frozen)speed*=.35;
-      if(speed>0){const ddx=tx-e.x,ddz=tz-e.z,dd=Math.hypot(ddx,ddz);if(dd>.01){const s=Math.min(dd,speed*dt);const p={x:e.x+ddx/dd*s,z:e.z+ddz/dd*s};if(!T.fly&&!T.boss){collide(p,T.r*.6);platWalls(p,e.y,T.r*.6);}
+      if(speed>0){const ddx=tx-e.x,ddz=tz-e.z,dd=Math.hypot(ddx,ddz);if(dd>.01){const s=Math.min(dd,speed*dt);const p={x:e.x+ddx/dd*s,z:e.z+ddz/dd*s};if(!T.boss&&(!T.fly||W.interior)){collide(p,T.r*.6);platWalls(p,T.fly?W.floorY:e.y,T.r*.6);}// indoors, flyers keep to the rooms too
         if(W.safe)for(const sz of W.safe){const sd=Math.hypot(p.x-sz.x,p.z-sz.z);if(sd<sz.r&&e.state!=='return'){p.x=sz.x+(p.x-sz.x)/sd*sz.r;p.z=sz.z+(p.z-sz.z)/sd*sz.r;}}
         if(W.water&&!T.fly&&groundY(p.x,p.z)<W.water.y-.8){p.x=e.x;p.z=e.z;}
         e.x=p.x;e.z=p.z;if(e.state!=='chase')e.face+=wrapA(Math.atan2(ddx,ddz)-e.face)*clamp(dt*5,0,1);}}
@@ -8499,7 +8499,9 @@ function patriotShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.vesper;
   if(!crashed){// four landing struts with pads
     for(const [lx,lz] of[[-W2*.32,-L*.3],[W2*.32,-L*.3],[-W2*.28,L*.26],[W2*.28,L*.26]]){P.add(g,MAT.metal,cyl(.32,.42,lift+.6,12),lx,(lift+.6)/2,lz);P.add(g,MAT.hullDark,cyl(.9,1,.3,16),lx,.15,lz);P.add(g,MAT.hazard,cyl(.36,.36,.5,12,1,true),lx,lift*.55,lz);}}
   // the hull's collision follows the fuselage (the ramp stays walkable)
-  for(let lz=-L/2+3;lz<=L/2-3;lz+=3.2){if(crashed?lz<-L/2+6:Math.abs(lz+L*.2)<3)continue;const q=Wp(0,lz);addCol(q.x,q.z,W2*.42);}
+  // parked, she stands on her struts and you can walk underneath: only the struts are solid
+  if(!crashed)for(const [lx,lz] of[[-W2*.32,-L*.3],[W2*.32,-L*.3],[-W2*.28,L*.26],[W2*.28,L*.26]]){const q=Wp(lx,lz);addCol(q.x,q.z,.75);}
+  if(crashed)for(let lz=-L/2+3;lz<=L/2-3;lz+=3.2){if(lz<-L/2+6)continue;const q=Wp(0,lz);addCol(q.x,q.z,W2*.42);}
   const warm=new THREE.MeshStandardMaterial({color:0x2a1806,emissive:0xffa040,emissiveIntensity:.85,roughness:.5}),eng=new THREE.MeshStandardMaterial({color:0x101820,emissive:0x5ab8ff,emissiveIntensity:crashed?.5:1.2,roughness:.3});
   const beacon=glowAt(ctx,body,0,H2+lift*0+.3,-2,0xff3a3a,2.2,.8);
   const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};
@@ -10192,69 +10194,7 @@ const INT_SKY={showSky:false,fog:[0x0c0a14,40,170],hemi:[0xd0d4ec,0x3a3846,1.55]
 const shipName=id=>ZONES[id]?ZONES[id].name:id;
 // the Vesper's decks are in 53b_vesper.js
 
-/* ---------- Anchorage ---------- */
-ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery b',blurb:'Halcyon\'s orbital waystation: docks, a promenade, a cantina and too many secrets.',kind:'interior',size:240,floorY:0,ceiling:9,seed:41,lvl:[12,16],
-  sky:Object.assign({},INT_SKY,{fog:[0x0a0912,50,190]}),tempAt:()=>19,
-  entries:{ship:{x:0,z:-46,face:0},dock:{x:0,z:-46,face:0}},spawn:{x:0,z:-46,face:0},
-  build(ctx){const P=ctx.P,st=ctx.state();const wallW=std(TEX.wall,{color:0xe0dce8,metalness:.3,roughness:.65}),wallD=std(TEX.wall,{color:0x7a7690,metalness:.45,roughness:.6});
-    /* docking bay */
-    PF.room(ctx,0,-60,40,30,18,{wall:wallD,floor:MAT.deck,gaps:{s:[0,6],w:[10,3]}});ctx.poi('dock',0,-60,'Docking Bay 3',{r:18,ft:true});
-    PF.window(ctx,0,5,-74.7,0,30,7);for(let i=-3;i<=3;i++)P.add(ctx.g,MAT.hazard,new THREE.PlaneGeometry(3,.3),i*5,.02,-70,-Math.PI/2,0,0);
-    for(const s of[-1,1]){P.add(ctx.g,MAT.metal,RB(.6,10,.6,.1,1),s*19.4,5,-74.4);for(let k=0;k<2;k++)ctx.light(s*12,7,-66+k*12,0xd8e0ff,1.3,26);}
-    if(G.shipAt==='anchorage'){const fx=PF.vesper(ctx,2,-62,Math.PI/2,{y:0});ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>enterZone('vesper','ramp')});}
-    PF.container(ctx,-14,-52,0,0x4a6a8a);PF.container(ctx,14,-70,Math.PI/2,0x8a5a3a);PF.crates(ctx,12,-50,6,4);PF.crates(ctx,-16,-70,5,5);PF.barrels(ctx,16,-58,4,3);
-    PF.console(ctx,6,-48,0,1);ctx.npc('sato',8,-50,-Math.PI/2);ctx.npc('rook',-12,-46,Math.PI/2);ctx.bench(-16,-46,Math.PI/2);
-    spawnCrowd(0,-56,12,4,{role:'DOCK CREW',pts:[[-10,-60],[10,-60],[8,-50],[-8,-50],[0,-66]],barks:['Bay three\'s backed up again.','Watch the loader!','Halcyon freighter due at shift change.']});
-    /* corridor to the promenade */
-    PF.hallway(ctx,0,-32,0,26);PF.hallway(ctx,0,-6,0,26);
-    /* maintenance tunnels */
-    PF.room(ctx,-29,-50,18,5,3.4,{wall:wallD,floor:MAT.grate,gaps:{e:[0,3],w:[0,3]}});
-    PF.room(ctx,-60,-50,44,40,4.4,{wall:wallD,floor:MAT.grate,gaps:{e:[0,3]},lightMat:MAT.amberGlow});ctx.poi('maint',-60,-50,'Maintenance Tunnels',{r:22});
-    for(let i=0;i<10;i++){const x=rr(-78,-42),z=rr(-66,-34);if(Math.hypot(x+72,z+58)<4)continue;if(i%3)PF.crates(ctx,x,z,3,i);else PF.barrels(ctx,x,z,3,i);}
-    for(const [x,z,w,d] of [[-50,-42,8,1],[-70,-40,1,10],[-64,-62,10,1],[-48,-60,1,8]])slab(ctx,x,z,w,d,2.6,MAT.hullDark);
-    for(let z=-68;z<-30;z+=6)P.add(ctx.g,MAT.metal,cyl(.15,.15,44,10),-60,3.9,z,0,0,Math.PI/2);
-    ctx.light(-60,3.6,-50,0xffa040,1.2,26,true);ctx.light(-74,3.6,-60,0xff5a3a,.9,14,true);
-    ctx.enemies('drone',-60,-50,16,6,13,{respawn:70});ctx.enemies('sentinel',-66,-56,10,2,14);ctx.enemies('drone',-40,-60,6,2,12);
-    PF.console(ctx,-72,-60,0,4);qUse(ctx,'records_terminal',-72,-58,'Enter Dax\'s passcode at the records junction',{ok:()=>countItem('passcode')>0});
-    for(const [id,x,z] of [['breach1',-56,-34],['breach2',-80,-44],['breach3',-48,-66]]){qUse(ctx,id,x,z,'Seal the hull breach',{h:1.2});ctx.anim(()=>{if(!st.flags['used_'+id]&&Math.random()<.4)FX.spawn(x,1.2,z,rf(-1,1),rf(0,1),rf(-1,1),{life:.5,size:.14,c0:0xffffff,c1:0x8fd8ff,drag:2,grav:0});});}
-    ctx.chest('an_maint',-80,-66,{kind:'locked'});ctx.chest('an_maint2',-44,-36,{});ctx.glyph('g_an1',-80,-34);
-    ctx.log('an_maint',-52,-48,'Maintenance work order #4471','“Drone swarm in tunnel C went feral after the Halcyon firmware push. Engineering requests rollback. Request denied by Liaison Arn.”');
-    /* promenade */
-    PF.room(ctx,0,22,60,28,8,{wall:wallW,floor:MAT.floor,gaps:{n:[0,7],s:[0,6],e:[0,4],w:[0,4]}});ctx.poi('promenade',0,22,'The Promenade',{r:24,ft:true});ctx.safe(0,22,30);
-    PF.window(ctx,-14,4.2,35.7,Math.PI,14,4);PF.window(ctx,14,4.2,35.7,Math.PI,14,4);
-    for(const [x,z,c] of [[-18,14,MAT.fabricTeal],[-10,14,MAT.fabricRed],[18,14,MAT.fabricTeal],[10,30,MAT.fabricRed]])PF.stall(ctx,x,z,0,c);
-    for(const [x,z] of [[-24,30],[24,30],[-6,20],[6,20]])PF.plant(ctx,x,z,pick([0x52e8c8,0xd36cf0,0x8fd8ff]));
-    {const g=grp(ctx,0,0,22,0);P.add(g,MAT.metal,cyl(2.6,2.8,.6,32),0,.3,0);const h=new THREE.Mesh(sph(1.4,32,16),new THREE.MeshBasicMaterial({map:TEX.giant,transparent:true,opacity:.85}));h.position.y=2.6;g.add(h);glowAt(ctx,g,0,2.6,0,0x8fd8ff,6,.35);ctx.anim(dt=>{h.rotation.y+=dt*.2;});ctx.col(0,22,2.8);}
-    ctx.board(-26,22,Math.PI/2,'anchorage','Station Security Contracts');PF.kiosk(ctx,26,22,-Math.PI/2,'ANCHORAGE');
-    ctx.npc('prin',-18,16,Math.PI);ctx.npc('hollis',18,16,Math.PI);ctx.npc('dax',10,32,Math.PI*.8);ctx.npc('ostrander',-4,12,Math.PI);
-    spawnCrowd(0,22,22,10,{pts:[[-20,12],[20,12],[24,32],[-24,32],[0,16],[0,30]],barks:['Did you see the freighter come in?','Halcyon raised the docking fees again.','The Halo has a new cocktail. It\'s awful.','I heard the marshal and the liaison had words.','Look, the planet\'s terminator line. Beautiful.']});
-    /* the Halo cantina */
-    PF.room(ctx,42,22,24,20,4.2,{wall:std(TEX.wall,{color:0x6a4a6a,metalness:.3,roughness:.6}),floor:MAT.floor,gaps:{w:[0,4]},lightMat:MAT.amberGlow});ctx.poi('halo',42,22,'The Halo',{r:12});
-    PF.bar(ctx,44,30,Math.PI,10);ctx.npc('vonn',44,31.6,Math.PI);PF.table(ctx,38,16,0,1.4,1.4,{stools:4});PF.table(ctx,48,16,0,1.4,1.4,{stools:4});PF.table(ctx,48,22,0,1.2,1.2,{stools:3});
-    {const s=neon('THE HALO',5,1.2,'#ff5ad8');s.position.set(30.3,3.2,22);s.rotation.y=Math.PI/2;ctx.g.add(s);}ctx.light(42,3.6,22,0xff5ad8,1.2,16);
-    qUse(ctx,'dead_drop',43,28.4,'Search under the third stool',{h:.8});spawnCrowd(42,20,6,4,{role:'PATRON',barks:['Another round!','Don\'t tell my supervisor.','Vonn mixes a mean drink, for a robot.']});
-    /* medbay */
-    PF.room(ctx,-42,22,24,20,4.2,{wall:wallW,floor:MAT.floor,gaps:{e:[0,4]}});ctx.poi('medbay',-42,22,'Medbay',{r:12});
-    PF.medbed(ctx,-50,16,0);PF.medbed(ctx,-50,22,0);PF.medbed(ctx,-50,28,0);PF.console(ctx,-36,30,Math.PI,4);PF.shelf(ctx,-44,31.4,Math.PI,3);ctx.npc('feng',-40,24,-Math.PI/2);ctx.heal(-46,18,'Use a medbay bed');ctx.light(-42,3.6,22,0xd8f0ff,1.2,16);
-    /* link to the hab ring */
-    PF.room(ctx,0,42.5,8,13,4,{wall:wallD,floor:MAT.floor,gaps:{n:[0,6],s:[0,6]}});
-    /* hab ring */
-    PF.room(ctx,0,62,70,26,6,{wall:wallW,floor:MAT.floor,gaps:{n:[0,6],s:[0,5]}});ctx.poi('habring',0,62,'Hab Ring',{r:24,ft:true});
-    for(let i=0;i<5;i++){const x=-28+i*14;slab(ctx,x,72.5,8,1,6,MAT.hull);P.add(ctx.g,MAT.win,RB(1.2,.8,.05,.02,1),x-2,2.2,71.9);P.add(ctx.g,MAT.metal,RB(1.4,2.4,.08,.03,1),x+1.6,1.2,71.9);}
-    for(const [x,z] of [[-30,54],[-22,58],[-26,66],[22,56],[30,62]])PF.plant(ctx,x,z,pick([0x52e8c8,0xa8ff5a,0xffc35a]));
-    PF.table(ctx,-12,58,0,2,1,{stools:4});PF.table(ctx,12,58,0,2,1,{stools:4});ctx.locker(32,52,-Math.PI/2);restSpot(ctx,28,68,'Rest in a rented bunk');
-    ctx.npc('oriel',-6,66,Math.PI);ctx.npc('pip',-20,60,0,{type:'wander',r:10,pause:[1,4],speed:1.9});ctx.npc('arn',-30,64,Math.PI/2);
-    {const g=grp(ctx,-24,0,70.4,0);P.add(g,MAT.grate,RB(1.4,.9,.1,.03,1),0,.5,0);}qUse(ctx,'biscuit',-24,70,'Coax Biscuit out of the vent',{h:1});
-    spawnCrowd(0,62,24,6,{role:'RESIDENT',pts:[[-30,56],[30,56],[30,68],[-30,68],[0,60]]});
-    ctx.chest('an_hab',34,72,{});ctx.glyph('g_an2',-34,72);
-    ctx.log('an_arn',-32,58,'Liaison Arn\'s discarded memo','“Director Vash wants the pilot alive. If the Vesper turns up, flag it stolen and hold the pilot. Do not let the Choir woman near them.”',{y:.9});
-    /* observation deck */
-    PF.room(ctx,0,78,6,6,4,{wall:wallD,gaps:{n:[0,5],s:[0,5]}});PF.room(ctx,0,90,30,18,6,{wall:wallD,floor:MAT.deck,gaps:{n:[0,5]},noCeil:false});ctx.poi('obs',0,90,'Observation Deck',{r:14});
-    PF.window(ctx,0,3,98.75,Math.PI,26,5);for(const s of[-1,1])PF.window(ctx,s*14.75,3,90,s>0?-Math.PI/2:Math.PI/2,14,4);
-    for(let i=-2;i<=2;i++){const g=grp(ctx,i*5,0,94,Math.PI);P.add(g,MAT.fabricTeal,RB(3,.4,.9,.1,1),0,.45,0);ctx.box(i*5,94,1.5,.45,0,.65);}
-    ctx.glyph('g_an3',10,84);ctx.log('an_obs',-10,86,'Plaque','“From this deck, the first Halcyon survey team saw the spires light for the first time. The lights have not been seen since.”',{y:.9});
-    ctx.light(0,5,90,0x8fd8ff,1,20);
-  }};
+/* Anchorage station is in 53d_anchorage.js */
 
 // ===== 53b_vesper.js =====
 /* ================= THE VESPER: inside the ship ================= */
@@ -10571,6 +10511,214 @@ function vesperRepairs(ctx,X){const y0=W.floorY,stg=()=>qStage('m09_grounded');
     const seam=new THREE.Mesh(tor(.95,.025,6,32),new THREE.MeshStandardMaterial({color:0x3a3a3c,roughness:.8,metalness:.6}));seam.rotation.y=Math.PI/2;seam.scale.set(1,1.05,.9);patch.add(seam);
     ctx.light(X-1.2,y0+1.5,-4,0xff9a6a,.5,5);
     ctx.anim(()=>{const f=!!G.flags.vr_hull;sky.visible=pet.visible=!f;patch.visible=f;});}}
+
+// ===== 53d_anchorage.js =====
+/* ================= ANCHORAGE STATION ================= */
+// Halcyon's orbital waystation, in the style of a clean white orbital (after "Space station Scene Wip 7" by 3DHaupt):
+// white seamed panels over a gunmetal dado with a blue-grey band, dark structural pillars on octagonal bases with hazard
+// bands, steel deck plates, lit coves. Every window looks out on one shared sky (stars, the sun, and Ossery b below with its
+// scorched day side, twilight band and frozen night side), seen from wherever you stand, so the views agree with each other.
+// Layout (z grows toward the hab ring): docking bay 3 (0,-60) · long gallery north to the atrium (0,22), a two-storey round hub
+// with the Halo cantina east and the medbay west · hab ring (0,62) · observation deck (0,90). Maintenance tunnels off the dock.
+const STX={};
+function stTex(kind){if(STX[kind])return STX[kind];const c=mkCanvas(512),g=c.getContext('2d'),R=Math.random;
+  const noise=(n,a)=>{for(let i=0;i<n;i++){g.fillStyle=`rgba(${R()<.5?0:255},${R()<.5?0:255},${R()<.5?0:255},${R()*a})`;g.fillRect(R()*512,R()*512,R()*3+1,R()*3+1);}};
+  const seam=(x,y,w,h,dark,lite)=>{g.fillStyle=dark;g.fillRect(x,y,w,h);g.fillStyle=lite;if(w>h)g.fillRect(x,y+h,w,1);else g.fillRect(x+w,y,1,h);};
+  const bolt=(x,y,c)=>{g.fillStyle=c;g.beginPath();g.arc(x,y,3,0,7);g.fill();};
+  if(kind==='panel'){// two white panels a metre wide, with a horizontal seam, a vent on one and fixings at the corners
+    g.fillStyle='#d8dbe3';g.fillRect(0,0,512,512);const gr=g.createLinearGradient(0,0,0,512);gr.addColorStop(0,'rgba(255,255,255,.18)');gr.addColorStop(1,'rgba(90,96,120,.12)');g.fillStyle=gr;g.fillRect(0,0,512,512);noise(1400,.035);
+    for(const x of[0,256])seam(x,0,3,512,'#8e94a4','#f6f8fc');for(const y of[0,330])seam(0,y,512,3,'#8e94a4','#f6f8fc');
+    g.fillStyle='#bfc4d0';g.fillRect(300,380,170,90);g.fillStyle='#9aa0b0';for(let i=0;i<7;i++)g.fillRect(312,390+i*11,146,4);
+    g.fillStyle='rgba(120,128,150,.35)';g.fillRect(36,40,180,6);for(const [x,y] of[[14,14],[242,14],[270,14],[498,14],[14,316],[242,316],[270,346],[498,346]])bolt(x,y,'#a8adba');}
+  else if(kind==='dark'){// gunmetal with ribs and rivets
+    g.fillStyle='#3c4049';g.fillRect(0,0,512,512);noise(1800,.05);for(let y=0;y<512;y+=64){seam(0,y,512,4,'#22252b','#565b66');}
+    for(const x of[0,256])seam(x,0,4,512,'#22252b','#565b66');for(let y=32;y<512;y+=64)for(const x of[20,236,276,492])bolt(x,y,'#5c616c');
+    g.fillStyle='rgba(210,170,40,.55)';g.fillRect(300,140,90,10);}
+  else if(kind==='floor'){// a two-metre deck plate: brushed steel, dark seams, corner fixings, a worn walking line
+    g.fillStyle='#8e929a';g.fillRect(0,0,512,512);for(let i=0;i<500;i++){g.fillStyle=`rgba(255,255,255,${R()*.05})`;g.fillRect(0,R()*512,512,1);}noise(2500,.04);
+    g.fillStyle='rgba(40,42,48,.04)';g.fillRect(150,0,212,512);seam(0,0,512,5,'#2c2f35','#b4b8c0');seam(0,0,5,512,'#2c2f35','#b4b8c0');seam(254,0,3,512,'#4a4e56','#a8acb4');
+    for(const [x,y] of[[18,18],[494,18],[18,494],[494,494],[238,18],[274,18],[238,494],[274,494]])bolt(x,y,'#5a5e66');}
+  else if(kind==='pad'){// landing pad markings, transparent
+    g.clearRect(0,0,512,512);g.strokeStyle='rgba(255,200,40,.85)';g.lineWidth=10;g.beginPath();g.arc(256,256,236,0,7);g.stroke();g.setLineDash([30,22]);g.lineWidth=6;g.beginPath();g.arc(256,256,200,0,7);g.stroke();g.setLineDash([]);
+    g.fillStyle='rgba(255,200,40,.8)';for(let i=0;i<4;i++){g.save();g.translate(256,256);g.rotate(i*Math.PI/2);g.fillRect(-6,-236,12,60);g.restore();}g.font='bold 120px sans-serif';g.textAlign='center';g.fillStyle='rgba(255,255,255,.55)';g.fillText('3',256,300);}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return STX[kind]=t;}
+let STM=null;
+function stM(){if(STM)return STM;const S=(o)=>new THREE.MeshStandardMaterial(o);
+  STM={wall:S({map:stTex('panel'),roughness:.6,metalness:.1}),dark:S({map:stTex('dark'),roughness:.5,metalness:.55}),floor:S({map:stTex('floor'),roughness:.66,metalness:.28}),
+    ceil:S({map:stTex('dark'),color:0x9096a2,roughness:.7,metalness:.35}),band:S({color:0x7a84a8,roughness:.4,metalness:.2}),trim:S({color:0x2e3138,roughness:.42,metalness:.65}),
+    white:S({color:0xc4c8d0,roughness:.6,metalness:.08}),rail:S({color:0xf0f2f6,roughness:.3,metalness:.35}),
+    strip:S({color:0x1a1c22,emissive:0xe2ecff,emissiveIntensity:.42,roughness:.5}),warm:S({color:0x1a1612,emissive:0xffd6a0,emissiveIntensity:.5,roughness:.5}),
+    teal:S({color:0x0a1a18,emissive:0x6ff2d6,emissiveIntensity:.55,roughness:.5}),pink:S({color:0x1a0a18,emissive:0xff5ad8,emissiveIntensity:.5,roughness:.5}),
+    amber:S({color:0x1a1206,emissive:0xffa040,emissiveIntensity:.5,roughness:.5}),halo:S({map:stTex('dark'),color:0x7a5a86,roughness:.45,metalness:.5}),
+    pad:new THREE.MeshBasicMaterial({map:stTex('pad'),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2})};
+  return STM;}
+// the view out of every window
+let ST_SKY=null;
+function stSkyMat(){if(ST_SKY)return ST_SKY;const c=mkCanvas(2048);c.height=1024;const g=c.getContext('2d'),R=Math.random;g.fillStyle='#010207';g.fillRect(0,0,2048,1024);
+  for(let i=0;i<1100;i++){const x=R()*2048,y=520+Math.sin(x/2048*Math.PI*2)*230+(R()-.5)*180*R(),r=8+R()*46,gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(${140+R()*80|0},${120+R()*70|0},${190+R()*60|0},${.02+R()*.03})`);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}
+  for(let i=0;i<6500;i++){const b=R();g.fillStyle=`rgba(${215+R()*40|0},${215+R()*40|0},255,${b*b*.9+.08})`;const s=b>.992?2:1;g.fillRect(R()*2048,R()*1024,s,s);}
+  const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;
+  ST_SKY=new THREE.ShaderMaterial({uniforms:{map:{value:t},pDir:{value:new THREE.Vector3(.12,-.5,1).normalize()},sDir:{value:new THREE.Vector3(-.75,.3,.55).normalize()}},
+    vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
+    fragmentShader:`uniform sampler2D map;uniform vec3 pDir;uniform vec3 sDir;varying vec3 vW;
+      void main(){vec3 d=normalize(vW-cameraPosition);vec2 uv=vec2(atan(d.z,d.x)/6.28318+.5,asin(clamp(d.y,-1.,1.))/3.14159+.5);vec3 col=texture2D(map,uv).rgb*1.1;
+        float sd=max(dot(d,sDir),0.);col+=vec3(1.,.86,.66)*(pow(sd,1400.)*8.+pow(sd,60.)*.35+pow(sd,8.)*.07);
+        vec3 C=pDir*10.;float Rr=10.*sin(.6),b=dot(d,C),h=b*b-dot(C,C)+Rr*Rr;
+        if(h>0.){float t=b-sqrt(h);vec3 n=normalize(d*t-C);float l=dot(n,sDir);
+          float nz=sin(n.x*9.+n.y*5.)*.5+sin(n.z*13.-n.x*7.)*.3+sin(n.y*23.+n.z*4.)*.2;
+          vec3 day=mix(vec3(.86,.5,.26),vec3(.6,.3,.17),nz*.5+.5),band=mix(vec3(.34,.26,.44),vec3(.22,.38,.4),nz*.5+.5),night=mix(vec3(.62,.72,.86),vec3(.4,.5,.66),nz*.5+.5);
+          vec3 surf=l>.2?mix(band,day,smoothstep(.2,.6,l)):mix(night,band,smoothstep(-.35,.2,l));
+          vec3 pc=surf*(.035+clamp(l*1.2+.18,0.,1.)*1.05);float rim=pow(1.-max(dot(n,-d),0.),3.);pc+=vec3(.95,.55,.42)*rim*.55*clamp(l+.5,0.,1.)+vec3(.3,.45,.85)*rim*.22;col=pc;}
+        else{float a=acos(clamp(dot(d,pDir),-1.,1.));col+=vec3(.75,.48,.55)*exp(-(a-.6)*38.)*.4;}
+        gl_FragColor=vec4(col,1.);}`});ST_SKY.userData.noGlow=true;return ST_SKY;}
+// a framed window onto the sky, facing +z of its group
+function stWindow(ctx,x,y,z,ry,w,h,o={}){const g=grp(ctx,x,y,z,ry),P=ctx.P,F=stM().trim;const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),stSkyMat());g.add(m);
+  P.add(g,F,RB(w+.5,.28,.3,.05,1),0,h/2+.14,.05);P.add(g,F,RB(w+.5,.28,.3,.05,1),0,-h/2-.14,.05);for(const s of[-1,1])P.add(g,F,RB(.28,h+.3,.3,.05,1),s*(w/2+.14),0,.05);
+  const n=o.mull!==undefined?o.mull:Math.max(0,Math.round(w/3.2)-1);for(let i=1;i<=n;i++)P.add(g,F,RB(.1,h,.14,.03,1),-w/2+i*w/(n+1),0,.04);
+  if(o.sill!==false)P.add(g,stM().strip,new THREE.BoxGeometry(w,.04,.2),0,-h/2+.02,.12);return g;}
+// a straight wall from A to B, finished on both faces, with doorway gaps [[distance from A to the gap's centre, width]]
+function stWall(ctx,ax,az,bx,bz,h,o={}){const M=stM(),P=ctx.P,dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz);if(L<.05)return;const ux=dx/L,uz=dz/L,ry=-Math.atan2(uz,ux),y0=W.floorY,wm=o.mat||M.wall;
+  const seg=(t0,t1)=>{const l=t1-t0;if(l<.05)return;const cx=ax+ux*(t0+t1)/2,cz=az+uz*(t0+t1)/2;
+    P.add(ctx.g,wm,scaleUV(new THREE.BoxGeometry(l,h,.4),l/2,h/2),cx,y0+h/2,cz,0,ry,0);P.add(ctx.g,o.dado||M.dark,scaleUV(new THREE.BoxGeometry(l,.95,.48),l/2,.47),cx,y0+.47,cz,0,ry,0);
+    if(o.band!==false)P.add(ctx.g,M.band,new THREE.BoxGeometry(l,.22,.46),cx,y0+(o.band||2.7),cz,0,ry,0);P.add(ctx.g,M.trim,new THREE.BoxGeometry(l,.16,.5),cx,y0+h-.08,cz,0,ry,0);
+    if(o.cove!==false&&h>3.4)P.add(ctx.g,o.cove||M.strip,new THREE.BoxGeometry(l,.05,.44),cx,y0+h-.34,cz,0,ry,0);
+    ctx.plat({x:cx,z:cz,hw:l/2,hd:.24,rot:ry,top:y0+h,bot:y0-1});};
+  let t=0;for(const [c,w] of [...(o.gaps||[])].sort((a,b)=>a[0]-b[0])){seg(t,c-w/2);stDoor(ctx,ax+ux*c,az+uz*c,ry,w,h,o);t=c+w/2;}seg(t,L);}
+// a doorway: dark posts with hazard bands, a lit header, the wall carried over the top
+function stDoor(ctx,x,z,ry,w,h,o={}){const M=stM(),P=ctx.P,y0=W.floorY,dh=Math.min(3.2,h),g=grp(ctx,x,y0,z,ry);
+  for(const s of[-1,1]){P.add(g,M.dark,RB(.34,dh,.62,.06,1),s*(w/2+.17),dh/2,0);P.add(g,MAT.hazard,new THREE.BoxGeometry(.36,.8,.64),s*(w/2+.17),.5,0);}
+  P.add(g,M.dark,RB(w+.68,.36,.62,.06,1),0,dh+.18,0);P.add(g,o.sign||M.teal,new THREE.BoxGeometry(w*.5,.07,.64),0,dh+.02,0);
+  if(h>dh+.4){P.add(g,o.mat||M.wall,scaleUV(new THREE.BoxGeometry(w,h-dh-.36,.4),w/2,(h-dh)/2),0,dh+.36+(h-dh-.36)/2,0);
+    if(o.band!==false&&(o.band||2.7)>dh+.36)P.add(g,M.band,new THREE.BoxGeometry(w,.22,.46),0,o.band||2.7,0);P.add(g,M.trim,new THREE.BoxGeometry(w,.16,.5),0,h-.08,0);}
+  ctx.plat({x,z,hw:w/2+.4,hd:.34,rot:ry,top:y0+h,bot:y0+dh-.05,solidOnly:true});}
+// a rectangular room: deck plate floor, panelled ceiling with light strips, four walls; sides: n (-z), s (+z), w (-x), e (+x).
+// gaps per side: [[offset from the side's centre, width]]; a side listed in open is left out (another room supplies it)
+function stRoom(ctx,cx,cz,w,d,h,o={}){const M=stM(),P=ctx.P,y0=W.floorY,x0=cx-w/2,x1=cx+w/2,z0=cz-d/2,z1=cz+d/2,gp=o.gaps||{},open=o.open||[];
+  P.add(ctx.g,o.floor||M.floor,scaleUV(new THREE.PlaneGeometry(w,d),w/2,d/2),cx,y0+.005,cz,-Math.PI/2,0,0);
+  if(!o.noCeil){P.add(ctx.g,M.ceil,scaleUV(new THREE.PlaneGeometry(w,d),w/4,d/4),cx,y0+h,cz,Math.PI/2,0,0);ctx.plat({x:cx,z:cz,hw:w/2,hd:d/2,top:y0+h+1,bot:y0+h-.05,solidOnly:true});
+    if(o.strips!==false){const along=w>=d,n=Math.max(1,Math.floor((along?d:w)/4)),L=(along?w:d)-2;for(let i=0;i<n;i++){const t=-((along?d:w)/2)+((along?d:w)/n)*(i+.5);
+      P.add(ctx.g,o.stripMat||M.strip,new THREE.BoxGeometry(along?L:.32,.06,along?.32:L),along?cx:cx+t,y0+h-.04,along?cz+t:cz);P.add(ctx.g,M.trim,new THREE.BoxGeometry(along?L+.2:.5,.1,along?.5:L+.2),along?cx:cx+t,y0+h-.01,along?cz+t:cz);}}}
+  const side=(k,ax,az,bx,bz,len)=>{if(open.includes(k))return;stWall(ctx,ax,az,bx,bz,h,Object.assign({},o.wall||{},{gaps:(gp[k]||[]).map(([c,wd])=>[len/2+c,wd])}));};
+  side('n',x0,z0,x1,z0,w);side('s',x0,z1,x1,z1,w);side('w',x0,z0,x0,z1,d);side('e',x1,z0,x1,z1,d);}
+// a dark structural pillar on an octagonal base
+function stPillar(ctx,x,z,h,o={}){const M=stM(),P=ctx.P,y0=W.floorY;P.add(ctx.g,M.dark,cyl(1.25,1.45,.55,8),x,y0+.27,z,0,Math.PI/8,0);P.add(ctx.g,M.trim,cyl(.98,1.1,.45,8),x,y0+.77,z,0,Math.PI/8,0);
+  P.add(ctx.g,M.dark,cyl(.55,.55,h-1,8),x,y0+1+(h-1)/2,z,0,Math.PI/8,0);P.add(ctx.g,MAT.hazard,cyl(.58,.58,.5,8,1,true),x,y0+1.5,z,0,Math.PI/8,0);
+  for(let y=2.6;y<h-.4;y+=1.7)P.add(ctx.g,M.trim,cyl(.66,.66,.18,8),x,y0+y,z,0,Math.PI/8,0);if(o.lamp)P.add(ctx.g,M.strip,new THREE.BoxGeometry(.08,1.6,.08),x,y0+3.4,z+.58);ctx.col(x,z,1.25);}
+// a short run of railing between two points
+function stRail(ctx,ax,az,bx,bz,y,o={}){const M=stM(),P=ctx.P,L=Math.hypot(bx-ax,bz-az),n=Math.max(1,Math.round(L/1.6));
+  for(let i=0;i<=n;i++){const x=lerp(ax,bx,i/n),z=lerp(az,bz,i/n);P.add(ctx.g,M.rail,cyl(.035,.035,1.05,6),x,y+.52,z);}
+  for(const hy of[1.05,.55])P.beam(ctx.g,M.rail,new THREE.Vector3(ax,y+hy,az),new THREE.Vector3(bx,y+hy,bz),hy>1?.045:.025,6);}
+function stBench(ctx,x,z,ry){const M=stM(),g=grp(ctx,x,W.floorY,z,ry),P=ctx.P;P.add(g,M.white,RB(2.4,.12,.7,.05,1),0,.46,0);P.add(g,M.white,RB(2.4,.5,.12,.05,1),0,.78,-.3);for(const s of[-1,1])P.add(g,M.dark,RB(.12,.42,.6,.03,1),s*1,.21,0);
+  const w=toW(x,z,ry,0,0);ctx.box(w.x,w.z,1.2,.4,ry,W.floorY+.55);}
+function stSign(ctx,text,x,y,z,ry,color='#8fd8ff',w=5){const s=neon(text,w,.9,color);s.position.set(x,y,z);s.rotation.y=ry;ctx.g.add(s);return s;}
+
+ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery b',blurb:'Halcyon\'s orbital waystation: docks, an atrium, a cantina and too many secrets.',kind:'interior',size:240,floorY:0,ceiling:18,seed:41,lvl:[12,16],
+  sky:Object.assign({},INT_SKY,{fog:[0x0a0b12,70,220],hemi:[0xe2e6f2,0x3c3e48,1.2],sunInt:.45}),tempAt:()=>19,bloom:{threshold:1.05,strength:.5},
+  entries:{ship:{x:0,z:-46,face:0},dock:{x:0,z:-46,face:0}},spawn:{x:0,z:-46,face:0},
+  build(ctx){const P=ctx.P,st=ctx.state(),M=stM(),y0=W.floorY,PI=Math.PI;
+    /* ---- docking bay 3: a hangar open to space behind a force field ---- */
+    stRoom(ctx,0,-60,40,30,18,{gaps:{s:[[0,7]],w:[[10,3.2]]},wall:{band:6,cove:M.strip},strips:false});ctx.poi('dock',0,-60,'Docking Bay 3',{r:18,ft:true});
+    {const fw=stWindow(ctx,0,8.2,-74.76,0,32,13,{mull:0,sill:false});const ff=new THREE.Mesh(new THREE.PlaneGeometry(32,13),new THREE.MeshBasicMaterial({color:0x5ab8ff,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false}));ff.position.set(0,8.2,-74.6);ctx.g.add(ff);
+      ctx.anim(()=>{ff.material.opacity=.05+Math.sin(performance.now()*.0013)*.02;});for(let i=-7;i<=7;i++)P.add(ctx.g,MAT.hazard,new THREE.BoxGeometry(2,.03,.6),i*2.2,.02,-73.6);
+      P.add(ctx.g,M.strip,new THREE.BoxGeometry(32,.08,.3),0,1.6,-74.5);}
+    for(let k=0;k<4;k++){const z=-71+k*7.5;for(const s of[-1,1])stPillar(ctx,s*18.6,z,18);P.add(ctx.g,M.dark,RB(40,.9,.7,.08,1),0,16.4,z);P.add(ctx.g,M.strip,new THREE.BoxGeometry(36,.06,.3),0,15.92,z);}
+    for(const s of[-1,1]){P.add(ctx.g,M.dark,RB(.5,.5,30,.06,1),s*6,15.6,-60);}// crane rails
+    {const pad=new THREE.Mesh(new THREE.PlaneGeometry(24,24),M.pad);pad.rotation.x=-PI/2;pad.position.set(2,.02,-62);ctx.g.add(pad);P.add(ctx.g,M.dark,new THREE.BoxGeometry(1.6,.02,30),-16,.012,-60);P.add(ctx.g,M.teal,new THREE.BoxGeometry(.06,.025,30),-16.82,.014,-60);P.add(ctx.g,M.teal,new THREE.BoxGeometry(.06,.025,30),-15.18,.014,-60);}
+    for(const [x,z] of[[-12,-66],[12,-66],[-12,-54],[12,-54]])ctx.light(x,13,z,0xdfe6ff,1.15,30);
+    if(G.shipAt==='anchorage'){const fx=PF.vesper(ctx,2,-62,PI/2,{y:0});ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>enterZone('vesper','ramp')});}
+    PF.container(ctx,-14,-50,0,0x4a6a8a);PF.container(ctx,15,-71,PI/2,0x8a5a3a);PF.crates(ctx,13,-49,6,4);PF.crates(ctx,-17,-71,5,5);PF.barrels(ctx,17,-57,4,3);
+    PF.console(ctx,6,-48,0,1);ctx.npc('sato',8,-50,-PI/2);ctx.npc('rook',-12,-46,PI/2);ctx.bench(-16,-46,PI/2);
+    stSign(ctx,'DOCKING BAY 3',0,4.2,-45.3,PI,'#ffc35a',6);stSign(ctx,'MAINTENANCE',-19.7,3.9,-50,PI/2,'#ffa040',4);
+    spawnCrowd(0,-56,12,4,{role:'DOCK CREW',pts:[[-10,-58],[-8,-50],[8,-50],[-6,-68],[16,-64]],barks:['Bay three\'s backed up again.','Watch the loader!','Halcyon freighter due at shift change.']});
+    /* ---- the gallery: dock to atrium, windows down one side ---- */
+    stRoom(ctx,0,-22.5,7,45,4.4,{open:['n','s']});
+    for(const z of[-38,-27,-16,-5.5])stWindow(ctx,3.27,2.3,z,-PI/2,6.5,2.6);
+    P.add(ctx.g,M.dark,new THREE.BoxGeometry(1.4,.02,45),0,.012,-22.5);for(const s of[-1,1])P.add(ctx.g,M.teal,new THREE.BoxGeometry(.05,.025,45),s*.72,.015,-22.5);
+    for(const z of[-33,-21,-10])stBench(ctx,-2.6,z,PI/2);for(const z of[-35,-24,-13,-3])ctx.light(0,3.8,z,0xe8eeff,.8,12);
+    {const k=decal(['ANCHORAGE','HALCYON LINES'],5,1.4,{fg:'#2a2e3a'});k.position.set(-3.27,2.4,-28);k.rotation.y=PI/2;ctx.g.add(k);}
+    /* ---- maintenance tunnels ---- */
+    const dk={mat:M.dark,dado:M.trim,band:false,cove:M.amber};
+    stRoom(ctx,-29,-50,18,5,3.4,{open:['e','w'],floor:MAT.grate,wall:dk,stripMat:M.amber});
+    stRoom(ctx,-60,-50,44,40,4.4,{gaps:{e:[[0,3.4]]},floor:MAT.grate,wall:dk,stripMat:M.amber});ctx.poi('maint',-60,-50,'Maintenance Tunnels',{r:22});
+    for(let i=0;i<10;i++){const x=rr(-78,-42),z=rr(-66,-34);if(Math.hypot(x+72,z+58)<4)continue;if(i%3)PF.crates(ctx,x,z,3,i);else PF.barrels(ctx,x,z,3,i);}
+    for(const [x,z,w,d] of [[-50,-42,8,1],[-70,-40,1,10],[-64,-62,10,1],[-48,-60,1,8]])slab(ctx,x,z,w,d,2.6,M.dark);
+    for(let z=-68;z<-30;z+=6)P.add(ctx.g,M.trim,cyl(.15,.15,44,10),-60,3.9,z,0,0,PI/2);for(const x of[-70,-50])P.add(ctx.g,MAT.metal,cyl(.25,.25,40,10),x,3.6,-50,PI/2,0,0);
+    ctx.light(-60,3.6,-50,0xffa040,1.2,26,true);ctx.light(-74,3.6,-60,0xff5a3a,.9,14,true);ctx.light(-46,3.6,-38,0xffa040,.9,16);
+    ctx.enemies('drone',-60,-50,14,6,13,{respawn:70});ctx.enemies('sentinel',-66,-56,8,2,14);ctx.enemies('drone',-44,-60,4,2,12);
+    PF.console(ctx,-72,-60,0,4);qUse(ctx,'records_terminal',-72,-58,'Enter Dax\'s passcode at the records junction',{ok:()=>countItem('passcode')>0});
+    for(const [id,x,z] of [['breach1',-56,-34],['breach2',-80,-44],['breach3',-48,-66]]){qUse(ctx,id,x,z,'Seal the hull breach',{h:1.2});ctx.anim(()=>{if(!st.flags['used_'+id]&&Math.random()<.4)FX.spawn(x,1.2,z,rf(-1,1),rf(0,1),rf(-1,1),{life:.5,size:.14,c0:0xffffff,c1:0x8fd8ff,drag:2,grav:0});});}
+    ctx.chest('an_maint',-80,-66,{kind:'locked'});ctx.chest('an_maint2',-44,-36,{});ctx.glyph('g_an1',-80,-34);
+    ctx.log('an_maint',-52,-48,'Maintenance work order #4471','“Drone swarm in tunnel C went feral after the Halcyon firmware push. Engineering requests rollback. Request denied by Liaison Arn.”');
+    /* ---- the atrium: a two-storey round hub under a skylight ---- */
+    {const cx=0,cz=22,R=22,H=13,N=36;ctx.poi('promenade',cx,cz,'The Atrium',{r:22,ft:true});ctx.safe(cx,cz,24);
+      const pt=(a,r)=>[cx+Math.cos(a)*r,cz+Math.sin(a)*r],door=i=>[8,9,17,18,26,27,35,0].includes(i);// the four doorways straddle the compass points
+      P.add(ctx.g,M.floor,scaleUV(new THREE.CircleGeometry(R,64),R,R),cx,.005,cz,-PI/2,0,0);
+      for(let i=0;i<N;i++){const a0=i/N*PI*2,a1=(i+1)/N*PI*2;if(door(i))continue;const [ax,az]=pt(a0,R),[bx,bz]=pt(a1,R);stWall(ctx,ax,az,bx,bz,H,{band:2.7});
+        // upper storey: tall windows between the balcony and the roof
+        if(i%2===1){const am=(a0+a1)/2,[wx,wz]=pt(am,R-.24);stWindow(ctx,wx,9.6,wz,-am-PI/2,3.2,4.6,{mull:0});}}
+      for(const a of[0,PI/2,PI,PI*1.5]){const [x,z]=pt(a,R);stDoor(ctx,x,z,-a-PI/2,R*2*Math.sin(PI/N),H);}
+      ctx.plat({x:cx,z:cz,r:R+.5,top:H+1,bot:H-.05,solidOnly:true});
+      // the balcony ring and its railing
+      P.add(ctx.g,M.floor,scaleUV(new THREE.RingGeometry(18.4,R-.2,64,1),R,R),cx,6,cz,-PI/2,0,0);P.add(ctx.g,M.ceil,new THREE.RingGeometry(18.4,R-.2,64,1),cx,5.65,cz,PI/2,0,0);
+      P.add(ctx.g,M.white,cyl(18.4,18.4,.45,64,1,true),cx,5.82,cz);P.add(ctx.g,M.strip,tor(18.35,.05,4,96),cx,5.56,cz,PI/2,0,0);
+      for(let i=0;i<48;i++){const a=i/48*PI*2,[x,z]=pt(a,18.6);P.add(ctx.g,M.rail,cyl(.035,.035,1.05,6),x,6.52,z);}P.add(ctx.g,M.rail,tor(18.6,.045,6,96),cx,7.05,cz,PI/2,0,0);P.add(ctx.g,M.rail,tor(18.6,.025,6,96),cx,6.55,cz,PI/2,0,0);
+      // pillars, the roof ring, spokes to a central hub, and the skylight
+      for(let k=0;k<8;k++){const a=PI/8+k*PI/4,[x,z]=pt(a,17.2);stPillar(ctx,x,z,H,{lamp:true});P.beam(ctx.g,M.dark,new THREE.Vector3(x,H-.6,z),new THREE.Vector3(cx+Math.cos(a)*5.2,H-.35,cz+Math.sin(a)*5.2),.22,6);}
+      P.add(ctx.g,M.dark,tor(17.2,.32,8,64),cx,H-.6,cz,PI/2,0,0);P.add(ctx.g,M.dark,cyl(5.2,5.2,.7,32,1,true),cx,H-.35,cz);P.add(ctx.g,M.strip,tor(5.1,.07,6,64),cx,H-.72,cz,PI/2,0,0);
+      P.add(ctx.g,M.ceil,new THREE.RingGeometry(16.4,R,64,1),cx,H,cz,PI/2,0,0);{const sky=new THREE.Mesh(new THREE.CircleGeometry(16.4,64),stSkyMat());sky.rotation.x=PI/2;sky.position.set(cx,H+.02,cz);ctx.g.add(sky);}
+      // the central dais with the holo of Ossery b
+      P.add(ctx.g,M.white,cyl(5,5.3,.3,48),cx,.15,cz);P.add(ctx.g,M.dark,cyl(3.6,3.8,.3,48),cx,.45,cz);P.add(ctx.g,M.teal,tor(3.62,.05,6,64),cx,.61,cz,PI/2,0,0);ctx.col(cx,cz,3.9);
+      {const g=grp(ctx,cx,0,cz,0);const h=new THREE.Mesh(sph(1.6,32,16),new THREE.MeshBasicMaterial({map:TEX.giant,transparent:true,opacity:.85}));h.position.y=3.4;g.add(h);const ring=new THREE.Mesh(tor(2.4,.02,4,64),M.teal);ring.position.y=3.4;ring.rotation.x=1.3;g.add(ring);
+        glowAt(ctx,g,0,3.4,0,0x8fd8ff,6,.3);ctx.anim(dt=>{h.rotation.y+=dt*.2;ring.rotation.z+=dt*.1;});}
+      for(let k=0;k<6;k++){const a=k/6*PI*2+PI/6,[x,z]=pt(a,7.4);stBench(ctx,x,z,-a+PI/2);}
+      for(let k=0;k<8;k++){const a=k*PI/4,[x,z]=pt(a,12.5);PF.plant(ctx,x,z,[0x52e8c8,0xd36cf0,0x8fd8ff][k%3]);}
+      // shops and services under the balcony, between the pillars
+      const at=(deg,r)=>pt(deg*PI/180,r),face=deg=>-(deg*PI/180)-PI/2;
+      {const [x,z]=at(225,19.6);PF.stall(ctx,x,z,face(225),MAT.fabricRed);const [nx,nz]=at(225,17.8);ctx.npc('prin',nx,nz,face(225)+PI);}
+      {const [x,z]=at(315,19.6);PF.stall(ctx,x,z,face(315),MAT.fabricTeal);const [nx,nz]=at(315,17.8);ctx.npc('hollis',nx,nz,face(315)+PI);}
+      {const [x,z]=at(135,20.2);ctx.board(x,z,face(135)+PI,'anchorage','Station Security Contracts');}
+      {const [x,z]=at(45,20.2);PF.kiosk(ctx,x,z,face(45)+PI,'ANCHORAGE');}
+      {const [x,z]=at(68,16);ctx.npc('dax',x,z,face(68));}ctx.npc('ostrander',-4,5,0);
+      stSign(ctx,'DOCKS',0,3.9,.8,0,'#ffc35a',3.6);stSign(ctx,'HAB RING',0,3.9,43.2,PI,'#8fd8ff',4.2);stSign(ctx,'THE HALO',21.2,3.9,22,-PI/2,'#ff5ad8',4.2);stSign(ctx,'MEDBAY',-21.2,3.9,22,PI/2,'#6ff2d6',4);
+      ctx.light(cx,10,cz,0xe6ecff,1.25,40);for(const [x,z] of[[12,22],[-12,22],[0,10],[0,34]])ctx.light(x,4.6,z,0xfff0dc,.75,16);
+      spawnCrowd(cx,cz,16,10,{pts:[[-12,12],[12,12],[13,32],[-13,32],[-8,22],[8,22],[0,10],[0,34]],barks:['Did you see the freighter come in?','Halcyon raised the docking fees again.','The Halo has a new cocktail. It\'s awful.','I heard the marshal and the liaison had words.','Look up. You can see the terminator line from here.']});}
+    /* ---- the Halo cantina ---- */
+    stRoom(ctx,26,22,8.4,7.6,4,{open:['w','e']});
+    stRoom(ctx,42,22,24,20,4.4,{gaps:{w:[[0,6]]},wall:{mat:M.halo,cove:M.pink,band:false},stripMat:M.pink});ctx.poi('halo',42,22,'The Halo',{r:12});
+    PF.bar(ctx,44,30,PI,10);ctx.npc('vonn',44,31.6,PI);PF.table(ctx,38,16,0,1.4,1.4,{stools:4});PF.table(ctx,48,16,0,1.4,1.4,{stools:4});PF.table(ctx,48,22,0,1.2,1.2,{stools:3});
+    for(const z of[15,22,29])stWindow(ctx,53.75,2.2,z,-PI/2,4.6,2);
+    {const s=neon('THE HALO',5,1.2,'#ff5ad8');s.position.set(30.3,3.4,26.5);s.rotation.y=PI/2;ctx.g.add(s);}ctx.light(42,3.6,22,0xff7ae0,1,16);ctx.light(44,3.4,29,0xffc890,.8,10);
+    qUse(ctx,'dead_drop',43,28.4,'Search under the third stool',{h:.8});spawnCrowd(42,20,6,4,{role:'PATRON',barks:['Another round!','Don\'t tell my supervisor.','Vonn mixes a mean drink, for a robot.']});
+    /* ---- medbay ---- */
+    stRoom(ctx,-26,22,8.4,7.6,4,{open:['w','e']});
+    stRoom(ctx,-42,22,24,20,4.4,{gaps:{e:[[0,6]]},wall:{cove:M.teal},stripMat:M.strip});ctx.poi('medbay',-42,22,'Medbay',{r:12});
+    PF.medbed(ctx,-50,16,0);PF.medbed(ctx,-50,22,0);PF.medbed(ctx,-50,28,0);PF.console(ctx,-36,30,PI,4);PF.shelf(ctx,-44,31.4,PI,3);ctx.npc('feng',-40,24,-PI/2);ctx.heal(-46,18,'Use a medbay bed');
+    stWindow(ctx,-53.75,2.4,22,PI/2,6,2.2);for(const z of[19,25])P.add(ctx.g,MAT.glass,new THREE.BoxGeometry(2.6,2.2,.05),-50,1.1,z);ctx.light(-42,3.8,22,0xe0f6ff,1,16);
+    /* ---- to the hab ring ---- */
+    stRoom(ctx,0,46.6,7.6,5.2,4.4,{open:['n','s']});
+    /* ---- hab ring: a residential street of cabins under a long skylight ---- */
+    stRoom(ctx,0,62,70,26,6,{gaps:{n:[[0,7.6]],s:[[0,5]]},strips:false});ctx.poi('habring',0,62,'Hab Ring',{r:24,ft:true});
+    {const sky=new THREE.Mesh(new THREE.PlaneGeometry(60,4),stSkyMat());sky.rotation.x=PI/2;sky.position.set(0,5.98,62);ctx.g.add(sky);for(const s of[-1,1])P.add(ctx.g,M.trim,new THREE.BoxGeometry(60.6,.25,.3),0,5.85,62+s*2.1);for(const x of[-30,-20,-10,0,10,20,30])P.add(ctx.g,M.trim,new THREE.BoxGeometry(.25,.25,4.4),x,5.85,62);
+      for(const s of[-1,1])P.add(ctx.g,M.strip,new THREE.BoxGeometry(60,.06,.3),0,5.7,62+s*2.5);}
+    for(let i=0;i<5;i++){const x=-28+i*14;slab(ctx,x,72.5,8,1,6,M.wall);P.add(ctx.g,M.dark,RB(1.6,2.6,.1,.03,1),x+1.8,1.3,71.95);P.add(ctx.g,M.teal,new THREE.BoxGeometry(.6,.12,.12),x+1.8,2.8,71.92);
+      {const n=decal(['CABIN '+(31+i)],1.2,.35,{fg:'#2a2e3a'});n.position.set(x+1.8,3.1,71.94);n.rotation.y=PI;ctx.g.add(n);}P.add(ctx.g,M.warm,new THREE.BoxGeometry(2.4,1.2,.06),x-2,2.2,71.96);for(let k=0;k<6;k++)P.add(ctx.g,M.trim,new THREE.BoxGeometry(2.4,.05,.08),x-2,1.7+k*.2,71.92);}
+    for(let i=0;i<4;i++){const x=-21+i*14;P.add(ctx.g,M.dark,RB(1.6,2.6,.1,.03,1),x,1.3,49.25);P.add(ctx.g,M.teal,new THREE.BoxGeometry(.6,.12,.12),x,2.8,49.3);}
+    for(const [x,z] of [[-30,54],[-22,58],[-26,66],[22,56],[30,62],[-6,58],[6,66]])PF.plant(ctx,x,z,pick([0x52e8c8,0xa8ff5a,0xffc35a]));
+    PF.table(ctx,-12,58,0,2,1,{stools:4});PF.table(ctx,12,58,0,2,1,{stools:4});ctx.locker(32,52,-PI/2);restSpot(ctx,28,68,'Rest in a rented bunk');stBench(ctx,-14,66,0);stBench(ctx,16,66,0);
+    ctx.npc('oriel',-6,66,PI);ctx.npc('pip',-20,60,0,{type:'wander',r:10,pause:[1,4],speed:1.9});ctx.npc('arn',-30,64,PI/2);
+    {const g=grp(ctx,-24,0,71.92,0);P.add(g,MAT.grate,RB(1.4,.9,.1,.03,1),0,.5,0);}qUse(ctx,'biscuit',-24,70,'Coax Biscuit out of the vent',{h:1});
+    for(const [x,z] of[[-22,62],[0,62],[22,62]])ctx.light(x,5,z,0xfff0e0,.85,18);
+    spawnCrowd(0,62,24,6,{role:'RESIDENT',pts:[[-30,56],[30,56],[30,68],[-30,68],[0,60]]});
+    ctx.chest('an_hab',34,72,{});ctx.glyph('g_an2',-34,72);
+    ctx.log('an_arn',-32,58,'Liaison Arn\'s discarded memo','“Director Vash wants the pilot alive. If the Vesper turns up, flag it stolen and hold the pilot. Do not let the Choir woman near them.”',{y:.9});
+    /* ---- observation deck: the planet, close enough to touch ---- */
+    stRoom(ctx,0,78,6,6,4,{open:['n','s']});stRoom(ctx,0,90,30,18,6,{gaps:{n:[[0,5]]},strips:false});ctx.poi('obs',0,90,'Observation Deck',{r:14});
+    stWindow(ctx,0,3.2,98.74,PI,27,5.2);for(const s of[-1,1])stWindow(ctx,s*14.74,3,90,s>0?-PI/2:PI/2,14,4.2);
+    {const sky=new THREE.Mesh(new THREE.PlaneGeometry(26,14),stSkyMat());sky.rotation.x=PI/2;sky.position.set(0,5.98,90);ctx.g.add(sky);}
+    for(let i=-2;i<=2;i++){const g=grp(ctx,i*5,0,93,PI);P.add(g,MAT.fabricTeal,RB(3,.4,.9,.1,1),0,.45,0);P.add(g,M.dark,RB(3.1,.2,1,.05,1),0,.12,0);ctx.box(i*5,93,1.5,.45,0,.65);}
+    stRail(ctx,-13.5,97.2,13.5,97.2,0);ctx.light(0,5,88,0xb8d8ff,.8,20);
+    ctx.glyph('g_an3',10,84);ctx.log('an_obs',-10,86,'Plaque','“From this deck, the first Halcyon survey team saw the spires light for the first time. The lights have not been seen since.”',{y:.9});
+  }};
 
 // ===== 54_z_calder.js =====
 /* ================= ZONE: Calder (a lagoon world) ================= */
