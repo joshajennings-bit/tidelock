@@ -6784,9 +6784,10 @@ const _hvA=[...Array(8)].map(()=>new THREE.Vector3()),_hq1=new THREE.Quaternion(
 function handFrame(B,s,out){const w=B['Wrist'+s],m=B['Middle1'+s],i=B['Index1'+s],p=B['Pinky1'+s],t=B['Thumb1'+s];if(!w||!m||!i||!p)return null;
   const W0=w.getWorldPosition(_hvA[0]),M0=m.getWorldPosition(_hvA[1]),I0=i.getWorldPosition(_hvA[2]),P0=p.getWorldPosition(_hvA[3]);
   const fwd=out.fwd.subVectors(M0,W0).normalize(),across=out.across.subVectors(I0,P0);across.addScaledVector(fwd,-across.dot(fwd)).normalize();const n=out.n.crossVectors(fwd,across);
-  // which way the palm faces is settled once, from the first (unposed) look at the thumb: animations and the finger curl move the thumb
-  // across the palm, and re-deciding every frame flipped the hand back and forth
-  B._psg=B._psg||{};if(B._psg[s]===undefined){let sg=1;if(t){const mid=_hvA[4].addVectors(I0,P0).multiplyScalar(.5),T0=t.getWorldPosition(_hvA[5]);if(n.dot(T0.sub(mid))<0)sg=-1;}B._psg[s]=sg;}if(B._psg[s]<0)n.negate();return out;}
+  // which side is the palm: fixed per hand for the suit rig (checked against the curl, which bends the fingers toward it). Reading
+  // it from the thumb was unreliable: decided on a frame where the hands were posed (the look screen, an animation), it came
+  // out backwards and stayed that way, turning both hands inside out on the gun
+  B._psg={R:-1,L:1};if(B._psg[s]<0)n.negate();return out;}
 const _hf1={fwd:new THREE.Vector3(),across:new THREE.Vector3(),n:new THREE.Vector3()};
 // turn the hand so its fingers point along fwdT and its palm faces nT
 function orientHand(B,s,fwdT,nT,k=1){const h=B['Wrist'+s],F=handFrame(B,s,_hf1);if(!h||!F)return;const a0=_hvA[6].crossVectors(F.n,F.fwd);
@@ -6904,11 +6905,15 @@ function buildAvatar(L){
       const lowD=_hc.copy(f).multiplyScalar(.9).addScaledVector(UP,-.3).addScaledVector(rt,-.26).normalize(),grip=lowP.lerp(aimP,aim),dir=lowD.lerp(f,aim).normalize();
       const up=_hd.copy(UP).addScaledVector(dir,-UP.dot(dir)).normalize(),x=_he.crossVectors(up,dir);_hm.makeBasis(x,up,dir);
       weaponG.position.copy(grip);weaponG.quaternion.setFromRotationMatrix(_hm);weaponG.scale.setScalar(S);weaponG.updateMatrixWorld(true);this._posed=true;
+      // how wide the gun is (in its own frame), so the palms sit against its sides rather than inside it
+      if(W._hw===undefined){const inv=weaponG.matrixWorld.clone().invert(),bb=new THREE.Box3();W.g.updateMatrixWorld(true);W.g.traverse(q=>{if(q.isMesh){q.geometry.computeBoundingBox();bb.union(q.geometry.boundingBox.clone().applyMatrix4(q.matrixWorld.clone().premultiply(inv)));}});W._hw=clamp((bb.max.x-bb.min.x)/2/S,.025,.06);}
+      const hw=W._hw*S;
       // wrists sit just behind and below where the palms close
-      const wr=_hg.copy(grip).addScaledVector(dir,-.05*S).addScaledVector(up,-.05*S),foreD=W.fore?W.fore.getWorldPosition(_hh).sub(grip).dot(dir):.3*S,tt=clamp(_hp.copy(shL).sub(grip).dot(dir),.09*S,Math.max(.09*S,foreD)),fo=_hh.copy(grip).addScaledVector(dir,tt);// on the line of the bore, then down to the underside of the fore-end where the weapon says it is
-      if(W.fore){const fw=W.fore.getWorldPosition(_hm3v).sub(grip);fo.addScaledVector(up,fw.dot(up));}fo.addScaledVector(up,.015*S);
-      // the support hand reaches across under the fore-end: set the wrist back so the palm, not the wrist, is under the barrel
-      const wxL=_hm2v.crossVectors(up,dir),lF=_hv9.copy(wxL).multiplyScalar(-.8).addScaledVector(dir,.45).addScaledVector(up,.15).normalize();fo.addScaledVector(lF,-.045*S);
+      const wr=_hg.copy(grip).addScaledVector(dir,-.05*S).addScaledVector(up,-.05*S).addScaledVector(_hm2v.crossVectors(up,dir),-(hw+.02*S)),foreD=W.fore?W.fore.getWorldPosition(_hh).sub(grip).dot(dir):.3*S,tt=clamp(_hp.copy(shL).sub(grip).dot(dir),.09*S,Math.max(.09*S,foreD)),fo=_hh.copy(grip).addScaledVector(dir,tt);// on the line of the bore, then down to the underside of the fore-end where the weapon says it is
+      if(W.fore){const fw=W.fore.getWorldPosition(_hm3v).sub(grip);fo.addScaledVector(up,fw.dot(up));}fo.addScaledVector(up,.065*S);
+      // the support hand lies along the left side of the fore-end, palm flat against it, fingers forward: the wrist sits just
+      // outside the gun's left flank (the arm can't reach far enough to cup under it)
+      const wxL=_hm2v.crossVectors(up,dir),lF=_hv9.copy(dir).multiplyScalar(.92).addScaledVector(up,.22).addScaledVector(wxL,.14).normalize();fo.addScaledVector(wxL,hw+.03*S).addScaledVector(lF,-.06*S);
       ik2(B.UpperArmR,B.LowerArmR,B.WristR,wr,_hp.copy(sh).addScaledVector(rt,.4).addScaledVector(UP,-.5).addScaledVector(f,-.2));
       ik2(B.UpperArmL,B.LowerArmL,B.WristL,fo,_hq.copy(shL).addScaledVector(rt,-.4).addScaledVector(UP,-.5).addScaledVector(f,-.05));
       // the hands take hold: right palm against the grip with the fingers wrapped round it, left hand cupped under the fore-end
@@ -6918,8 +6923,8 @@ function buildAvatar(L){
       const wx=_hm2v.crossVectors(up,dir);// the gun's left
       orientHand(B,'R',_hv8.copy(up).multiplyScalar(-.8).addScaledVector(dir,.45),wx);
       // the support hand comes up under the fore-end, palm up, fingers reaching across the barrel to wrap its far side
-      orientHand(B,'L',lF,_hm3v.copy(up).addScaledVector(wx,.2));
-      curlFingers(B,'R',.9);curlFingers(B,'L',.62);},
+      orientHand(B,'L',lF,_hm3v.copy(wx).multiplyScalar(-1).addScaledVector(up,.35));
+      curlFingers(B,'R',1.02);curlFingers(B,'L',.12);},
     // seated: thighs forward along the seat, shins down to the floor (the root is lowered to the seat by the caller)
     sitPose(face){root.updateMatrixWorld(true);const f=_hv8.set(Math.sin(face),0,Math.cos(face));
       for(const s of['L','R']){const u=B['UpperLeg'+s],l=B['LowerLeg'+s],ft=B['Foot'+s];if(!u||!l||!ft)continue;
