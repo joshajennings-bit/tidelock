@@ -5869,6 +5869,7 @@ else
 <script>
 'use strict';
 (function(){
+const TL_BUILD="1.38 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -12167,13 +12168,15 @@ $('#bNew').onclick=()=>{initAudio();if(![0,1,2].some(i=>readSlot(i))){saveSlot=0
 $('#bSlots').onclick=()=>{initAudio();openSlots('manage');};
 $('#bHelpT').onclick=()=>{initAudio();openHelp();};
 $('#ctrlText').innerHTML=(isTouch?'Tap to choose':'<kbd>↑</kbd><kbd>↓</kbd> choose · <kbd>Enter</kbd> select')+' · Controller: D-pad or stick to choose<span class="pb">A</span>select<span class="pb">B</span>back';
+// the build number, small in the bottom corner (title screen and in play), so it's clear which version is running
+{const v=document.createElement('div');v.id='buildTag';v.textContent='Tidelock build '+TL_BUILD;Object.assign(v.style,{position:'fixed',left:'50%',transform:'translateX(-50%)',bottom:'calc(env(safe-area-inset-bottom,0px) + 3px)',zIndex:60,font:'600 11px/1 ui-monospace,Menlo,monospace',letterSpacing:'.06em',color:'rgba(220,230,245,.55)',pointerEvents:'none',textShadow:'0 1px 2px #000'});document.body.appendChild(v);}
 async function boot(){try{await loadAllModels();envInit();}catch(e){console.error(e);}
   computeStats();refreshAvatar();frame();
   await enterZone('twilight','town',{quiet:true,silent:true,kicker:'TIDELOCK',text:'Loading the Reach…'});
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={build:TL_BUILD,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
