@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.46 · 2026-11-08";
+const TL_BUILD="1.47 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -385,6 +385,10 @@ const TEX_CAP=(typeof isTouch!=='undefined'&&isTouch)||/iPad|iPhone/.test(naviga
 function capTextures(root,cap){const done=new Set();root.traverse(o=>{if(!o.isMesh)return;for(const m of (Array.isArray(o.material)?o.material:[o.material]))for(const k in m){const t=m[k];
   if(!t||!t.isTexture||done.has(t)||!t.image)continue;done.add(t);const im=t.image,w=im.width,h=im.height;if(!(w>cap||h>cap))continue;const k2=cap/Math.max(w,h),c=document.createElement('canvas');
   c.width=Math.max(1,Math.round(w*k2));c.height=Math.max(1,Math.round(h*k2));try{c.getContext('2d').drawImage(im,0,0,c.width,c.height);if(im.close)im.close();t.image=c;t.needsUpdate=true;}catch(e){}}});}
+// an image shipped as an asset, as a repeating texture (loaded once and kept: the raw bytes are released after first use)
+const ATEX={};
+function assetTex(id,srgb=true){if(ATEX[id])return ATEX[id];const b=assetBuf(id);const t=new THREE.Texture();t.wrapS=t.wrapT=THREE.RepeatWrapping;if(srgb)t.encoding=THREE.sRGBEncoding;t.anisotropy=4;
+  if(b){const img=new Image();img.onload=()=>{t.image=img;t.needsUpdate=true;};img.src=URL.createObjectURL(new Blob([b],{type:'image/jpeg'}));}return ATEX[id]=t;}
 function loadModel(id){return new Promise(res=>{const buf=assetBuf(id);if(!buf)return res(null);
   try{gltfLoader.parse(buf,'',g=>{if(TEX_CAP)capTextures(g.scene,['suit','prota','soldier'].includes(id)?1024:TEX_CAP);MODELS[id]=g;res(g);},e=>{console.error('model',id,e);res(null);});}catch(e){console.error(e);res(null);}});}
 async function loadAllModels(){
@@ -1818,7 +1822,7 @@ const ETYPES={
   jackalBoss:{name:'Mara Voss, Jackal Chief',hp:700,dmg:12,xp:500,speed:4.8,aggro:30,reach:2.2,cd:1,r:.7,ai:'boss',boss:'gunner',shoot:{dmg:10,col:0xffa94a,rate:3,speed:50},model:()=>makeHumanEnemy({qt:['f','Punk','women:Soldier_Head'],tint:0xa0402a,held:'rifle',scale:1.08}),human:true},
   rusk:{name:'Commander Rusk',hp:1500,dmg:16,xp:900,speed:5,aggro:30,reach:2.4,cd:1,r:.8,ai:'boss',boss:'gunner',shoot:{dmg:14,col:0xff4a5e,rate:3.4,speed:56},model:()=>makeHumanEnemy({qt:['m','Suit','Swat_Head'],tint:0x2a2a32,tintAmt:.5,held:'rifle',scale:1.15}),human:true},
   leviathan:{name:'The Glass Leviathan',hp:2200,dmg:24,xp:1200,speed:7,aggro:50,reach:4,cd:2.2,r:4,ai:'boss',boss:'leviathan',fly:9,shoot:{dmg:16,col:0x8fffe0,rate:1.2,speed:30},model:()=>makeLeviathan()},
-  keeper:{name:'Vash, in the Ark Shell',hp:3800,dmg:28,xp:2500,speed:3.6,aggro:60,reach:4,cd:2,r:2.3,ai:'boss',boss:'keeper',dieT:2.4,shoot:{dmg:18,col:0xb98cff,rate:2,speed:34},model:()=>makeVash()||makeAlienWarden({tint:0xc0a2e4,glow:0x6a2ab0,ring:0xb98cff,scale:3.3})||(w=>{w.g.scale.setScalar(1.25);w.mat.emissive.set(0xb98cff);return w;})(makeWarden())},
+  keeper:{name:'Vash, in the Ark Shell',hp:9500,dmg:34,xp:2500,speed:3.6,aggro:60,reach:4,cd:2,r:2.3,ai:'boss',boss:'keeper',dieT:2.4,shoot:{dmg:18,col:0xb98cff,rate:2,speed:34},model:()=>makeVash()||makeAlienWarden({tint:0xc0a2e4,glow:0x6a2ab0,ring:0xb98cff,scale:3.3})||(w=>{w.g.scale.setScalar(1.25);w.mat.emissive.set(0xb98cff);return w;})(makeWarden())},
 };
 
 /* ---------- spawning ---------- */
@@ -1902,7 +1906,14 @@ function updateWaves(dt){for(let i=waves.length-1;i>=0;i--){const w=waves[i];w.r
   if(w.r>w.max){W.group.remove(w.m);w.m.geometry.dispose();waves.splice(i,1);}}}
 function bossAI(e,dt,d,dx,dz){const T=e.T;if(d>T.aggro&&e.provoked<=0)return 0;e.state='chase';e.face+=wrapA(Math.atan2(dx,dz)-e.face)*clamp(dt*4,0,1);const phase2=e.hp<e.maxHp*.5;
   if(!e.announced){e.announced=true;bossBar(e);}
-  if(T.boss==='warden'||T.boss==='keeper'){
+  if(T.boss==='keeper'){// Vash: at two thirds and one third he draws on the Ark, his shell hardens and the Ark's creatures come to his aid
+    const f=e.hp/e.maxHp;e.ph=e.ph||1;
+    if(!e.bub){e.bub=new THREE.Mesh(sph(3.4,32,16),new THREE.MeshBasicMaterial({color:0xb98cff,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false}));W.group.add(e.bub);}
+    if((e.ph===1&&f<.66)||(e.ph===2&&f<.33)){e.ph++;e.shield={t:22,adds:[...spawnGroup('wisp',e.x,e.z,8,2,e.lvl-1,{respawn:Infinity}),...spawnGroup('golem',e.x,e.z,9,e.ph===3?2:1,e.lvl-1,{respawn:Infinity})]};
+      for(const a of e.shield.adds)a.provoked=30;toast(e.ph===2?'Vash draws on the Ark. His shell hardens: destroy what he summons!':'Vash pours everything he has into the shell!','gold',4000);sfx('warp');cam.shake=.5;shockwave(e,true);}
+    if(e.shield){e.shield.t-=dt;e.shield.adds=e.shield.adds.filter(a=>!a.dead&&a.hp>0);if(!e.shield.adds.length||e.shield.t<=0){e.shield=null;toast('Vash\'s shell cracks open!','',2500);sfx('slam');}}
+    e.bub.visible=!!e.shield;if(e.shield){e.bub.position.set(e.x,(e.y||0)+(e.air||0)+3,e.z);e.bub.material.opacity=.16+Math.sin(e.t*6)*.06;e.bub.rotation.y+=dt;}}
+  if(T.boss==='warden'||T.boss==='keeper'){const p3=e.ph>=3;
     // mid-leap: an arc onto the spot you were standing, marked by a ring, then a crash and a shockwave
     if(e.leap){const L=e.leap;L.t+=dt;const k=Math.min(1,L.t/L.dur),t=e.m.tele;e.x=lerp(L.x0,L.x1,k);e.z=lerp(L.z0,L.z1,k);e.air=Math.sin(k*Math.PI)*L.h;
       if(t){t.visible=true;t.position.set(L.x1,groundY(L.x1,L.z1)+.15,L.z1);t.scale.setScalar(3.4);t.material.opacity=.3+k*.5;}
@@ -1910,9 +1921,9 @@ function bossAI(e,dt,d,dx,dz){const T=e.T;if(d>T.aggro&&e.provoked<=0)return 0;e
     // can't get at you (you're above him, or he's made no headway for a while): shard volleys, then a leap
     if(d<=T.reach||d<(e.best??1e9)-1.5){e.best=d;e.stuck=0;}else e.stuck=(e.stuck||0)+dt;
     const high=player.y-e.y>2.2;e.volT=(e.volT??2.5)-dt;e.leapCd=(e.leapCd??4)-dt;
-    if(!(e.windup>0)&&d>T.reach&&(high||e.stuck>2)&&e.volT<=0){e.volT=phase2?1.8:2.8;sfx('zap');
-      enemyShoot(Object.assign({},e,{T:Object.assign({},T,{shoot:{dmg:13,col:0xb98cff,rate:1,speed:19}})}),phase2?5:3);}
-    if(!(e.windup>0)&&d>T.reach+1&&d<36&&(e.stuck>4||high&&e.stuck>1.5)&&e.leapCd<=0){e.leapCd=phase2?6:9;
+    if(!(e.windup>0)&&d>T.reach&&(high||e.stuck>2||(p3&&d>9))&&e.volT<=0){e.volT=p3?1.2:phase2?1.8:2.8;sfx('zap');
+      enemyShoot(Object.assign({},e,{T:Object.assign({},T,{shoot:{dmg:13,col:0xb98cff,rate:1,speed:19}})}),p3?7:phase2?5:3);}
+    if(!(e.windup>0)&&d>T.reach+1&&d<36&&(e.stuck>4||high&&e.stuck>1.5)&&e.leapCd<=0){e.leapCd=p3?4:phase2?6:9;
       e.leap={t:0,dur:.9+d*.02,x0:e.x,z0:e.z,x1:player.x,z1:player.z,h:6+Math.max(0,player.y-e.y)};sfx('warp');return 0;}
     if(e.windup>0){e.windup-=dt;const k=1-e.windup/.75;const t=e.m.tele;if(t){t.visible=true;t.position.set(e.x,groundY(e.x,e.z)+.15,e.z);t.scale.setScalar(.5+k*3.8);t.material.opacity=.25+k*.45;}if(e.windup<=0){if(t)t.visible=false;sfx('slam');shockwave(e,phase2);if(phase2&&T.boss==='keeper')setTimeout(()=>shockwave(e,true),500);e.cd=T.cd*(phase2?.7:1);}return 0;}
     if(T.shoot){e.shootT-=dt;if(e.shootT<=0){e.shootT=phase2?.45:1/T.shoot.rate;enemyShoot(e,phase2?3:1);}}
@@ -2037,7 +2048,7 @@ function drawBeam(a,b,col){if(!beamFX){const B=bolts[0];beamFX=B;}const B=beamFX
 function stopBeam(){beamFX=null;beamHum(false);muzzleLight.intensity=0;}
 /* ---------- damage ---------- */
 function damageEnemy(e,dmg,S={},o={}){if(e.dead)return;if(e.m.human&&e.m.anim&&!o.silentSmall&&Math.random()<.35)e.m.anim.oneShot('hit');let crit=false;if(!o.silent&&Math.random()<(S.crit||0)+PS.crit){dmg*=1.8;crit=true;}
-  if(e.T.ai==='boss'&&e.sub)dmg*=.3;e.hp-=dmg;e.flash=.12;e.provoked=8;if(e.m.onHit)e.m.onHit();
+  if(e.T.ai==='boss'&&e.sub)dmg*=.3;if(e.shield)dmg*=.15;e.hp-=dmg;e.flash=.12;e.provoked=8;if(e.m.onHit)e.m.onHit();
   if(!o.silent&&!(o.silentSmall&&dmg<8&&Math.random()<.7))floatText(Math.round(dmg)+(crit?'!':''),e.x,e.y+(e.T.ai==='boss'?6:e.T.fly?.8:2),e.z,crit?'crit':o.col==='burn'?'hurt':'');
   if(!o.noKnock&&e.T.ai!=='boss'&&!e.T.fly){const dx=e.x-player.x,dz=e.z-player.z,d=Math.hypot(dx,dz)||1,k=(S.knock||.6)*.9;e.x+=dx/d*k;e.z+=dz/d*k;}
   if(S.burn&&Math.random()<S.burn){e.burn=3;e.burnDps=Math.max(e.burnDps||0,dmg*.35);}
@@ -2045,7 +2056,7 @@ function damageEnemy(e,dmg,S={},o={}){if(e.dead)return;if(e.m.human&&e.m.anim&&!
   if(S.shock&&Math.random()<S.shock){e.stun=.7;FX.burst(new THREE.Vector3(e.x,e.y+1,e.z),0x8fd8ff,18,4,.4,.1);}
   if(S.chain&&!o.chained){let from=e;for(let c=0;c<S.chain;c++){const n=nearestOther(from,7);if(!n||n.dead)break;FX.bolt(new THREE.Vector3(from.x,from.y+.9,from.z),new THREE.Vector3(n.x,n.y+.9,n.z),S.col||0xb98cff,.22);damageEnemy(n,dmg*.6,S,{chained:true});from=n;}}
   if(e.hp<=0)killEnemy(e);}
-function killEnemy(e){e.dead=true;e.dying=e.T.dieT||.8;if(e.m.onDie)e.m.onDie();e.respawn=e.respawnT;e.el.hidden=true;if(e.m.anim&&e.m.anim.die)e.m.anim.die();
+function killEnemy(e){e.dead=true;if(e.bub)e.bub.visible=false;e.shield=null;e.dying=e.T.dieT||.8;if(e.m.onDie)e.m.onDie();e.respawn=e.respawnT;e.el.hidden=true;if(e.m.anim&&e.m.anim.die)e.m.anim.die();
   if(e.m.tele)e.m.tele.visible=false;
   const xp=Math.round(e.T.xp*(1+(e.lvl-1)*.18)*(e.elite?1.6:1));gainXP(xp);G.stats.kills++;
   const L=rollLoot(e.T.ai==='boss'?'boss':e.elite?'elite':'enemy',e.lvl,W.id);if(e.T.drop&&Math.random()<.6)L.items.push(makeItem(e.T.drop,{q:1}));if(e.loot)L.items.push(...e.loot.map(id=>makeItem(id,{q:1})));
@@ -3724,15 +3735,35 @@ Q({id:'m15_ashfall',type:'main',act:4,auto:true,req:()=>qDone('m14_drowned'),tit
     {text:'Defeat Commander Rusk',obj:[{k:'killId',id:'rusk',label:'Defeat Commander Rusk',zone:'ashfall',at:{x:120,z:-40}}]},
     {text:'Free Sister Oriel',obj:[{k:'use',id:'oriel_cell',label:'Open the cargo cell',zone:'ashfall',x:132,z:-28}]}],
   reward:{xp:1600,cr:500,items:[{gen:'weapon',lvl:22,r:3}]},onComplete:()=>{}});
-Bus.on('use',id=>{if(id==='oriel_cell'){setFlag('orielFree');say('Sister Oriel','THE CHOIR','You came. Vash went into the Ark an hour ago with both of the other keys\' readings. He can\'t wake it without you, but he can break it trying. I\'ll meet you at the Ark gate.',[bye('Let\'s finish this.')]);}});
-Q({id:'m16_ark',type:'main',act:4,auto:true,req:()=>qDone('m15_ashfall'),title:'The Ark',zone:'ashfall',summary:'Imre Vash is inside the Builders\' Ark. Stop him, and decide what to do with what the Builders left behind.',
+Bus.on('use',id=>{if(id==='oriel_cell'){setFlag('orielFree');say('Sister Oriel','THE CHOIR','You came. Vash went into the Ark an hour ago, and he sealed it behind him. The gate won\'t answer the spire keys now. Meet me at the Choir shelter. I\'ll tell you how we break his seal.',[bye('I\'ll see you there.')]);}});
+Q({id:'m15b_wards',type:'main',act:4,auto:true,req:()=>qDone('m15_ashfall')&&!G.q.m16_ark,title:'The Burning Wards',zone:'ashfall',summary:'Vash sealed the Ark behind three Builder wards fed by Ashfall\'s fire, and keyed the seal to a Halcyon cipher. Silence the wards, steal the cipher, and Oriel can open the way.',
+  stages:[{text:'Meet Oriel at the Choir shelter',obj:[{k:'talk',npc:'oriel2',label:'Talk to Sister Oriel at the Choir shelter',opt:'★ How do we break Vash\'s seal?',text:'Three wardstones ring the Ark: the West Ward on the cinder volcano, the East Ward at Emberfall, the South Ward out on the obsidian flats. The Builders made them to guard the Ark. Vash has bent them to guard him, and he\'s set the worst things on Ashfall to watch over them. Silence all three. And the seal answers to a Halcyon cipher: the Cohort keeps it at their signal relay south of here. Bring me both and I\'ll sing the gate open.'}]},
+    {text:'Silence the wards and take the cipher',obj:[
+      {k:'killId',id:'wardgolem',label:'Destroy the Cinder Colossus (West Ward)',zone:'ashfall',at:{x:-176,z:154}},{k:'use',id:'ward_w',label:'Silence the West Ward',zone:'ashfall',x:-180,z:150},
+      {k:'killId',id:'wardwisp',label:'Destroy the Ember Matriarch (East Ward)',zone:'ashfall',at:{x:202,z:172}},{k:'use',id:'ward_e',label:'Silence the East Ward',zone:'ashfall',x:198,z:168},
+      {k:'killId',id:'wardbrute',label:'Destroy the Obsidian Brute (South Ward)',zone:'ashfall',at:{x:-194,z:-106}},{k:'use',id:'ward_s',label:'Silence the South Ward',zone:'ashfall',x:-198,z:-110},
+      {k:'killId',id:'hale',label:'Defeat Signal Officer Hale (Cohort relay)',zone:'ashfall',at:{x:40,z:-140}},{k:'use',id:'relay_cipher',label:'Pull Vash\'s cipher from the relay',zone:'ashfall',x:42,z:-137}]},
+    {text:'Bring the cipher to Oriel',obj:[{k:'talk',npc:'oriel2',label:'Bring the cipher to Oriel',opt:'★ The wards are silent. Here\'s the cipher.',text:'Then he\'s alone in there with the heart. … There. The keys are tuned to the cipher, and the gate will answer us. Be careful. The Ark has its own guardians, and they don\'t care which of us is right. Neither does Vash.'}]}],
+  reward:{xp:2400,cr:800,items:[{gen:'gear',lvl:24,r:3}],perk:1}});
+Bus.on('use',id=>{if(/^ward_[wes]$/.test(id)){const n=['ward_w','ward_e','ward_s'].filter(w=>zoneState('ashfall').flags['used_'+w]).length;toast(n<3?`Ward silenced · ${n}/3`:'All three wards are silent.','gold');}});
+Q({id:'m16_ark',type:'main',act:4,auto:true,req:()=>qDone('m15b_wards')||(qDone('m15_ashfall')&&!!G.q.m16_ark),title:'The Ark',zone:'ashfall',summary:'Imre Vash is inside the Builders\' Ark. Stop him, and decide what to do with what the Builders left behind.',
   stages:[{text:'Reach the Ark gate',obj:[{k:'go',zone:'ashfall',x:0,z:118,r:14,label:'Reach the Ark gate'}]},
     {text:'Open the Ark with the spire keys',obj:[{k:'use',id:'ark_gate',label:'Open the Ark gate with both spire keys',zone:'ashfall',x:0,z:124}]},
+    {text:'Fight through the Ark\'s guardians',obj:[{k:'kill',types:['golem','wisp'],n:8,zone:'ashfall',label:'Ark guardians destroyed',at:{x:0,z:170}}]},
     {text:'Stop Imre Vash',obj:[{k:'killId',id:'vash',label:'Defeat Vash in the Ark Shell',zone:'ashfall',at:{x:0,z:200}}]},
     {text:'Decide the Ark\'s fate',obj:[{k:'use',id:'ark_heart',label:'Approach the Ark\'s heart',zone:'ashfall',x:0,z:214}]}],
   reward:{xp:3000,cr:1000,items:[{id:'edge'}],perk:2,unlock:['halo']}});
+// the Ark's guardians wake when the gate opens (and again on return, whoever is left)
+function arkGuardians(){const q=G.q.m16_ark;if(!q||q.st!=='active'||q.s!==2||W.id!=='ashfall')return;const left=8-(q.p[0]||0);if(left<=0)return;
+  const g=spawnGroup('golem',0,168,14,Math.ceil(left/2),25,{respawn:Infinity}),w=spawnGroup('wisp',0,176,14,Math.floor(left/2),24,{respawn:Infinity});for(const x of [...g,...w])x.provoked=20;}
+Bus.on('qstage',(id,s)=>{if(id==='m16_ark'&&s===2)arkGuardians();});Bus.on('zone',id=>{if(id==='ashfall')setTimeout(arkGuardians,0);});
+// older saves: the Ark quest gained a stage (the guardians) before Vash
+Bus.on('qstart',id=>{if(id==='m16_ark')G.q[id].v2=1;});
+function migrateArk(){const q=G.q.m16_ark;if(!q||q.v2)return;q.v2=1;if(q.st==='active'&&q.s>=2){q.s++;q.p=[];}}
+// Vash's last words as the shell breaks
+Bus.on('kill',type=>{if(type==='keeper')setTimeout(()=>{cam.shake=.5;say('Imre Vash','HALCYON · DIRECTOR','You think it chose you? It chooses whoever is standing closest when it wakes. I only wanted to be standing there… Go on, then. Open it. See what answers.',[bye('…')]);},2600);});
 function arkChoice(){showMemory('reason',()=>say('The Heart of the Ark','THE BUILDERS','The heart opens like an eye. Inside is a door to somewhere else, and a choice. Wake the Ark and the Builders\' song spreads across the Reach, lighting every spire. Seal it and their knowledge sleeps until someone wiser comes.',[
-  {label:'Wake the Ark.',go:true,fn:()=>{setFlag('arkWoke');ending(true);}},{label:'Seal the Ark.',fn:()=>{setFlag('arkSealed');ending(false);}}]));}
+  {label:'Wake the Ark.',go:true,fn:()=>{setFlag('arkWoke');closeDialog();endingCine(true);}},{label:'Seal the Ark.',fn:()=>{setFlag('arkSealed');closeDialog();endingCine(false);}}]));}
 function ending(woke){G.flags.ended=true;skyMat.uniforms.aurora.value=1;sfx('warp');
   say('Epilogue','THE LONG SIGNAL',woke?`The spires sing. On Ossery b, Meridian wakes to an aurora that does not fade. On Calder the drowned temple rises from the lagoon. Anchorage goes quiet as every screen on the station fills with the same impossible map. Sister Oriel finds you on the Vesper\'s bridge and says nothing for a long time. Then: “They\'re coming back, aren\'t they?” Somewhere out past the Reach, something answers.`:`The heart closes. The spires dim one by one, and the song settles into a hum you will hear for the rest of your life. Vash\'s ambitions die with him in the ash. Oriel takes the keys to the Choir to guard. Halcyon Lines quietly writes off Ashfall as a loss. You fly the Vesper out of the Reach with your name, your memories and a door that someone, someday, will open again.`,
     [{label:'The end. (You can keep exploring, finishing side jobs and contracts.)',go:true,fn:()=>{closeDialog();showBanner('THE END','Thank you for playing Tidelock');saveSoon();}}]);}
@@ -3954,7 +3985,7 @@ S({id:'s_lumo',giver:'lumo',zone:'calder',title:'Self-Repair',summary:'Lumo, Ree
 /* ---- Ashfall ---- */
 S({id:'s_choirlogs',giver:'tem',zone:'ashfall',title:'The Choir\'s Road',summary:'Three Choir scouts died on the road to the Ark. Their logs record what they found.',
   ask:'What happened to the Choir here?',offer:'We came in three ships. The Cohort shot down two. Our scouts went ahead and didn\'t come back. Their logs will be with them. Find them, so we know.',accept:'I\'ll find their logs.',
-  stages:[{text:'Find the scouts\' logs',obj:[{k:'use',id:'clog1',label:'Recover the first scout\'s log',zone:'ashfall',x:-150,z:-120},{k:'use',id:'clog2',label:'Recover the second scout\'s log',zone:'ashfall',x:-170,z:40},{k:'use',id:'clog3',label:'Recover the third scout\'s log',zone:'ashfall',x:160,z:90}]},
+  stages:[{text:'Find the scouts\' logs',obj:[{k:'use',id:'clog1',label:'Recover the first scout\'s log',zone:'ashfall',x:-166,z:-118},{k:'use',id:'clog2',label:'Recover the second scout\'s log',zone:'ashfall',x:-170,z:40},{k:'use',id:'clog3',label:'Recover the third scout\'s log',zone:'ashfall',x:160,z:90}]},
     {text:'Bring the logs to Brother Tem',obj:[{k:'talk',npc:'tem',label:'Bring the logs to Brother Tem',opt:'I found all three.',text:'They saw the Ark open its eye, just once, when the ash cleared. And they heard it sing. Thank you. Wear our sign, if you will.'}]}],
   reward:{xp:1300,cr:200,unlock:['choir']},onComplete:()=>toast('Unlocked a new emblem: Choir sigil (change it at any locker)','teal')});
 S({id:'s_caches',giver:'ryn',zone:'ashfall',title:'Deserter\'s Pay',summary:'Ryn knows where the Cohort hid three supply caches. Raid them before Rusk\'s people do.',
@@ -5224,42 +5255,61 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
 // ===== 55_z_ashfall.js =====
 /* ================= ZONE: Ashfall (a volcanic world and the Builders' Ark) ================= */
 const AF_RIVERS=[{w:7,pts:[[-320,60],[-220,40],[-130,56],[-60,34],[0,46],[70,30],[150,50],[230,24],[320,40]]},{w:6,pts:[[-140,-320],[-128,-220],[-150,-130],[-120,-40],[-130,48]]},{w:5,pts:[[320,-120],[240,-150],[200,-210],[150,-320]]}];
-const AF_BRIDGES=[{x:0,z:46,r:16},{x:-133,z:-200,r:14},{x:230,z:24,r:14}];
+const AF_BRIDGES=[{x:0,z:46,r:16},{x:-133,z:-200,r:14},{x:230,z:24,r:14},{x:205,z:-202,r:14}];
 const afBridge=(x,z)=>AF_BRIDGES.some(b=>Math.hypot(x-b.x,z-b.z)<b.r*.75);
 const AF_LAVA=-2.4;
+// lava lakes filling the two volcano craters [x,z,radius]
+const AF_CRATERS=[[-210,170,13],[220,190,11]];const afCraterY=c=>afRaw(c[0],c[1])+10;
+const afInCrater=(x,z,y)=>AF_CRATERS.some(c=>Math.hypot(x-c[0],z-c[1])<c[2]&&y<afCraterY(c)+1);
 function afRiverD(x,z){let best=1e9;for(const R of AF_RIVERS){const p=R.pts;for(let i=0;i<p.length-1;i++){const [ax,az]=p[i],[bx,bz]=p[i+1],L=Math.hypot(bx-ax,bz-az),ux=(bx-ax)/L,uz=(bz-az)/L,t=clamp((x-ax)*ux+(z-az)*uz,0,L),d=Math.hypot(x-ax-ux*t,z-az-uz*t)/R.w;if(d<best)best=d;}}return best;}
 function afRaw(x,z){let h=(fbm(x*.007+5,z*.007-9)-.5)*26+(ridged(x*.02,z*.02)-.5)*6;
   const dv=Math.hypot(x+210,z-170)/60;h+=40*Math.max(0,1-dv)*(dv<.25?.4+dv*2.4:1);const dv2=Math.hypot(x-220,z-190)/52;h+=34*Math.max(0,1-dv2)*(dv2<.25?.4+dv2*2.4:1);
   let edge=Math.max(0,Math.max(Math.abs(x),Math.abs(z))-272)*1.3;return h+edge;}
+// the three wards: [use id, x, z, name] and who guards each [kill id, type, name, scale]
+const AF_WARDS=[['ward_w',-182,150,'the West Ward'],['ward_e',196,168,'the East Ward'],['ward_s',-200,-110,'the South Ward']];
+const AF_WARD_GUARD={ward_w:['wardgolem','golem','Cinder Colossus',1.7],ward_e:['wardwisp','wisp','Ember Matriarch',2.2],ward_s:['wardbrute','golem','Obsidian Brute',1.5]};
 const AF_H={land:afRaw(0,-260),shelter:afRaw(-60,-200),camp:afRaw(120,-40)};
 function afHeight(x,z){let h=afRaw(x,z);
   h=flatTo(h,x,z,0,-260,18,32,AF_H.land);h=flatTo(h,x,z,-60,-200,16,28,AF_H.shelter);h=flatTo(h,x,z,120,-40,30,46,AF_H.camp);h=flatTo(h,x,z,0,180,62,90,3);h=flatTo(h,x,z,-110,-180,8,14,afRaw(-110,-180));
   let carve=1-smooth(.7,1.6,afRiverD(x,z));for(const b of AF_BRIDGES)carve*=smooth(b.r*.6,b.r,Math.hypot(x-b.x,z-b.z));
   return lerp(h,AF_LAVA-1.2,carve);}
-const AFC={ash:new THREE.Color(0x3a3034),dark:new THREE.Color(0x221c20),rock:new THREE.Color(0x4a3a3a),glow:new THREE.Color(0xa0401a),rune:new THREE.Color(0x3a3a50),sulfur:new THREE.Color(0x8a7a3a)};
+const AFC={ash:new THREE.Color(0x4a4244),pale:new THREE.Color(0x6e6664),dark:new THREE.Color(0x221c20),flow:new THREE.Color(0x141012),scoria:new THREE.Color(0x5a2e24),rock:new THREE.Color(0x4a3a3a),glow:new THREE.Color(0xb04412),rune:new THREE.Color(0x3a3a50),sulfur:new THREE.Color(0x9a8a3a)};
 const COHORT_ARCH=[{id:'command',x:120,z:-66,face:0,w:3,d:2,floors:3,kind:'security',accent:'orange',hull:'plateDark',groundMat:'blast',name:'COMMAND',sub:'GRAY COHORT',light:0xffb890,
   extra:(ctx,b,at)=>{const p=at(-1.5,-.6);ctx.log('cohort_orders',p.x,p.z,'Standing orders, Gray Cohort','Hold the camp. Hold the prisoner. Halcyon pays on delivery, not on intent. Anyone who wanders into the Ashfall without a Cohort tag is a salvage claim.',{y:groundY(p.x,p.z)+.05});}}];
 ZONES.ashfall={arch:COHORT_ARCH,id:'ashfall',name:'Ashfall',world:'Ashfall · Volcanic world',blurb:'Ash, fire and the Builders\' Ark, half-buried and humming.',kind:'outdoor',size:640,seed:67,lvl:[19,25],
-  detail:'ground',
-  sky:{night:0x1a0606,dusk:0x6a2a14,sun:0xff8a3a,horizon:0x5a1a0a,stars:.2,sunElev:12,sunAz:2.4,sunSize:1.3,fog:[0x4a2418,60,340],hemi:[0xe0a080,0x3a1a12,.95],sunColor:0xffb070,sunInt:1.35,
+  detail:'rock',detailRepeat:300,rough:.9,
+  bloom:{threshold:.95,strength:.6},sky:{night:0x1a0606,dusk:0x6a2a14,sun:0xff8a3a,horizon:0x5a1a0a,stars:.2,sunElev:12,sunAz:2.4,sunSize:1.3,fog:[0x3e2018,50,320],hemi:[0xb8a8a4,0x2a1814,.8],sunColor:0xffb880,sunInt:1.15,
     bodies:[{type:'moon',dir:[-600,380,-700],r:40,color:0x8a6a5a}]},
   tempAt:(x,z)=>34+(1-smooth(1,3,afRiverD(x,z)))*22+(z>120&&Math.abs(x)<44?-8:0),
   height:afHeight,
-  color:(x,z,y,sl,c)=>{const n=fbm(x*.05+9,z*.05);c.copy(AFC.ash).lerp(AFC.dark,clamp(n*1.5-.4,0,1));c.lerp(AFC.rock,sl*.8);c.lerp(AFC.glow,(1-smooth(.9,2.2,afRiverD(x,z)))*.8);
+  color:(x,z,y,sl,c)=>{const n=fbm(x*.05+9,z*.05),m=fbm(x*.11-3,z*.11+5),rd=afRiverD(x,z);
+    // pale ash on the heights, dark ash below, cooled black flows along the rivers, red scoria in patches, glowing banks at the lava
+    c.copy(AFC.ash).lerp(AFC.pale,smooth(6,22,y)*.7);c.lerp(AFC.dark,clamp(n*1.5-.4,0,1));c.lerp(AFC.flow,(1-smooth(1.6,4.5,rd))*.85*(.6+m*.5));c.lerp(AFC.scoria,clamp(m*2.2-1.1,0,1)*.7);
+    c.lerp(AFC.rock,sl*.8);c.lerp(AFC.glow,(1-smooth(.9,2.2,rd))*.8);for(const k of AF_CRATERS)c.lerp(AFC.glow,(1-smooth(k[2],k[2]+5,Math.hypot(x-k[0],z-k[1])))*.6);
     c.lerp(AFC.sulfur,smooth(.62,.7,fbm(x*.03+2,z*.03))*.4);c.lerp(AFC.rune,(1-smooth(40,70,Math.hypot(x,z-180)))*.6);const g=.9+n*.2;c.r*=g;c.g*=g;c.b*=g;},
-  keep:[{x:0,z:-260,r:24},{x:-60,z:-200,r:20},{x:120,z:-40,r:32},{x:0,z:180,r:66}],
+  keep:()=>[{x:0,z:-260,r:24},{x:-60,z:-200,r:20},{x:120,z:-40,r:32},{x:0,z:180,r:66},{x:40,z:-140,r:20},{x:-166,z:-118,r:6},{x:-170,z:40,r:6},{x:160,z:90,r:6},{x:236,z:-200,r:6},{x:-230,z:-60,r:6},{x:210,z:110,r:6},...AF_WARDS.map(w=>({x:w[1]+3,z:w[2]+2,r:11}))],
   flora:[{type:'basalt',count:300,where:(x,z,y)=>afRiverD(x,z)>2.2},{type:'rock',count:200,where:(x,z,y)=>afRiverD(x,z)>2,mat:'basalt',hsl:[.0,.05,.05,.15,.25,.45]},
     {type:'deadTree',count:50,where:(x,z)=>fbm(x*.03,z*.03)>.5&&afRiverD(x,z)>3,color:0x3a3036},{type:'crystal',count:60,where:(x,z)=>afRiverD(x,z)>2&&fbm(x*.04,z*.04+3)>.64,hue:[.02,.06],emissive:0xff5a1a}],
   entries:{ship:{x:8,z:-250,face:0},shelter:{x:-60,z:-190,face:0}},spawn:{x:8,z:-250,face:0},
   build(ctx){const P=ctx.P,st=ctx.state();
     vesperPad(ctx,0,-264,0);ctx.poi('landing',0,-260,'Landing Ridge',{r:20,ft:true});
     /* ---- lava rivers ---- */
-    {const lavaMat=new THREE.MeshStandardMaterial({map:TEX.lava.map,emissiveMap:TEX.lava.emis,emissive:0xff6a1a,emissiveIntensity:1.6,normalMap:TEX.lava.normal,roughness:.8});lavaMat.map.wrapS=lavaMat.map.wrapT=THREE.RepeatWrapping;
+    {// lava: a cracked crust ("Low Poly Lava" by PatelDev, baked to a texture) whose seams glow and slowly creep
+      const lm=assetTex('lava_map'),le=assetTex('lava_emis',false);const lavaMat=new THREE.MeshStandardMaterial({map:lm,emissiveMap:le,emissive:0xff4a12,emissiveIntensity:1,roughness:.9,metalness:0,side:THREE.DoubleSide});lavaMat.userData.noGlow=true;W.lavaMat=lavaMat;
       for(const R of AF_RIVERS){const pos=[],uv=[],idx=[];let acc=0;const p=R.pts;for(let i=0;i<p.length;i++){const a=p[Math.max(0,i-1)],b=p[Math.min(p.length-1,i+1)],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),nx=-dz/L,nz=dx/L,w=R.w*1.7;if(i)acc+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);
-          pos.push(p[i][0]+nx*w,AF_LAVA,p[i][1]+nz*w,p[i][0]-nx*w,AF_LAVA,p[i][1]-nz*w);uv.push(0,acc/12,1,acc/12);if(i){const k=i*2;idx.push(k-2,k-1,k,k-1,k+1,k);}}
+          pos.push(p[i][0]+nx*w,AF_LAVA,p[i][1]+nz*w,p[i][0]-nx*w,AF_LAVA,p[i][1]-nz*w);uv.push(0,acc/(w*2),1,acc/(w*2));if(i){const k=i*2;idx.push(k-2,k-1,k,k-1,k+1,k);}}
         const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();const m=new THREE.Mesh(g,lavaMat);ctx.g.add(m);}
-      ctx.anim(dt=>{lavaMat.map.offset.y-=dt*.05;lavaMat.emissiveIntensity=1.4+Math.sin(performance.now()*.002)*.25;if(Math.random()<.5){const R=pick(AF_RIVERS),i=Math.floor(Math.random()*(R.pts.length-1)),t=Math.random(),a=R.pts[i],b=R.pts[i+1];const x=lerp(a[0],b[0],t),z=lerp(a[1],b[1],t);if(Math.hypot(x-player.x,z-player.z)<80)FX.spawn(x+rf(-3,3),AF_LAVA+.3,z+rf(-3,3),rf(-.5,.5),rf(1,3),rf(-.5,.5),{life:rf(.6,1.2),size:rf(.08,.16),c0:0xffd080,c1:0xff3a0a,drag:.5,grav:2});}});
-      ctx.hazard({kind:'lava',dps:60,test:(x,z,y)=>y<AF_LAVA+1.2&&afRiverD(x,z)<1.2&&!afBridge(x,z),msg:'Lava!'});}
+      // the crater lakes
+      for(const c of AF_CRATERS){const g=new THREE.CircleGeometry(c[2]+1.5,40);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*c[2]/3.5,uv.getY(i)*c[2]/3.5);const m=new THREE.Mesh(g,lavaMat);m.rotation.x=-Math.PI/2;m.position.set(c[0],afCraterY(c),c[1]);ctx.g.add(m);
+        ctx.light(c[0],afCraterY(c)+4,c[1],0xff6a2a,1.6,40,true);glowAt(ctx,null,c[0],afCraterY(c)+2,c[1],0xff5a1a,c[2]*2.2,.35);
+        // a column of smoke over each crater
+        const sm=new THREE.SpriteMaterial({map:GLOW,color:0x2a2220,transparent:true,depthWrite:false,opacity:.5}),puffs=[];for(let i=0;i<14;i++){const sp=new THREE.Sprite(sm.clone());sp.userData={t:i/14,k:rf(.8,1.3)};ctx.g.add(sp);puffs.push(sp);}
+        ctx.anim(dt=>{for(const sp of puffs){const u=sp.userData;u.t=(u.t+dt*.03)%1;sp.position.set(c[0]+Math.sin(u.t*3+c[0])*4*u.t+u.t*u.t*30,afCraterY(c)+3+u.t*70,c[1]+u.t*u.t*14);sp.scale.setScalar((8+u.t*40)*u.k);sp.material.opacity=.5*(1-u.t)*Math.min(1,u.t*6);}});}
+      ctx.anim(dt=>{lm.offset.y-=dt*.012;le.offset.y=lm.offset.y;lavaMat.emissiveIntensity=W.lavaGlow??(1.05+Math.sin(performance.now()*.0015)*.15);
+        // drifting embers and ash round the player
+        if(Math.random()<.5)FX.spawn(player.x+rf(-18,18),player.y+rf(2,9),player.z+rf(-18,18),rf(-.4,.4),rf(.2,.8),rf(-.4,.4),{life:rf(2,4),size:rf(.03,.07),c0:0xffb050,c1:0x601808,drag:.2,grav:-.05});
+        if(Math.random()<.35)FX.spawn(player.x+rf(-16,16),player.y+rf(4,10),player.z+rf(-16,16),rf(-.3,.3),rf(-.6,-.2),rf(-.3,.3),{life:rf(3,5),size:rf(.04,.08),c0:0x9a9090,c1:0x4a4040,drag:.3,grav:.15});if(Math.random()<.5){const R=pick(AF_RIVERS),i=Math.floor(Math.random()*(R.pts.length-1)),t=Math.random(),a=R.pts[i],b=R.pts[i+1];const x=lerp(a[0],b[0],t),z=lerp(a[1],b[1],t);if(Math.hypot(x-player.x,z-player.z)<80)FX.spawn(x+rf(-3,3),AF_LAVA+.3,z+rf(-3,3),rf(-.5,.5),rf(1,3),rf(-.5,.5),{life:rf(.6,1.2),size:rf(.08,.16),c0:0xffd080,c1:0xff3a0a,drag:.5,grav:2});}});
+      ctx.hazard({kind:'lava',dps:60,test:(x,z,y)=>(y<AF_LAVA+1.2&&afRiverD(x,z)<1.2&&!afBridge(x,z))||afInCrater(x,z,y),msg:'Lava!'});}
     // a stone crossing over the western river, and over the eastern one
     for(const [cx,cz,nx,nz] of [[-168,49.2,-.175,.985],[94,36,-.243,.97]])stones(ctx,[-7.5,-5,-2.5,0,2.5,5,7.5].map((t,i)=>[cx+nx*t,cz+nz*t,AF_LAVA+2.3+(i%2)*.25,1.05]),{abs:true,mat:MAT.basalt});
     /* ---- the Choir shelter ---- */
@@ -5282,7 +5332,25 @@ ZONES.ashfall={arch:COHORT_ARCH,id:'ashfall',name:'Ashfall',world:'Ashfall · Vo
     ctx.chest('af_camp',146,-70,{kind:'locked',lockText:'A Cohort strongbox. A Data Chip or a quartermaster\'s key would open it.'});
     ctx.log('af_rusk',116,-56,'Commander Rusk\'s field orders','“Hold the Choir woman until the Director is inside. If the pilot arrives, do not engage. Vash wants them at the heart.”');
     /* ---- Choir scouts ---- */
-    for(const [id,x,z] of [['clog1',-150,-120],['clog2',-170,40],['clog3',160,90]]){debris(ctx,x,z,5,6,[MAT.fabric,MAT.metal]);qUse(ctx,id,x,z,'Recover the scout\'s log');}
+    for(const [id,x,z] of [['clog1',-166,-118],['clog2',-170,40],['clog3',160,90]]){debris(ctx,x,z,5,6,[MAT.fabric,MAT.metal]);qUse(ctx,id,x,z,'Recover the scout\'s log');}
+    /* ---- the Burning Wards: three Builder wardstones that seal the Ark, each fed by the fire and each guarded ---- */
+    for(const [id,x,z,name] of AF_WARDS){const y=groundY(x,z),g=grp(ctx,x,y,z,rr(0,3));
+      P.add(g,MAT.basalt,cyl(3.2,3.6,.5,8),0,.25,0);P.add(g,MAT.runes,scaleUV(cyl(.9,1.3,6.5,6),1,3),0,3.6,0);P.add(g,MAT.runes,new THREE.OctahedronGeometry(1,0),0,7.6,0);
+      for(let k=0;k<5;k++){const a=k/5*Math.PI*2;P.add(g,MAT.basalt,rockGeo(1,k+x),Math.cos(a)*3.1,.4,Math.sin(a)*3.1,0,a,0,.6,.9,.6);}
+      const core=new THREE.Mesh(new THREE.OctahedronGeometry(.75,0),new THREE.MeshStandardMaterial({color:0x200800,emissive:0xff6a1a,emissiveIntensity:2,flatShading:true}));core.position.y=7.6;g.add(core);
+      const gl=glowAt(ctx,g,0,7.6,0,0xff6a1a,6,.7);ctx.col(x,z,1.6);
+      // a flame-ring of fire round the base while it burns
+      ctx.anim(dt=>{const off=!!st.flags['used_'+id];core.rotation.y+=dt*(off?.2:1.2);core.material.emissive.setHex(off?0x6ff2d6:0xff6a1a);core.material.emissiveIntensity=off?.8:1.6+Math.sin(performance.now()*.004)*.4;gl.material.color.setHex(off?0x6ff2d6:0xff6a1a);
+        if(!off&&Math.random()<.6){const a=Math.random()*6.28;FX.spawn(x+Math.cos(a)*2.4,y+.5,z+Math.sin(a)*2.4,0,rf(1,2.4),0,{life:rf(.5,1),size:rf(.12,.24),c0:0xffd080,c1:0x801808,drag:.6,grav:-.4});}});
+      qUse(ctx,id,x+2.2,z,'Silence the '+name,{ok:()=>!!st.killed[AF_WARD_GUARD[id][0]],act:()=>{sfx('warp');FX.burst(new THREE.Vector3(x,y+7.6,z),0x6ff2d6,60,6,.9,.14);cam.shake=.3;}});
+      const [gid,gtype,gname,gscale]=AF_WARD_GUARD[id];qBoss(ctx,'m15b_wards',gtype,gid,x+6,z+4,24,{name:gname,scale:gscale,hpMul:6,elite:true});
+      ctx.poi(id,x,z,name.replace(/^the /,'').replace(/^./,c=>c.toUpperCase()),{r:12});}
+    /* ---- the Cohort signal relay, where Vash's cipher is kept ---- */
+    {const x=40,z=-140,y=groundY(x,z);ctx.poi('relay',x,z,'Cohort Signal Relay',{r:18});PF.tower(ctx,x-8,z-6,18);PF.container(ctx,x+6,z-4,.3,0x3a3a42,'GRAY COHORT');PF.container(ctx,x-4,z+8,1.8,0x4a4a52,'GRAY COHORT');
+      PF.fence(ctx,x-16,z-16,x+16,z-16);PF.fence(ctx,x+16,z-16,x+16,z+16);PF.fence(ctx,x-16,z+16,x-4,z+16);PF.fence(ctx,x+4,z+16,x+16,z+16);PF.fence(ctx,x-16,z-16,x-16,z+16);
+      for(let k=0;k<3;k++){const a=k*2.1;P.add(ctx.g,MAT.metal,cyl(.08,.08,10,6),x+Math.cos(a)*3,y+5,z+Math.sin(a)*3);}P.add(ctx.g,MAT.metal,new THREE.SphereGeometry(1.6,16,8,0,Math.PI*2,0,Math.PI/2),x,y+10,z,Math.PI,0,0);
+      PF.console(ctx,x+2,z+2,Math.PI,3);qUse(ctx,'relay_cipher',x+2,z+3.2,'Pull Vash\'s cipher from the relay',{ok:()=>!!st.killed.hale});
+      qBoss(ctx,'m15b_wards','breacher','hale',x,z,24,{name:'Signal Officer Hale',scale:1.2,hpMul:8,elite:true});}
     /* ---- the Builders' Ark ---- */
     ctx.poi('ark',0,180,'The Builders\' Ark',{r:60});
     {const y=3,H=16,wallM=MAT.runes;const W2=(x,z,w,d)=>{P.add(ctx.g,wallM,scaleUV(RB(w,H,d,.3,1),w/4,H/4),x,y+H/2,z);ctx.box(x,z,w/2,d/2,0,y+H,y-2);};
@@ -5291,10 +5359,10 @@ ZONES.ashfall={arch:COHORT_ARCH,id:'ashfall',name:'Ashfall',world:'Ashfall · Vo
       P.add(ctx.g,wallM,tor(9,1.1,10,48,Math.PI),0,y+H+2,124,0,0,0);glowAt(ctx,null,0,y+H+8,124,0x8fffe0,10,.4);
       const door=new THREE.Group();door.position.set(0,y,124);ctx.g.add(door);for(const s of[-1,1])P.add(door,MAT.hullDark,RB(4.6,12,1.4,.2,1),s*2.3,6,0);P.add(door,MAT.tealGlow,RB(.2,11,1.5,.02,1),0,6,0);
       let doorPlat=null;if(!st.flags.used_ark_gate)doorPlat=ctx.box(0,124,4.6,.8,0,y+12,y-2);else door.position.y=y-11.5;
-      qUse(ctx,'ark_gate',0,120.6,'Open the Ark gate with both spire keys',{ok:()=>countItem('spirekey')>0&&countItem('spirekey2')>0,act:()=>{sfx('door');const i=W.plats.indexOf(doorPlat);if(i>=0)W.plats.splice(i,1);let t=0;ctx.anim(dt=>{if(t<1){t+=dt*.4;door.position.y=y-11.5*smooth(0,1,t);}});}});
+      qUse(ctx,'ark_gate',0,120.6,'Open the Ark gate with both spire keys',{ok:()=>countItem('spirekey')>0&&countItem('spirekey2')>0&&!!G.q.m16_ark,act:()=>{sfx('door');const i=W.plats.indexOf(doorPlat);if(i>=0)W.plats.splice(i,1);let t=0;ctx.anim(dt=>{if(t<1){t+=dt*.4;door.position.y=y-11.5*smooth(0,1,t);}});}});
       for(let i=0;i<8;i++){const a=i/8*6.28;PF.pillar(ctx,Math.cos(a)*24,200+Math.sin(a)*24,rr(6,12),1.1);}
       const heart=grp(ctx,0,y,214,0);P.add(heart,wallM,lathe([[6,0],[5,1],[3.4,4],[1.6,7],[0,8]],4),0,0,0,0,Math.PI/4,0);const eye=new THREE.Mesh(sph(1.2,32,16),new THREE.MeshStandardMaterial({color:0x8fffe0,emissive:0x8fffe0,emissiveIntensity:1.2}));eye.position.set(0,5.4,-2.6);heart.add(eye);
-      glowAt(ctx,heart,0,5.4,-2.6,0x8fffe0,8,.5);ctx.anim(()=>{eye.scale.setScalar(1+Math.sin(performance.now()*.002)*.1);});ctx.col(0,214,5);ctx.light(0,y+6,210,0x8fffe0,2,40);
+      const heartGlow=glowAt(ctx,heart,0,5.4,-2.6,0x8fffe0,8,.5);W.ark={heart,eye,heartGlow,y};ctx.anim(()=>{eye.scale.setScalar(1+Math.sin(performance.now()*.002)*.1);});ctx.col(0,214,5);ctx.light(0,y+6,210,0x8fffe0,2,40);
       qBoss(ctx,'m16_ark','keeper','vash',0,196,26,{cond:()=>!!st.flags.used_ark_gate});
       qUse(ctx,'ark_heart',0,208.2,'Approach the Ark\'s heart',{ok:()=>!!st.killed.vash});ctx.glyph('g_af1',-36,236);ctx.chest('af_ark',36,232,{kind:'chest'});
       ctx.log('af_ark',-30,140,'Builder inscription (translated by your suit)','“We leave the door open for those who can hear. We leave the key in their blood. Forgive us for the waiting.”');}
@@ -5311,7 +5379,7 @@ ZONES.ashfall={arch:COHORT_ARCH,id:'ashfall',name:'Ashfall',world:'Ashfall · Vo
 // ===== 60_ui.js =====
 /* ================= UI: state, toasts, HUD, tracker, minimap ================= */
 const UI={dialog:false,panel:false,title:true,loading:false,custom:false,customFirst:false,lookYaw:0,lookSpin:false,tab:'pack'};
-const modal=()=>UI.dialog||UI.panel||UI.loading||INTRO.on;
+const modal=()=>UI.dialog||UI.panel||UI.loading||INTRO.on||(typeof CINE!=='undefined'&&CINE.on);
 const pad={on:false,active:false,blocked:!!(document.featurePolicy&&document.featurePolicy.allowsFeature&&!document.featurePolicy.allowsFeature('gamepad')),lx:0,ly:0,rx:0,ry:0,prev:[],fire:false,navT:0,navHeld:false,zoom:1};
 function setPadActive(v){if(pad.active===v)return;pad.active=v;document.documentElement.classList.toggle('pad',v);updateTouchVis();}
 function padButtons(root){const r=typeof root==='string'?$(root):root;return r?[...r.querySelectorAll('button,input[type=color]')].filter(b=>!b.hidden&&!b.disabled&&b.getClientRects().length>0):[];}
@@ -5825,7 +5893,7 @@ function openOptions(){openPanel();const b=sheet('narrow');
   $('#xO').onclick=closePanel;bindHudChoice(b,openOptions);$('#oSnd').onclick=()=>{setMuted(!muted);openOptions();};$('#oMus').onclick=()=>{setMusic(!musicOn);openOptions();};$('#oGlow').onclick=()=>{setBloom(!POST.on);openOptions();};$('#oDrs').onclick=()=>{setDrs(!DRS.on);openOptions();};padDiagT=0;padFocus(b,0);}
 function openCredits(){openPanel();const b=sheet('narrow');
   b.innerHTML=head('Credits','xCr')+`<div class="help"><p><b>Tidelock</b> was designed, written and built for this project: the worlds, story, characters, code, textures, effects and most of the 3D models.</p>
-    <ul><li><b>Spacesuit and townspeople:</b> Quaternius (Ultimate Modular Men, Women and Space Kit), CC0</li><li><b>Spark sound:</b> “Electronic Element Burn Spark” by FxProSound (Pixabay), Pixabay Content License</li><li><b>The Halo's back bar:</b> “The Drome Bar v3.1” by tl0615 (sketchfab.com/tl0615), CC BY 4.0</li><li><b>Station chairs:</b> “Sci-Fi Chair | Web 3D • AR • Metaverse” by Md Mahmudur Rahman Bappy (sketchfab.com/bappybd007) and “Chair sci-fi mk1” by Cartesian_SOLV3D (sketchfab.com/cartesiansolv3d), CC BY 4.0</li><li><b>Plants:</b> “Optimized Potted Plants” by Nicholas-3D (sketchfab.com/Nicholas01), CC BY 4.0</li><li><b>Station robots and drones:</b> after “Space station Scene Wip 7 (Test)” by 3DHaupt (sketchfab.com/dennish2010)</li><li><b>The Vesper:</b> “Spaceship Patriot Type 1” by Kessler_Protus (sketchfab.com/Kessler_Protus), CC BY 4.0 (emblem removed)</li><li><b>Vesper decks:</b> “Spaceship Corridor” by ABSoln (sketchfab.com/ABSoln), CC BY-NC 4.0, cut into wall, floor and ceiling pieces</li><li><b>Navigation terminal:</b> “Free Terminal 2” by Inditrion Dradnon (sketchfab.com/dradnon), CC BY 4.0</li><li><b>Bridge seats:</b> “Spaceship_chair” by @blue.blender.print (sketchfab.com/Moonshroomek), CC BY 4.0</li><li><b>Dune Borer:</b> “Sand Worm” by chatholoboom7745289 (sketchfab.com/chabsfabo86), CC BY-NC 4.0</li><li><b>Robots:</b> “RobotExpressive” by Tomás Laulhé (Quaternius), CC0</li><li><b>Sci-fi soldier:</b> “Stylized Sci-Fi Soldier (animated)” by Jungle Jim, CC BY 4.0</li><li><b>Sci-fi operative:</b> “Sci-Fi Male Character” by Xavi Pujadas, CC BY-NC-ND 4.0 (personal, non-commercial use)</li><li><b>The Vesper:</b> “Phantom Sabre jet” by #3D $Resource$, CC BY 4.0</li><li><b>Pistol:</b> “Scifi Gun” by Slav92, CC BY 4.0</li><li><b>Rifle:</b> “SciFi Rifle” by DJMaesen, CC BY-NC 4.0</li><li><b>Shotgun:</b> “Shotgun” by Alex Sanches, CC BY-NC 4.0</li><li><b>Beam weapons:</b> “Low Poly Laser Pistol 1” by sidedvirus, CC BY 4.0</li><li><b>Grenade launchers:</b> “Grenade Launcher (Death Stranding fan art)” by mnshkv, CC BY 4.0</li><li><b>Blade:</b> “Scifi Heavy Blade (LowPoly)” by Wang Sh D, CC BY 4.0</li><li><b>Ash Golem:</b> “Golem Rigged” by FourthGreen, CC BY 4.0</li><li><b>Reed Stalker:</b> “Alien Ninja Creature with 45 animations” by Jungle Jim, CC BY 4.0</li><li><b>Glider Ray:</b> “Manta Ray Birostris (animated)” by Violaine, CC BY-NC-SA 4.0</li><li><b>Vash:</b> “Nightmare Creature 1#” by Idk, CC BY 4.0</li><li><b>Maintenance Drone:</b> “Flying Bot” by colizey, CC BY 4.0</li><li><b>Ember Wisp:</b> “FireBall” by tamminen, CC BY 4.0</li><li><b>Hollow Warden:</b> “alien low poly” by vicente betoret ferrero, CC BY 4.0</li><li><b>Skitters:</b> “Alien” by DJMaesen, CC BY 4.0</li><li><b>Crystals, rocks, ruin stones and jellyfish:</b> “Toon Style - Crystal”, “Lowpoly textured ice Crystals”, “Crystals”, “Magical Glowing Crystals”, “Magic Crystal IX”, “Glowing Jelly Fish”, “Stylized Rocks with Magic Rune”, “Fantasy Ruin Rocks”, “Small rocks”, “Stylized Rocks”, “Cozy Campfire - Shape Key Animation”, “Tent”, all CC BY 4.0, from Sketchfab</li><li><b>Survey rover:</b> “Rover new” by M8ZA, CC BY 4.0</li><li><b>Shuttle:</b> “Standard civilan shuttle” by Sol, CC BY-NC-ND 4.0</li><li><b>Ship corridor:</b> “Space ship hallway” by yeeyeeman, CC BY 4.0</li><li><b>Engine:</b> three.js, MIT</li><li><b>Music and laser sound:</b> supplied by the player</li></ul></div>`;
+    <ul><li><b>Spacesuit and townspeople:</b> Quaternius (Ultimate Modular Men, Women and Space Kit), CC0</li><li><b>Spark sound:</b> “Electronic Element Burn Spark” by FxProSound (Pixabay), Pixabay Content License</li><li><b>The Halo's back bar:</b> “The Drome Bar v3.1” by tl0615 (sketchfab.com/tl0615), CC BY 4.0</li><li><b>Station chairs:</b> “Sci-Fi Chair | Web 3D • AR • Metaverse” by Md Mahmudur Rahman Bappy (sketchfab.com/bappybd007) and “Chair sci-fi mk1” by Cartesian_SOLV3D (sketchfab.com/cartesiansolv3d), CC BY 4.0</li><li><b>Plants:</b> “Optimized Potted Plants” by Nicholas-3D (sketchfab.com/Nicholas01), CC BY 4.0</li><li><b>Station robots and drones:</b> after “Space station Scene Wip 7 (Test)” by 3DHaupt (sketchfab.com/dennish2010)</li><li><b>Lava:</b> “Low Poly Lava” by PatelDev (sketchfab.com/PatelDev), CC BY 4.0, baked into a texture</li><li><b>The Vesper:</b> “Spaceship Patriot Type 1” by Kessler_Protus (sketchfab.com/Kessler_Protus), CC BY 4.0 (emblem removed)</li><li><b>Vesper decks:</b> “Spaceship Corridor” by ABSoln (sketchfab.com/ABSoln), CC BY-NC 4.0, cut into wall, floor and ceiling pieces</li><li><b>Navigation terminal:</b> “Free Terminal 2” by Inditrion Dradnon (sketchfab.com/dradnon), CC BY 4.0</li><li><b>Bridge seats:</b> “Spaceship_chair” by @blue.blender.print (sketchfab.com/Moonshroomek), CC BY 4.0</li><li><b>Dune Borer:</b> “Sand Worm” by chatholoboom7745289 (sketchfab.com/chabsfabo86), CC BY-NC 4.0</li><li><b>Robots:</b> “RobotExpressive” by Tomás Laulhé (Quaternius), CC0</li><li><b>Sci-fi soldier:</b> “Stylized Sci-Fi Soldier (animated)” by Jungle Jim, CC BY 4.0</li><li><b>Sci-fi operative:</b> “Sci-Fi Male Character” by Xavi Pujadas, CC BY-NC-ND 4.0 (personal, non-commercial use)</li><li><b>The Vesper:</b> “Phantom Sabre jet” by #3D $Resource$, CC BY 4.0</li><li><b>Pistol:</b> “Scifi Gun” by Slav92, CC BY 4.0</li><li><b>Rifle:</b> “SciFi Rifle” by DJMaesen, CC BY-NC 4.0</li><li><b>Shotgun:</b> “Shotgun” by Alex Sanches, CC BY-NC 4.0</li><li><b>Beam weapons:</b> “Low Poly Laser Pistol 1” by sidedvirus, CC BY 4.0</li><li><b>Grenade launchers:</b> “Grenade Launcher (Death Stranding fan art)” by mnshkv, CC BY 4.0</li><li><b>Blade:</b> “Scifi Heavy Blade (LowPoly)” by Wang Sh D, CC BY 4.0</li><li><b>Ash Golem:</b> “Golem Rigged” by FourthGreen, CC BY 4.0</li><li><b>Reed Stalker:</b> “Alien Ninja Creature with 45 animations” by Jungle Jim, CC BY 4.0</li><li><b>Glider Ray:</b> “Manta Ray Birostris (animated)” by Violaine, CC BY-NC-SA 4.0</li><li><b>Vash:</b> “Nightmare Creature 1#” by Idk, CC BY 4.0</li><li><b>Maintenance Drone:</b> “Flying Bot” by colizey, CC BY 4.0</li><li><b>Ember Wisp:</b> “FireBall” by tamminen, CC BY 4.0</li><li><b>Hollow Warden:</b> “alien low poly” by vicente betoret ferrero, CC BY 4.0</li><li><b>Skitters:</b> “Alien” by DJMaesen, CC BY 4.0</li><li><b>Crystals, rocks, ruin stones and jellyfish:</b> “Toon Style - Crystal”, “Lowpoly textured ice Crystals”, “Crystals”, “Magical Glowing Crystals”, “Magic Crystal IX”, “Glowing Jelly Fish”, “Stylized Rocks with Magic Rune”, “Fantasy Ruin Rocks”, “Small rocks”, “Stylized Rocks”, “Cozy Campfire - Shape Key Animation”, “Tent”, all CC BY 4.0, from Sketchfab</li><li><b>Survey rover:</b> “Rover new” by M8ZA, CC BY 4.0</li><li><b>Shuttle:</b> “Standard civilan shuttle” by Sol, CC BY-NC-ND 4.0</li><li><b>Ship corridor:</b> “Space ship hallway” by yeeyeeman, CC BY 4.0</li><li><b>Engine:</b> three.js, MIT</li><li><b>Music and laser sound:</b> supplied by the player</li></ul></div>`;
   $('#xCr').onclick=closePanel;padFocus(b,0);}
 $('#bOpts').onclick=()=>{initAudio();openOptions();};
 // iOS Safari hides controllers from a page until it has been touched once, so on touch devices the splash asks for a tap
@@ -5911,6 +5979,78 @@ function introTalk(){document.documentElement.classList.add('helmetDlg');UI.dlgL
       v('Memory loss is common after a blow like that. It should come back. Let\'s start with something simple: the wreck\'s hull plating is polished enough to see yourself in. Take a look.',{list:[{label:'Look at my reflection',go:true,fn:introPull}]});}}]});}}]});}
 function introPull(){UI.dlgLock=false;closeDialog();document.documentElement.classList.remove('helmetDlg');INTRO.phase='pull';INTRO.pullT=0;cam.dist=cam.prevDist||7;renderer.domElement.style.filter='';introRes(0);}
 function endIntro(){INTRO.on=false;INTRO.phase='';const el=$('#wake');el.hidden=true;el.style.opacity='';renderer.domElement.style.filter='';introRes(0);$('#hud').hidden=false;openLooks(true);updateTouchVis();}
+
+// ===== 63b_cine.js =====
+/* ================= CINEMATICS: the endings ================= */
+// A cinematic is a list of shots: each holds the camera on a path for a few seconds, can run its own effects, and shows a line
+// of narration under letterbox bars. A or Enter (or a tap) skips to the end card.
+const CINE={on:false,shots:null,i:0,t:0,done:null,fx:[]};
+function cineEl(){let el=$('#cine');if(el)return el;el=document.createElement('div');el.id='cine';el.hidden=true;
+  el.innerHTML=`<style>
+    #cine{position:fixed;inset:0;z-index:40;pointer-events:auto}
+    #cine .bar{position:absolute;left:0;right:0;height:12vh;background:#000;transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
+    #cine .bar.t{top:0;transform:translateY(-100%)}#cine .bar.b{bottom:0;transform:translateY(100%)}#cine.in .bar{transform:none}
+    #cine .cap{position:absolute;left:8vw;right:8vw;bottom:15vh;text-align:center;font:400 clamp(16px,2.2vw,26px)/1.45 var(--f-body,system-ui);color:#f2f6ff;text-shadow:0 2px 8px #000,0 0 20px #000;opacity:0;transition:opacity 1.2s}
+    #cine .cap.show{opacity:1}#cine .fade{position:absolute;inset:0;background:#000;opacity:0;transition:opacity 1.6s;pointer-events:none}
+    #cine .skip{position:absolute;right:3vw;bottom:3.5vh;font:600 11px/1 ui-monospace,monospace;letter-spacing:.12em;color:rgba(255,255,255,.45)}
+    #cine .card{position:absolute;inset:0;display:grid;place-items:center;text-align:center;opacity:0;transition:opacity 2s;pointer-events:none}
+    #cine .card.show{opacity:1;pointer-events:auto}#cine .card h1{font:700 clamp(40px,8vw,96px)/1 var(--f-display,system-ui);letter-spacing:.28em;margin:0;color:#e8fbff;text-shadow:0 0 30px rgba(111,242,214,.5)}
+    #cine .card h2{font:500 clamp(14px,1.8vw,20px)/1.4 var(--f-mono,monospace);letter-spacing:.3em;color:#8ff2e0;margin:18px 0 28px}
+    #cine .card p{max-width:52ch;margin:0 auto 10px;color:#c8d4e8;font-size:clamp(14px,1.6vw,18px);line-height:1.55}
+    #cine .card .roll{margin-top:26px;font:12px/1.9 var(--f-mono,monospace);letter-spacing:.14em;color:rgba(220,230,245,.6)}
+    #cine .card button{margin-top:30px;padding:12px 26px;font:600 14px var(--f-mono,monospace);letter-spacing:.18em;background:rgba(111,242,214,.12);color:#e8fbff;border:1px solid rgba(111,242,214,.5);border-radius:2px}
+  </style><div class="bar t"></div><div class="bar b"></div><div class="cap"></div><div class="fade"></div><div class="skip"></div><div class="card"></div>`;
+  document.body.appendChild(el);el.onpointerdown=e=>{if(!e.target.closest('button'))cineSkip();};return el;}
+function cinePlay(shots,done){const el=cineEl();el.hidden=false;el.querySelector('.card').classList.remove('show');el.querySelector('.fade').style.opacity=0;
+  el.querySelector('.skip').textContent=pad.active?'A · SKIP':isTouch?'TAP · SKIP':'ENTER · SKIP';requestAnimationFrame(()=>el.classList.add('in'));
+  Object.assign(CINE,{on:true,shots,i:-1,t:0,done,ended:false});$('#hud').hidden=true;$('#labels').style.visibility='hidden';cineNext();}
+function cineNext(){CINE.i++;CINE.t=0;const s=CINE.shots[CINE.i],el=$('#cine');if(!s){cineFinish();return;}const cap=el.querySelector('.cap');cap.classList.remove('show');
+  if(s.start)s.start();if(s.cap)setTimeout(()=>{if(CINE.shots&&CINE.shots[CINE.i]===s){cap.textContent=s.cap;cap.classList.add('show');}},500);if(s.fade!==undefined)el.querySelector('.fade').style.opacity=s.fade;}
+function cineSkip(){if(!CINE.on||CINE.ended)return;for(let k=CINE.i;k<CINE.shots.length;k++){const s=CINE.shots[k];if(k>CINE.i&&s.start)s.start();}CINE.i=CINE.shots.length-1;cineFinish();}
+function cineFinish(){if(CINE.ended)return;CINE.ended=true;const el=$('#cine');el.querySelector('.cap').classList.remove('show');el.querySelector('.fade').style.opacity=1;setTimeout(()=>{if(CINE.done)CINE.done();},1700);}
+function cineClose(){const el=$('#cine');el.classList.remove('in');el.querySelector('.card').classList.remove('show');el.querySelector('.fade').style.opacity=0;setTimeout(()=>{el.hidden=true;},1200);
+  CINE.on=false;CINE.shots=null;$('#hud').hidden=false;$('#labels').style.visibility='';for(const f of CINE.fx)if(f.parent)f.parent.remove(f);CINE.fx=[];}
+// called every frame after the game's own update: the shot owns the camera
+function cineTick(dt){if(CINE.on&&avatar)avatar.root.visible=true;if(!CINE.on||!CINE.shots||CINE.ended&&CINE.i>=CINE.shots.length)return;const s=CINE.shots[Math.min(CINE.i,CINE.shots.length-1)];if(!s)return;CINE.t+=dt;const k=Math.min(1,CINE.t/s.d);
+  if(s.tick)s.tick(k,dt);const c=s.cam(k);camera.position.set(...c.p);if(cam.shake>0){camera.position.x+=rf(-1,1)*cam.shake*.6;camera.position.y+=rf(-1,1)*cam.shake*.6;}camera.lookAt(...c.l);
+  if(CINE.t>=s.d&&!CINE.ended)cineNext();}
+function cineInput(){if(CINE.on)cineSkip();}
+// ---- the two endings, played out at the Ark ----
+function endingCine(woke){G.flags.ended=true;saveSoon();const A=W.ark||{y:3},H={x:0,y:A.y+5.4,z:211.4},P=()=>[player.x,player.y+1.4,player.z];
+  // over your shoulder toward the heart, you in the foreground
+  const shoulder=(back,up,lift)=>k=>{const p=P(),dx=H.x-p[0],dz=H.z-p[2],L=Math.hypot(dx,dz)||1,ux=dx/L,uz=dz/L;const d=back+1.6+k*.8;return {p:[p[0]-ux*d+uz*1.6,p[1]+up-.1,p[2]-uz*d-ux*1.6],l:[p[0]+ux*.8,p[1]-.2+k*lift*.03,p[2]+uz*.8]};};
+  const add=o=>{W.group.add(o);CINE.fx.push(o);return o;},orbit=(r,h,a0,a1)=>k=>({p:[H.x+Math.sin(lerp(a0,a1,k))*r,H.y+h,H.z-Math.cos(lerp(a0,a1,k))*r],l:[H.x,H.y,H.z]});
+  const shots=[];
+  if(woke){let beam,ring,far=[],lamp;
+    shots.push({d:6,cap:'The heart opens like an eye.',cam:orbit(9,1,-.5,.3),start:()=>{sfx('warp');},tick:k=>{if(A.eye){A.eye.scale.setScalar(1+k*1.4);A.eye.material.emissiveIntensity=1.2+k*3;}cam.shake=k*.15;}});
+    shots.push({d:6,cap:'Light pours out of it, straight up, through the ash and into the dark.',cam:k=>({p:[H.x+18,H.y-2+k*6,H.z-24],l:[H.x,H.y+k*40,H.z]}),
+      start:()=>{beam=add(new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1,24,1,true),new THREE.MeshBasicMaterial({color:0x8fffe0,transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})));
+        beam.position.set(H.x,H.y,H.z);ring=add(new THREE.Mesh(new THREE.RingGeometry(.9,1,96),new THREE.MeshBasicMaterial({color:0x8fffe0,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})));ring.rotation.x=-Math.PI/2;ring.position.set(H.x,A.y+.3,H.z);sfx('boom');cam.shake=.6;},
+      tick:k=>{const h=Math.min(600,k*k*900+2);beam.scale.set(1+Math.sin(performance.now()*.01)*.08,h,1+Math.sin(performance.now()*.01)*.08);beam.position.y=H.y+h/2;ring.scale.setScalar(2+k*160);ring.material.opacity=.8*(1-k);cam.shake=Math.max(0,.5-k*.5);}});
+    shots.push({d:7,cap:'Across Ashfall the lava stills, and cools to glowing glass.',cam:k=>({p:[lerp(-60,60,k),A.y+70+k*20,lerp(120,150,k)],l:[0,A.y,190]}),
+      tick:k=>{if(W.lavaMat){W.lavaMat.emissive.setRGB(lerp(1,.25,k),lerp(.48,1,k),lerp(.16,.9,k));W.lavaGlow=lerp(1.05,.9,k);}skyMat.uniforms.aurora.value=k;}});
+    shots.push({d:7,cap:'One by one, the spires of the Reach answer.',cam:k=>({p:[H.x,A.y+30,H.z-60],l:[H.x+lerp(-300,300,k),A.y+60,H.z+600]}),
+      start:()=>{for(let i=0;i<6;i++){const b=add(new THREE.Mesh(new THREE.CylinderGeometry(4,4,900,12,1,true),new THREE.MeshBasicMaterial({color:i%2?0x8fffe0:0xb98cff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})));const a=-1.1+i*.45;b.position.set(H.x+Math.sin(a)*900,450,H.z+Math.cos(a)*900);b.userData.at=i*.13;far.push(b);}},
+      tick:k=>{for(const b of far)b.material.opacity=clamp((k-b.userData.at)*3,0,.55);}});
+    shots.push({d:7,cap:'Somewhere past the Reach, something answers.',cam:k=>({p:[H.x,A.y+4,H.z-30],l:[H.x,A.y+80+k*60,H.z+300]}),
+      start:()=>{lamp=add(new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:0xffffff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false})));lamp.position.set(H.x+60,800,H.z+700);lamp.scale.setScalar(20);sfx('scan');},
+      tick:k=>{lamp.position.y=800-k*420;lamp.scale.setScalar(20+k*40);}});
+    shots.push({d:7,cap:'Oriel finds you at the heart. For a long time she says nothing. Then: “They\'re coming back, aren\'t they?”',cam:shoulder(3.4,.3,20)});
+  }else{let ash=true;
+    shots.push({d:6,cap:'You lay your hand on the heart, and tell it to sleep.',cam:orbit(8,.5,.4,-.2),tick:k=>{if(A.eye){A.eye.scale.setScalar(1-k*.85);A.eye.material.emissiveIntensity=1.2*(1-k);}if(A.heartGlow)A.heartGlow.material.opacity=.5*(1-k);cam.shake=k*.1;},start:()=>sfx('door')});
+    shots.push({d:7,cap:'The spires dim one by one. The song settles into a hum you will hear for the rest of your life.',cam:k=>({p:[lerp(40,-40,k),A.y+50,180+lerp(-60,-40,k)],l:[0,A.y+4,200]}),
+      tick:k=>{if(W.lavaMat)W.lavaGlow=lerp(1.05,.35,k);if(ash&&Math.random()<.9)for(let i=0;i<3;i++)FX.spawn(camera.position.x+rf(-30,30),camera.position.y+rf(-5,15),camera.position.z+rf(-10,40),rf(-.3,.3),-rf(.5,1.2),rf(-.3,.3),{life:rf(3,5),size:rf(.06,.14),c0:0xb0a8a8,c1:0x504848,drag:.2,grav:.2});}});
+    shots.push({d:7,cap:'Vash\'s ambitions end with him, in the ash. Oriel takes the keys to the Choir to keep.',cam:shoulder(3.8,.6,2)});
+    shots.push({d:8,cap:'You fly the Vesper out of the Reach with your name, your memories, and a door that someone, someday, will open again.',cam:k=>({p:[0,A.y+40-k*10,-150+k*20],l:[lerp(0,10,k),A.y+20+k*120,-264+k*30]}),
+      start:()=>{const v=add(new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:0x8fd8ff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false})));v.position.set(0,groundY(0,-264)+3,-264);v.scale.setScalar(10);v.userData.v=true;CINE.ship=v;sfx('warp');},
+      tick:k=>{const v=CINE.ship;if(v){v.position.y=groundY(0,-264)+3+k*k*260;v.position.z=-264+k*k*80;v.scale.setScalar(10+k*14);if(Math.random()<.8)FX.spawn(v.position.x,v.position.y-2,v.position.z,rf(-.5,.5),-rf(2,5),rf(-.5,.5),{life:rf(.6,1.2),size:rf(.3,.6),c0:0xbfe8ff,c1:0x204060,drag:.6,grav:0});}}});
+  }
+  cinePlay(shots,()=>endCard(woke));}
+function endCard(woke){const el=$('#cine'),c=el.querySelector('.card');
+  c.innerHTML=`<div><h1>TIDELOCK</h1><h2>THE LONG SIGNAL · ${woke?'AWAKENED':'SEALED'}</h2>
+    <p>${woke?'The spires sing across the Reach. Meridian wakes to an aurora that never fades, the drowned temple rises from Calder\'s lagoon, and every screen on Anchorage fills with the same impossible map.':'The Ark sleeps under the ash. Halcyon writes Ashfall off as a loss, the Choir keeps the keys, and the Reach goes on, never knowing how close it came.'}</p>
+    <div class="roll">THANK YOU FOR PLAYING</div><button type="button">CONTINUE EXPLORING</button></div>`;
+  c.classList.add('show');el.querySelector('.cap').classList.remove('show');el.querySelector('.skip').textContent='';const b=c.querySelector('button');b.onclick=()=>{cineClose();showBanner('THE END','You can keep exploring, finishing side jobs and contracts');saveSoon();};setTimeout(()=>{try{b.focus();}catch(e){}},300);}
 
 // ===== 64_map.js =====
 /* ================= MAP: a real top-down chart of each zone, and fast travel ================= */
@@ -6047,6 +6187,7 @@ addEventListener('keydown',e=>{
     else if(MOVE_KEYS.has(k)&&!UI.dlgLock){closeDialog();keys.add(k);e.preventDefault();}
     return;}
   if(INTRO.on){if(k==='Enter'||k==='NumpadEnter'||k==='Space')introSkip();e.preventDefault();return;}
+  if(CINE.on){if(k==='Enter'||k==='NumpadEnter'||k==='Space'||k==='Escape'){const b=document.querySelector('#cine .card.show button');if(b)b.click();else cineInput();}e.preventDefault();return;}
   keys.add(k);
   if(k==='KeyH'||k==='F1'){openHelp();e.preventDefault();return;}
   if(k==='Space'){inp.jumpReq=.15;e.preventDefault();}
@@ -6166,6 +6307,7 @@ function pollPad(dt){padDiag(dt);
     if(nav&&nav.y)titleInput(nav.y<0?'up':'down');if(ok)titleInput('ok');if(down(8))openHelp();return;}
   if(UI.dialog){padMenu('#dOpts',nav,ok);if(back&&!UI.dlgLock)closeDialog();return;}
   if(INTRO.on){if(ok)introSkip();return;}
+  if(CINE.on){if(ok){const b=document.querySelector('#cine .card.show button');if(b)b.click();else cineInput();}return;}
   if(player.dead)return;
   cam.yaw-=pad.rx*dt*2.8;cam.pitch=clamp(cam.pitch+pad.ry*dt*1.8,-.15,1.25);
   pad.fire=now[5]||now[7];if(down(5)||down(7))inp.firePressed=true;
@@ -6223,7 +6365,7 @@ async function beginPlay(){cam.dist=Math.max(cam.dist,2.6);initAudio();UI.title=
   $('#hint').style.opacity=1;$('#hint').textContent=isTouch?'Left side: move · Right side: look · Pinch: zoom':'WASD move · Shift sprint · Space jump · Drag to look · F or click: fire · E use · R swap · Q quick item · I pack · J journal · M map';setTimeout(()=>$('#hint').style.opacity=0,14000);}
 async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
   const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}
-  migrateGrounded();
+  migrateGrounded();migrateArk();for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k,true);}
   for(const id in G.q)if(G.q[id].st==='active'&&!(G.q[id].p||[]).length)initStage(id);beginPlay();showBanner(W.def.world||'',W.def.name);saveNow();}
 async function newGame(){startSting();G=freshState();computeStats();refreshAvatar();playing=false;await enterZone('twilight','crash',{quiet:true,kicker:'OSSERY B',text:'Somewhere on the twilight band…'});
   playing=true;startQuest('m01_wake',true);G.track='m01_wake';beginPlay();const f=$('#fade');f.style.transition='none';f.style.opacity=1;
@@ -6363,6 +6505,7 @@ function frame(){requestAnimationFrame(frame);const raw=clock.getDelta(),dt=Math
   try{drsTick(raw);}catch(e){tlFail(e,'resolution');DRS.on=false;}
   try{update(dt);updateHUD(dt);if(MAPSHOT.req)takeMapShot();}catch(e){tlFail(e,'update');}
   // the opening runs on its own clock (real time, so a slow device doesn't stretch it) and keeps going even if something else fails
+  if(CINE.on)try{cineTick(Math.min(raw,.1));}catch(e){tlFail(e,'cinematic');}
   if(INTRO.on)try{introTick(Math.min(raw,.25)*(window.__tlTimeScale||1));}catch(e){tlFail(e,'intro');if(INTRO.phase==='wake')INTRO.t=WAKE_END;else if(INTRO.phase==='pull')endIntro();}
   try{renderFrame(dt);}catch(e){tlFail(e,'render');if(POST.composer){POST.composer=null;try{boostAll(false);}catch(_){}}}}
 addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);resizePost();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();sizeMap();FX.resize&&FX.resize();if(UI.custom)setLookView();});
@@ -6381,7 +6524,7 @@ async function boot(){try{await loadAllModels();envInit();}catch(e){console.erro
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={build:TL_BUILD,groundY,killEnemy,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={build:TL_BUILD,groundY,killEnemy,damageEnemy,cinePlay:(...a)=>cinePlay(...a),endingCine:(...a)=>endingCine(...a),cineSkip:()=>cineSkip(),CINE:()=>CINE,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
