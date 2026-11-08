@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.43 · 2026-11-08";
+const TL_BUILD="1.44 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2206,8 +2206,8 @@ function collide(p,rad){const i=Math.floor(p.x/CELL),j=Math.floor(p.z/CELL);
   const lim=W.half-4;p.x=clamp(p.x,-lim,lim);p.z=clamp(p.z,-lim,lim);}
 const nearAny=(x,z,list)=>list.some(o=>Math.hypot(x-o.x,z-o.z)<o.r);
 function onPlat(p,x,z,m){const dx=x-p.x,dz=z-p.z;if(p.r!==undefined)return dx*dx+dz*dz<=(p.r+m)*(p.r+m);const c=Math.cos(p.rot||0),s=Math.sin(p.rot||0),lx=dx*c-dz*s,lz=dx*s+dz*c;return Math.abs(lx)<=p.hw+m&&Math.abs(lz)<=p.hd+m;}
-function support(x,z,y){let sy=groundY(x,z),plat=null;for(const p of W.plats){if(Math.abs(x-p.x)>p.reach||Math.abs(z-p.z)>p.reach)continue;if(p.top>y+STEP||p.top<=sy||p.solidOnly)continue;if(onPlat(p,x,z,.18)){sy=p.top;plat=p;}}return {y:sy,plat};}
-function platWalls(q,y,rad){for(const p of W.plats){if(Math.abs(q.x-p.x)>p.reach+1||Math.abs(q.z-p.z)>p.reach+1)continue;if(p.top<=y+STEP||p.bot>y+1.7)continue;
+function support(x,z,y){let sy=groundY(x,z),plat=null;for(const p of W.plats){if(p.nocollide)continue;if(Math.abs(x-p.x)>p.reach||Math.abs(z-p.z)>p.reach)continue;if(p.top>y+STEP||p.top<=sy||p.solidOnly)continue;if(onPlat(p,x,z,.18)){sy=p.top;plat=p;}}return {y:sy,plat};}
+function platWalls(q,y,rad){for(const p of W.plats){if(p.nocollide)continue;if(Math.abs(q.x-p.x)>p.reach+1||Math.abs(q.z-p.z)>p.reach+1)continue;if(p.top<=y+STEP||p.bot>y+1.7)continue;
   if(p.r!==undefined){const dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz),m=p.r+rad;if(d<m&&d>1e-4){q.x=p.x+dx/d*m;q.z=p.z+dz/d*m;}}
   else{const c=Math.cos(p.rot||0),s=Math.sin(p.rot||0),dx=q.x-p.x,dz=q.z-p.z;let lx=dx*c-dz*s,lz=dx*s+dz*c;const ex=p.hw+rad-Math.abs(lx),ez=p.hd+rad-Math.abs(lz);
     if(ex>0&&ez>0){if(ex<ez)lx+=Math.sign(lx||1)*ex;else lz+=Math.sign(lz||1)*ez;q.x=p.x+lx*c+lz*s;q.z=p.z-lx*s+lz*c;}}}}
@@ -5157,11 +5157,19 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
     // huts: reed walls with a real doorway facing the village, a door curtain, a thatched roof with a rim and finial; inside, a mat and a lamp
     for(const [x,z,r,name] of [[-17,14,3.2,'MARU'],[17,16,3.2,'ONA'],[0,33,3.6,'LONGHOUSE'],[-14,30,2.4,''],[16,32,2.4,'']]){
       const toC=Math.atan2(-x,12-z),gapH=Math.asin(Math.min(.9,.7/r)),g=grp(ctx,x,DY,z,toC);// local +z faces the village centre
-      P.add(g,wall,scaleUV(cyl(r,r,2.6,24,1,true,gapH,Math.PI*2-gapH*2),4,1),0,1.3,0);P.add(g,thatch,scaleUV(new THREE.ConeGeometry(r*1.38,2.5,24,1),5,1),0,3.85,0);
-      P.add(g,plank,tor(r*1.36,.08,6,32),0,2.62,0,Math.PI/2,0,0);P.add(g,MAT.bark,cyl(.05,.03,1,6),0,5.4,0);P.add(g,MAT.fabric,cyl(r*.75,r*.75,.03,24),0,.02,0);
-      for(const s of[-1,1])P.add(g,MAT.bark,cyl(.1,.1,2.4,8),s*Math.sin(gapH)*r,1.2,Math.cos(gapH)*r);P.add(g,MAT.bark,RB(Math.sin(gapH)*r*2+.3,.16,.16,.03,1),0,2.35,Math.cos(gapH)*r);
-      P.add(g,cloth,new THREE.PlaneGeometry(Math.sin(gapH)*r*1.6,.9),0,1.85,Math.cos(gapH)*r+.02);
-      ctx.light(x,DY+2.2,z,0xffc35a,.8,8,true);if(name){const d=decal(name,1.6,.4,{fg:'#3a2a1a'});d.position.set(0,2.75,Math.cos(gapH)*r+.12);g.add(d);}
+      // the low band of wall always stands; the rest (upper wall, roof, door frame, curtain, sign) is a shell that fades
+      // away in third person while you're inside, and stays solid in first person
+      P.add(g,wall,scaleUV(cyl(r,r,1,24,1,true,gapH,Math.PI*2-gapH*2),4,.4),0,.5,0);P.add(g,MAT.fabric,cyl(r*.75,r*.75,.03,24),0,.02,0);
+      const shell=new THREE.Group();g.add(shell);const mats=[],own=m=>{const c=m.clone();mats.push(c);return c;},sw=own(wall),st2=own(thatch),sp=own(plank),sb=own(MAT.bark),sc=own(cloth),add=(m,geo,px,py,pz,rx=0)=>{const o=new THREE.Mesh(geo,m);o.position.set(px,py,pz);o.rotation.x=rx;o.castShadow=true;shell.add(o);};
+      add(sw,scaleUV(cyl(r,r,1.6,24,1,true,gapH,Math.PI*2-gapH*2),4,.6),0,1.8,0);add(st2,scaleUV(new THREE.ConeGeometry(r*1.38,2.5,24,1),5,1),0,3.85,0);
+      add(sp,tor(r*1.36,.08,6,32),0,2.62,0,Math.PI/2);add(sb,cyl(.05,.03,1,6),0,5.4,0);
+      for(const s of[-1,1])add(sb,cyl(.1,.1,2.4,8),s*Math.sin(gapH)*r,1.2,Math.cos(gapH)*r);add(sb,RB(Math.sin(gapH)*r*2+.3,.16,.16,.03,1),0,2.35,Math.cos(gapH)*r);
+      add(sc,new THREE.PlaneGeometry(Math.sin(gapH)*r*1.6,.9),0,1.85,Math.cos(gapH)*r+.02);
+      ctx.light(x,DY+2.2,z,0xffc35a,.8,8,true);if(name){const d=decal(name,1.6,.4,{fg:'#3a2a1a'});d.position.set(0,2.75,Math.cos(gapH)*r+.12);shell.add(d);d.material.userData.alwaysT=true;mats.push(d.material);}
+      // the hut's shell stops the third-person camera from outside (not while you're inside with the shell faded)
+      const camShell=ctx.plat({x,z,r:r+.1,top:DY+5,bot:DY+.9,nocollide:true});
+      {let f=0;ctx.anim(dt=>{camShell.nocam=Math.hypot(player.x-x,player.z-z)<r+.3;const inside=Math.hypot(player.x-x,player.z-z)<r-.2&&player.y>DY-.5,target=inside&&!cam.fp&&!UI.title?1:0;if(target===f)return;
+        f+=(target-f)*Math.min(1,dt*6);if(Math.abs(target-f)<.01)f=target;for(const m of mats){const tr=f>.001||!!m.userData.alwaysT;if(m.transparent!==tr){m.transparent=tr;m.needsUpdate=true;}m.opacity=1-f;m.depthWrite=f<.3;}shell.visible=f<.99;});}
       // solid wall all round but the doorway
       const n=Math.ceil(Math.PI*2*r/.45);for(let i=0;i<n;i++){const a=i/n*Math.PI*2;if(Math.abs(wrapA(a))<gapH+.08)continue;const w=toW(x,z,toC,Math.sin(a)*r,Math.cos(a)*r);ctx.col(w.x,w.z,.32);}}
     for(const [x,z] of[[-6.6,5.4],[6.6,5.4],[-6.6,18.6],[6.6,18.6],[-21,10],[21,12],[-4.6,35],[4.6,35]])PF.lamp(ctx,x,z,0xffc35a);
