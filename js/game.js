@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.45 · 2026-11-08";
+const TL_BUILD="1.46 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2060,7 +2060,13 @@ function hurtPlayer(n,src){if(player.dead||modal()||UI.loading)return;n=n*(1-arm
 function hurtPlayerSoft(n){if(player.dead)return;G.hp-=n;if(G.hp<=0){G.hp=0;die();}}
 /* ---------- loot on the ground ---------- */
 const lootGeo=new THREE.OctahedronGeometry(.22,0);
-function dropLoot(x,z,L){if(!L||(!L.cr&&!L.items.length))return;const best=L.items.reduce((m,it)=>Math.max(m,it.r||0),0);const col=RAR[best].col;
+// can the player stand here? (not deep water, not a pit or other hazard, inside the world, not inside something solid)
+function standable(x,z){const lim=(W.half||100)-5;if(Math.abs(x)>lim||Math.abs(z)>lim)return false;const y=groundY(x,z)+.1;
+  for(const h of W.hazards){if((h.kind==='deep'||h.kind==='pit'||h.kind==='lava')&&h.test(x,z,y))return false;}if(W.water&&groundY(x,z)<W.water.y-1.5)return false;
+  const p={x,z};collide(p,.4);return Math.hypot(p.x-x,p.z-z)<.05;}
+function dropLoot(x,z,L){if(!L||(!L.cr&&!L.items.length))return;
+  // loot that lands out of reach (deep water, a crevasse, past the edge) moves toward the player until it's on solid ground
+  if(!W.interior&&!standable(x,z)){let ok=false;for(let k=1;k<=40&&!ok;k++){const t=k/40,nx=lerp(x,player.x,t),nz=lerp(z,player.z,t);if(standable(nx,nz)){x=nx;z=nz;ok=true;}}if(!ok){x=player.x;z=player.z;}}const best=L.items.reduce((m,it)=>Math.max(m,it.r||0),0);const col=RAR[best].col;
   const g=new THREE.Group();g.position.set(x,groundY(x,z)+.5,z);const m=new THREE.Mesh(lootGeo,new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:.8,flatShading:true}));g.add(m);g.add(glowSprite(col,best>=2?2.4:1.4,.8));
   if(best>=3){const beam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.2,8,10,1,true),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false}));beam.position.y=4;g.add(beam);}
   W.group.add(g);W.pickups.push({kind:'loot',g,x,z,L,life:180,temp:true});}
@@ -6375,7 +6381,7 @@ async function boot(){try{await loadAllModels();envInit();}catch(e){console.erro
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={build:TL_BUILD,groundY,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={build:TL_BUILD,groundY,killEnemy,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
