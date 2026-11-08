@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.41 · 2026-11-08";
+const TL_BUILD="1.42 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2194,7 +2194,10 @@ function groundY(x,z){
   const fx=clamp((x+W.half)/W.step,0,W.seg-.001),fz=clamp((z+W.half)/W.step,0,W.seg-.001);
   const i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,N=W.N,H=W.H;
   const a=H[j*N+i],b=H[j*N+i+1],c=H[(j+1)*N+i],d=H[(j+1)*N+i+1];
-  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+  const h=a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+  // raised decks (a stilt village) count as the ground where they stand, so people and props sit on the planks
+  if(W.decks)for(const k of W.decks){if(k.y>h&&onPlat(k,x,z,0))return k.y;}
+  return h;
 }
 function addCol(x,z,r){const c={x,z,r};for(let i=Math.floor((x-r)/CELL);i<=Math.floor((x+r)/CELL);i++)for(let j=Math.floor((z-r)/CELL);j<=Math.floor((z+r)/CELL);j++){const k=i+','+j;if(!W.grid.has(k))W.grid.set(k,[]);W.grid.get(k).push(c);}return c;}
 function collide(p,rad){const i=Math.floor(p.x/CELL),j=Math.floor(p.z/CELL);
@@ -2271,7 +2274,7 @@ function disposeZone(){
   if(W.group){scene.remove(W.group);const sks=new Set();W.group.traverse(o=>{if(o.isSkinnedMesh&&o.skeleton)sks.add(o.skeleton);if(o.geometry)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{for(const k in m){const v=m[k];if(v&&v.isTexture)v.dispose();}m.dispose();});}});for(const sk of sks)sk.dispose();}
   for(const e of W.enemies){if(e.el)e.el.remove();if(e.m&&e.m.tele)scene.remove(e.m.tele);}
   for(const n of W.npcs){if(n.el)n.el.remove();if(n.bub)n.bub.remove();}
-  W.arch=null;W.cullChunks=[];W.grid=new Map();W.plats=[];W.hazards=[];W.inter=[];W.pickups=[];W.npcs=[];W.enemies=[];W.anims=[];W.travel=[];W.pois=[];W.keepout=[];W.safe=[];W.qbosses=[];W.useIds=[];W.bossIds=[];W.water=null;W.H=null;W.group=null;W.flares&&(W.flares.length=0);
+  W.arch=null;W.decks=null;W.cullChunks=[];W.grid=new Map();W.plats=[];W.hazards=[];W.inter=[];W.pickups=[];W.npcs=[];W.enemies=[];W.anims=[];W.travel=[];W.pois=[];W.keepout=[];W.safe=[];W.qbosses=[];W.useIds=[];W.bossIds=[];W.water=null;W.H=null;W.group=null;W.flares&&(W.flares.length=0);
   clearProjectiles&&clearProjectiles();
 }
 // Loading can never leave the player stuck on the loading screen: each stage is named, a failure is reported on screen with
@@ -5118,18 +5121,45 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
   build(ctx){const P=ctx.P,st=ctx.state();
     vesperPad(ctx,0,-44,Math.PI*.1);ctx.safe(0,-10,40);
     /* ---- Reedwater, on stilts over the lagoon ---- */
-    ctx.poi('reedwater',0,10,'Reedwater',{r:30,ft:true,icon:'town'});const DY=1.9,deck=std(TEX.reed,{color:0xc8a878,roughness:.9}),thatch=std(TEX.reed,{color:0xb89a58,roughness:.95,side:THREE.DoubleSide});
+    ctx.poi('reedwater',0,10,'Reedwater',{r:30,ft:true,icon:'town'});const DY=1.9,deck=std(TEX.reed,{color:0xc8a878,roughness:.9}),plank=std(TEX.reed,{color:0x8a6a48,roughness:.95}),
+      thatch=std(TEX.reed,{color:0xb89a58,roughness:.95,side:THREE.DoubleSide}),wall=std(TEX.reed,{color:0xa88a5a,roughness:.95,side:THREE.DoubleSide}),cloth=std(TEX.fabric,{color:0x2a8a8a,roughness:.9,side:THREE.DoubleSide});
     const decks=[[0,12,14,14],[-17,14,9,9],[17,16,9,9],[0,31,10,9],[-14,30,7,7],[16,32,7,7]],walks=[[0,-10,0,5,3],[-7,13,-12.5,13,2.4],[7,14,12.5,15,2.4],[0,19,0,26.5,2.4],[-5,31,-10.5,30,2],[5,31,12.5,32,2],[-17,18.5,-15,26.5,2],[17,20.5,16,28.5,2]];
-    for(const [x,z,w,d] of decks){slab(ctx,x,z,w,d,DY,deck);for(const sx of[-1,1])for(const sz of[-1,1])P.add(ctx.g,MAT.bark,cyl(.18,.24,DY+3.6,8),x+sx*(w/2-.4),DY-2.2,z+sz*(d/2-.4));}
-    for(const [ax,az,bx,bz,w] of walks){const L=Math.hypot(bx-ax,bz-az),ry=Math.atan2(bx-ax,bz-az);const mx=(ax+bx)/2,mz=(az+bz)/2;slab(ctx,mx,mz,w,L,DY-.05,deck,ry,.25);for(let t=0;t<=L;t+=3){const px=ax+(bx-ax)*t/L,pz=az+(bz-az)*t/L;for(const s of[-1,1])P.add(ctx.g,MAT.bark,cyl(.1,.1,1,6),px+Math.cos(ry)*s*w/2,DY+.5,pz-Math.sin(ry)*s*w/2);}}
-    // huts: reed walls under a conical thatch roof
-    for(const [x,z,r,name] of [[-17,14,3.2,'MARU'],[17,16,3.2,'ONA'],[0,33,3.6,'LONGHOUSE'],[-14,30,2.4,''],[16,32,2.4,'']]){const g=grp(ctx,x,DY,z,0);P.add(g,thatch,scaleUV(cyl(r,r,2.6,18,1,true,.5,5.6),4,1),0,1.3,0);P.add(g,thatch,scaleUV(new THREE.ConeGeometry(r*1.35,2.4,18,1,true),5,1),0,3.8,0);
-      P.add(g,MAT.bark,cyl(.12,.12,3,8),0,1.5,0);ctx.light(x,DY+2.2,z,0xffc35a,.8,8,true);if(name){const d=decal(name,1.6,.4,{fg:'#3a2a1a'});d.position.set(Math.sin(.5)*r*1.01,2.4,Math.cos(.5)*r*1.01);d.rotation.y=.5;g.add(d);}
-      for(let i=0;i<14;i++){const a=i/14*6.28;if(a>.2&&a<.8)continue;ctx.col(x+Math.cos(a)*r,z+Math.sin(a)*r,.45);}}
-    for(let i=0;i<10;i++){const a=i/10*6.28;PF.lamp(ctx,Math.cos(a)*22,12+Math.sin(a)*22,0xffc35a);}
-    campfire(ctx,4,8);PF.crates(ctx,-4,16,3,2);ctx.bench(-4,6,0);ctx.board(4,18,Math.PI,'calder','Reedwater Hunts');ctx.locker(-2,34,Math.PI);restSpot(ctx,2,34,'Rest in the longhouse');ctx.heal(-17,16,'Ask for a healer\'s poultice');
-    ctx.npc('maru',-15,12,Math.PI/2);ctx.npc('tavi',-4,-2,Math.PI,{type:'route',pts:[[-4,-2],[0,4],[6,10],[-2,14]],pause:[3,7]});ctx.npc('ona',15,14,-Math.PI/2);ctx.npc('kesh',2,28,Math.PI);ctx.npc('lumo',6,14,Math.PI);
-    spawnCrowd(0,12,8,6,{barks:['Fair tide today.','The gliders are hungry this season.','Mind the planks, they bite.','Elder Maru says the temple is waking.','Fish again tonight. Always fish.']});
+    const ends=[];for(const [ax,az,bx,bz] of walks)ends.push([ax,az],[bx,bz]);const nearEnd=(x,z)=>ends.some(([ex,ez])=>Math.hypot(x-ex,z-ez)<2.2);
+    // the decks are ground: register them first, so everything placed or standing on them sits on the planks
+    W.decks=[];for(const [x,z,w,d] of decks)W.decks.push({x,z,hw:w/2,hd:d/2,rot:0,y:DY});
+    for(const [ax,az,bx,bz,w] of walks){const L=Math.hypot(bx-ax,bz-az),ry=Math.atan2(bx-ax,bz-az);W.decks.push({x:(ax+bx)/2,z:(az+bz)/2,hw:w/2,hd:L/2+.3,rot:ry,y:DY-.05});}
+    const post=(x,z,r,top)=>{const sea=caHeight(x,z),h=top-sea+.4;P.add(ctx.g,MAT.bark,cyl(r,r*1.25,h,8),x,sea+h/2-.4,z);};
+    for(const [x,z,w,d] of decks){slab(ctx,x,z,w,d,DY,deck);
+      for(let k=-w/2+.5;k<w/2;k+=1)P.add(ctx.g,plank,new THREE.BoxGeometry(.04,.02,d-.2),x+k,DY+.005,z);// plank seams
+      for(const s of[-1,1]){P.add(ctx.g,plank,RB(w+.2,.22,.2,.03,1),x,DY-.12,z+s*d/2);P.add(ctx.g,plank,RB(.2,.22,d+.2,.03,1),x+s*w/2,DY-.12,z);}// edge beams
+      for(const sx of[-1,0,1])for(const sz of[-1,0,1])post(x+sx*(w/2-.3),z+sz*(d/2-.3),.2,DY);
+      for(const sx of[-1,1]){const a=new THREE.Vector3(x+sx*(w/2-.3),caHeight(x,z)+.6,z-d/2+.3),b2=new THREE.Vector3(x+sx*(w/2-.3),DY-.3,z+d/2-.3);P.beam(ctx.g,MAT.bark,a,b2,.07,6);}// bracing
+      // a rail round the edge, open where walkways meet it
+      const rail=[];for(let t=0;t<=1.0001;t+=1/Math.round(w/1.6))rail.push([x-w/2+t*w,z-d/2],[x-w/2+t*w,z+d/2]);for(let t=0;t<=1.0001;t+=1/Math.round(d/1.6))rail.push([x-w/2,z-d/2+t*d],[x+w/2,z-d/2+t*d]);
+      for(const [px,pz] of rail)if(!nearEnd(px,pz))P.add(ctx.g,MAT.bark,cyl(.07,.07,1,6),px,DY+.5,pz);
+      for(const [ax2,az2,bx2,bz2] of[[x-w/2,z-d/2,x+w/2,z-d/2],[x-w/2,z+d/2,x+w/2,z+d/2],[x-w/2,z-d/2,x-w/2,z+d/2],[x+w/2,z-d/2,x+w/2,z+d/2]]){
+        const L=Math.hypot(bx2-ax2,bz2-az2),n=Math.ceil(L/.5);let run=null;for(let k=0;k<=n;k++){const px=lerp(ax2,bx2,k/n),pz=lerp(az2,bz2,k/n),open=nearEnd(px,pz);
+          if(!open&&!run)run=[px,pz];if((open||k===n)&&run){const ex=open?lerp(ax2,bx2,(k-1)/n):px,ez=open?lerp(az2,bz2,(k-1)/n):pz;if(Math.hypot(ex-run[0],ez-run[1])>.3){P.beam(ctx.g,MAT.bark,new THREE.Vector3(run[0],DY+.95,run[1]),new THREE.Vector3(ex,DY+.95,ez),.05,6);
+            const mx=(run[0]+ex)/2,mz=(run[1]+ez)/2,hl=Math.hypot(ex-run[0],ez-run[1])/2,ax3=Math.abs(ex-run[0])>Math.abs(ez-run[1]);ctx.plat({x:mx,z:mz,hw:ax3?hl:.08,hd:ax3?.08:hl,rot:0,top:DY+1,bot:DY-.2});}run=null;}}}}
+    for(const [ax,az,bx,bz,w] of walks){const L=Math.hypot(bx-ax,bz-az),ry=Math.atan2(bx-ax,bz-az);const mx=(ax+bx)/2,mz=(az+bz)/2;slab(ctx,mx,mz,w,L,DY-.05,deck,ry,.25);
+      for(let t=0;t<=L;t+=2.5){const px=ax+(bx-ax)*t/L,pz=az+(bz-az)*t/L;for(const s of[-1,1]){const qx=px+Math.cos(ry)*s*w/2,qz=pz-Math.sin(ry)*s*w/2;P.add(ctx.g,MAT.bark,cyl(.07,.07,1,6),qx,DY+.45,qz);post(qx,qz,.13,DY-.1);}}
+      for(const s of[-1,1]){const o=new THREE.Vector3(Math.cos(ry)*s*w/2,0,-Math.sin(ry)*s*w/2);P.beam(ctx.g,MAT.rope||MAT.bark,new THREE.Vector3(ax,DY+.9,az).add(o),new THREE.Vector3(bx,DY+.9,bz).add(o),.03,5);
+        const c=new THREE.Vector3(mx,0,mz).add(o);ctx.plat({x:c.x,z:c.z,hw:.08,hd:L/2-.6,rot:ry,top:DY+1,bot:DY-.2});}}
+    // huts: reed walls with a real doorway facing the village, a door curtain, a thatched roof with a rim and finial; inside, a mat and a lamp
+    for(const [x,z,r,name] of [[-17,14,3.2,'MARU'],[17,16,3.2,'ONA'],[0,33,3.6,'LONGHOUSE'],[-14,30,2.4,''],[16,32,2.4,'']]){
+      const toC=Math.atan2(-x,12-z),gapH=Math.asin(Math.min(.9,.7/r)),g=grp(ctx,x,DY,z,toC);// local +z faces the village centre
+      P.add(g,wall,scaleUV(cyl(r,r,2.6,24,1,true,gapH,Math.PI*2-gapH*2),4,1),0,1.3,0);P.add(g,thatch,scaleUV(new THREE.ConeGeometry(r*1.38,2.5,24,1),5,1),0,3.85,0);
+      P.add(g,plank,tor(r*1.36,.08,6,32),0,2.62,0,Math.PI/2,0,0);P.add(g,MAT.bark,cyl(.05,.03,1,6),0,5.4,0);P.add(g,MAT.fabric,cyl(r*.75,r*.75,.03,24),0,.02,0);
+      for(const s of[-1,1])P.add(g,MAT.bark,cyl(.1,.1,2.4,8),s*Math.sin(gapH)*r,1.2,Math.cos(gapH)*r);P.add(g,MAT.bark,RB(Math.sin(gapH)*r*2+.3,.16,.16,.03,1),0,2.35,Math.cos(gapH)*r);
+      P.add(g,cloth,new THREE.PlaneGeometry(Math.sin(gapH)*r*1.6,.9),0,1.85,Math.cos(gapH)*r+.02);
+      ctx.light(x,DY+2.2,z,0xffc35a,.8,8,true);if(name){const d=decal(name,1.6,.4,{fg:'#3a2a1a'});d.position.set(0,2.75,Math.cos(gapH)*r+.12);g.add(d);}
+      // solid wall all round but the doorway
+      const n=Math.ceil(Math.PI*2*r/.45);for(let i=0;i<n;i++){const a=i/n*Math.PI*2;if(Math.abs(wrapA(a))<gapH+.08)continue;const w=toW(x,z,toC,Math.sin(a)*r,Math.cos(a)*r);ctx.col(w.x,w.z,.32);}}
+    for(const [x,z] of[[-6.6,5.4],[6.6,5.4],[-6.6,18.6],[6.6,18.6],[-21,10],[21,12],[-4.6,35],[4.6,35]])PF.lamp(ctx,x,z,0xffc35a);
+    {const y=DY;P.add(ctx.g,MAT.basalt,cyl(1.1,1.2,.2,14),4,y+.1,8);for(let i=0;i<10;i++){const a=i/10*6.28;P.add(ctx.g,MAT.rock,rockGeo(0,i+3),4+Math.cos(a)*1,y+.25,8+Math.sin(a)*1,0,a,0,.22,.18,.22);}}
+    campfire(ctx,4,8);PF.crates(ctx,-4.5,16.5,3,2);ctx.bench(-4,6.5,0);ctx.board(4,18,Math.PI,'calder','Reedwater Hunts');ctx.locker(-1.8,34.4,Math.PI);restSpot(ctx,1.8,34,'Rest in the longhouse');ctx.heal(-17.6,14.6,'Ask for a healer\'s poultice');
+    ctx.npc('maru',-13.4,13.6,Math.PI/2);ctx.npc('tavi',0,-6,Math.PI,{type:'route',pts:[[0,-6],[0,4],[4,10],[-3,14],[0,22]],pause:[3,7]});ctx.npc('ona',13.5,15.6,-Math.PI/2);ctx.npc('kesh',3,28.5,Math.PI);ctx.npc('lumo',5.5,14,Math.PI);
+    spawnCrowd(0,12,4.5,6,{pts:[[-4,9],[4,12],[0,16],[-3,14],[3,6]],barks:['Fair tide today.','The gliders are hungry this season.','Mind the planks, they bite.','Elder Maru says the temple is waking.','Fish again tonight. Always fish.']});
     /* ---- fishing nets out on the stones ---- */
     for(const [id,x,z,path] of [['net1',-46,30,[[-26,22],[-31,24],[-36,26.5],[-41,28.5]]],['net2',-62,-8,[[-24,-14],[-30,-12],[-36,-11],[-42,-10],[-48,-9],[-54,-8.6]]],['net3',52,44,[[24,36],[30,38],[36,40],[42,41],[47,43]]]]){
       stones(ctx,path.map(([px,pz])=>[px,pz,.9,1.1]),{abs:true,water:true,mat:MAT.basalt});stones(ctx,[[x,z,.9,1.8]],{abs:true,water:true,mat:MAT.basalt});
