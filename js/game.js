@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.42 · 2026-11-08";
+const TL_BUILD="1.43 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2684,7 +2684,7 @@ function patriotShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.vesper;
     for(const sd of[-1,1]){const rail=new THREE.Mesh(RB(.12,.5,len,.03,1),MAT.metal);rail.position.set(sd*Math.min(hw,4.2)/2,.15,-len/2);rg.add(rail);}
     for(let i=1;i<6;i++){const st=new THREE.Mesh(RB(Math.min(hw,4.2)*.9,.05,.12,.02,1),MAT.hazard);st.position.set(0,.02,-len*i/6);rg.add(st);}
     // light spilling out of the open hatch
-    const glow=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(hw,4.2),3),new THREE.MeshBasicMaterial({color:crashed?0xff5a3a:0xffd8a0,transparent:true,opacity:crashed?.5:.85}));glow.rotation.x=Math.PI/2;glow.position.set(top.x,hingeY+.02,hingeZ-1.5);g.add(glow);
+    const glow=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(hw,4.2),3),new THREE.MeshBasicMaterial({color:crashed?0xff5a3a:0xffd8a0,transparent:true,opacity:crashed?.5:.3}));glow.rotation.x=Math.PI/2;glow.position.set(top.x,hingeY+.02,hingeZ-1.5);g.add(glow);
     ctx.light(...(()=>{const w=g.localToWorld(new THREE.Vector3(top.x,hingeY-1.4,hingeZ-2));return [w.x,w.y,w.z];})(),crashed?0xff6a3a:0xffc890,crashed?1:1.4,14);
     const foot=g.localToWorld(new THREE.Vector3(top.x,0,hingeZ-Math.cos(ang)*len-1.2));rampFoot={x:foot.x,z:foot.z};}
   if(!crashed){// four landing struts with pads
@@ -3704,7 +3704,7 @@ Q({id:'m13_reedwater',type:'main',act:3,auto:true,req:()=>qDone('m12_choir'),tit
   reward:{xp:1000,cr:300,items:[{gen:'weapon',lvl:17,r:2}]}});
 Q({id:'m14_drowned',type:'main',act:3,auto:true,req:()=>qDone('m13_reedwater'),title:'The Drowned Spire',zone:'calder',summary:'Cross the Shoal Path to the drowned temple, light its three pylons and open the second spire.',
   stages:[{text:'Cross the Shoal Path to the temple',obj:[{k:'go',zone:'calder',x:90,z:250,r:22,label:'Reach the drowned temple'}]},
-    {text:'Light the three resonance pylons',obj:[{k:'use',id:'pylon1',label:'Light the west pylon',zone:'calder',x:62,z:262},{k:'use',id:'pylon2',label:'Light the east pylon',zone:'calder',x:118,z:262},{k:'use',id:'pylon3',label:'Light the north pylon',zone:'calder',x:90,z:292}]},
+    {text:'Light the three resonance pylons',obj:[{k:'use',id:'pylon1',label:'Light the west pylon',zone:'calder',x:62,z:262},{k:'use',id:'pylon2',label:'Light the east pylon',zone:'calder',x:118,z:262},{k:'use',id:'pylon3',label:'Light the north pylon',zone:'calder',x:90,z:285}]},
     {text:'Defeat the Glass Leviathan',obj:[{k:'killId',id:'leviathan',label:'Defeat the Glass Leviathan',zone:'calder',at:{x:90,z:265}}]},
     {text:'Open the drowned spire',obj:[{k:'use',id:'spire2',label:'Touch the drowned spire',zone:'calder',x:90,z:272}]},
     {text:'Return to Reedwater',obj:[{k:'talk',npc:'maru',label:'Tell Elder Maru what happened',opt:'★ The second spire is open.',text:'A Halcyon ship came while you were inside. Men in gray armor. They took the Choir woman, Oriel, who arrived this morning looking for you. They said to tell you: “Ashfall. Come alone.” I\'m sorry. I have marked the world on your star map.'}]}],
@@ -5102,21 +5102,30 @@ function stTraffic(ctx){const ships=[],navR=new THREE.MeshBasicMaterial({color:0
 // ===== 54_z_calder.js =====
 /* ================= ZONE: Calder (a lagoon world) ================= */
 const CA_ISLES=[[0,-34,34,3.2],[90,262,30,2.6],[-160,120,46,.9],[130,90,32,3],[-120,206,40,3.4],[-30,-210,22,2.2],[-200,-40,10,2],[210,20,10,2.2],[-150,232,8,2],[200,-170,26,2.6],[-240,-180,24,2.8],[230,220,20,2.4]];
-const CA_BARS=[[0,-6,-130,100,7],[30,-20,130,80,6],[-150,150,-120,190,6],[-30,-60,-30,-190,6],[130,90,200,-150,5]];
+const CA_BARS=[[0,-6,-130,100,7],[30,-20,130,80,6],[-150,150,-120,190,6],[-30,-60,-30,-190,6],[130,90,200,-150,5],
+  // wading routes to every island and site: the nets, the shrines, the far isles, and the Shoal Path out to the drowned temple
+  [-18,-12,-62,-8,4],[16,28,52,44,4],[-24,-30,-194,-40,5],[150,20,206,20,5],[-30,-205,-222,-183,5],[140,100,224,212,5],[118,100,62,140,5],[60,140,86,234,6]];
 function caHeight(x,z){let h=-3.4+(fbm(x*.02,z*.02)-.5)*1.6;
   for(const [cx,cz,r,ih] of CA_ISLES){const d=Math.hypot(x-cx,z-cz)/r;if(d<1.3)h=Math.max(h,-3.4+(ih+3.4)*(1-smooth(.55,1.25,d))+(fbm(x*.06,z*.06)-.5)*1.2*(1-smooth(.4,1,d)));}
   for(const [ax,az,bx,bz,w] of CA_BARS){const L=Math.hypot(bx-ax,bz-az),ux=(bx-ax)/L,uz=(bz-az)/L,t=clamp((x-ax)*ux+(z-az)*uz,0,L),px=ax+ux*t,pz=az+uz*t,d=Math.hypot(x-px,z-pz);if(d<w*1.6)h=Math.max(h,-.55-smooth(w*.5,w*1.6,d)*2.8+Math.sin(t*.2)*.15);}
   let edge=Math.max(0,Math.max(Math.abs(x),Math.abs(z))-262)*.6;return h+edge;}
-const CAC={sand:new THREE.Color(0xd8c8a0),grass:new THREE.Color(0x3a8a5a),moss:new THREE.Color(0x2a6a5a),deep:new THREE.Color(0x1a4a5a),mud:new THREE.Color(0x6a5a3a),rock:new THREE.Color(0x5a6a6a)};
+const CAC={sand:new THREE.Color(0xd2bf92),wet:new THREE.Color(0x9a8a62),grass:new THREE.Color(0x4f7a40),lush:new THREE.Color(0x3a6a34),moss:new THREE.Color(0x2e5236),dry:new THREE.Color(0x8a8a58),deep:new THREE.Color(0x1a4a5a),mud:new THREE.Color(0x6a5a3a),rock:new THREE.Color(0x5e6460)};
+let CA_NET=null;
+function caNetMat(){if(CA_NET)return CA_NET;const c=mkCanvas(256),g=c.getContext('2d');g.clearRect(0,0,256,256);g.strokeStyle='rgba(214,200,160,.95)';g.lineWidth=3;
+  for(let i=-256;i<512;i+=22){g.beginPath();g.moveTo(i,0);g.lineTo(i+256,256);g.stroke();g.beginPath();g.moveTo(i+256,0);g.lineTo(i,256);g.stroke();}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,1.4);return CA_NET=new THREE.MeshStandardMaterial({map:t,transparent:true,alphaTest:.3,side:THREE.DoubleSide,roughness:.9});}
 ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A warm lagoon moon of reed islands, stilt villages and a temple half-drowned in the tide.',kind:'outdoor',size:600,seed:53,lvl:[15,20],
-  detail:'ground',water:{y:0,color:0x2a8a8a,op:.78,emissive:0x0a3a3a},
-  sky:{night:0x0a2a4a,dusk:0x4a8ab0,sun:0xfff4d0,horizon:0x8ac8c8,stars:.3,sunElev:22,sunAz:-.6,fog:[0x6aa8b0,70,420],hemi:[0xb8f0e8,0x2a4a3a,.85],sunColor:0xfff0d8,sunInt:1.4,
+  bloom:{threshold:1.15,strength:.35},detail:'ground',water:{y:0,color:0x2a8a8a,op:.78,emissive:0x0a3a3a},
+  sky:{night:0x0a2a4a,dusk:0x4a8ab0,sun:0xfff4d0,horizon:0x8ac8c8,stars:.3,sunElev:22,sunAz:-.6,fog:[0x7ab0b8,90,460],hemi:[0xc8e8e0,0x3a4a32,.7],sunColor:0xffe8cc,sunInt:1.05,
     bodies:[{type:'giant',dir:[600,300,-900],r:200,tilt:.2,color:0x9ad8ff},{type:'moon',dir:[-700,420,-400],r:22,color:0xd8d0c0}]},
   tempAt:()=>26,height:caHeight,
-  color:(x,z,y,sl,c)=>{const n=fbm(x*.05,z*.05+3);if(y<-.4)c.copy(CAC.deep).lerp(CAC.mud,clamp((y+3)/2.6,0,1));else{c.copy(CAC.sand).lerp(CAC.grass,smooth(.2,1.2,y)*(.6+n*.5));c.lerp(CAC.moss,clamp(n*1.5-.5,0,1)*smooth(.5,1.5,y));c.lerp(CAC.rock,sl*.8);}const g=.9+n*.2;c.r*=g;c.g*=g;c.b*=g;},
+  color:(x,z,y,sl,c)=>{const n=fbm(x*.05,z*.05+3),m=fbm(x*.13+7,z*.13);if(y<-.4)c.copy(CAC.deep).lerp(CAC.mud,clamp((y+3)/2.6,0,1));
+    else{// wet sand at the waterline, a dry beach, then grass in patches of lush, mossy and sunburnt
+      c.copy(CAC.wet).lerp(CAC.sand,smooth(-.3,.15,y));const g=smooth(.45,1.3,y);c.lerp(CAC.grass,g);c.lerp(CAC.lush,g*clamp(m*1.6-.4,0,1));c.lerp(CAC.dry,g*clamp(.5-n*1.4,0,.6));c.lerp(CAC.moss,clamp(n*1.5-.6,0,1)*smooth(.8,1.8,y));c.lerp(CAC.rock,sl*.85);}
+    const g=.9+n*.2;c.r*=g;c.g*=g;c.b*=g;},
   keep:[{x:0,z:-34,r:26},{x:0,z:14,r:24},{x:90,z:262,r:22}],
-  flora:[{type:'fern',count:160,where:(x,z,y)=>y>.8&&fbm(x*.03,z*.03)>.4},{type:'reeds',count:2400,where:(x,z,y)=>y>-.9&&y<.9,hsl:[.2,.32,.4,.6,.35,.55],accent:.08},
-    {type:'lily',count:300},{type:'rock',count:120,where:(x,z,y)=>y>-1,hsl:[.45,.55,.05,.15,.4,.6]},{type:'mushroom',count:30,where:(x,z,y)=>y>1.5&&Math.hypot(x+120,z-206)<40,palette:[0xffc35a,0xff8a5a,0xd36cf0]}],
+  flora:[{type:'fern',count:460,where:(x,z,y)=>y>.7&&fbm(x*.03,z*.03)>.32},{type:'reeds',count:2400,where:(x,z,y)=>y>-.9&&y<.9,hsl:[.2,.32,.4,.6,.35,.55],accent:.08},
+    {type:'lily',count:300},{type:'rock',count:260,where:(x,z,y)=>y>-1,hsl:[.08,.14,.05,.12,.38,.55]},{type:'mushroom',count:30,where:(x,z,y)=>y>1.5&&Math.hypot(x+120,z-206)<40,palette:[0xffc35a,0xff8a5a,0xd36cf0]}],
   entries:{ship:{x:6,z:-30,face:0},town:{x:0,z:-8,face:0}},spawn:{x:6,z:-30,face:0},
   build(ctx){const P=ctx.P,st=ctx.state();
     vesperPad(ctx,0,-44,Math.PI*.1);ctx.safe(0,-10,40);
@@ -5163,7 +5172,7 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
     /* ---- fishing nets out on the stones ---- */
     for(const [id,x,z,path] of [['net1',-46,30,[[-26,22],[-31,24],[-36,26.5],[-41,28.5]]],['net2',-62,-8,[[-24,-14],[-30,-12],[-36,-11],[-42,-10],[-48,-9],[-54,-8.6]]],['net3',52,44,[[24,36],[30,38],[36,40],[42,41],[47,43]]]]){
       stones(ctx,path.map(([px,pz])=>[px,pz,.9,1.1]),{abs:true,water:true,mat:MAT.basalt});stones(ctx,[[x,z,.9,1.8]],{abs:true,water:true,mat:MAT.basalt});
-      const g=grp(ctx,x,.9,z,rr(0,3));for(const s of[-1,1])P.add(g,MAT.bark,cyl(.08,.08,2.4,6),s*1.2,1.2,0);P.add(g,MAT.fabric,new THREE.PlaneGeometry(2.4,1.6,4,3),0,1.3,0);qUse(ctx,id,x,z,'Mend the net',{y:.9});}
+      const g=grp(ctx,x,.9,z,rr(0,3));for(const s of[-1,1])P.add(g,MAT.bark,cyl(.08,.08,2.4,6),s*1.2,1.2,0);P.add(g,caNetMat(),new THREE.PlaneGeometry(2.4,1.6,4,3),0,1.3,0);P.add(g,MAT.bark,cyl(.03,.03,2.5,5),0,2.12,0,0,0,Math.PI/2);for(let i=0;i<5;i++)P.add(g,MAT.amber,sph(.05,6,4),-1+i*.5,.5,0);qUse(ctx,id,x,z,'Mend the net',{y:.9});}
     /* ---- reed beds and the Old One ---- */
     ctx.poi('reeds',-160,120,'Western Reed Beds',{r:46});ctx.enemies('stalker',-160,120,36,6,16);qBoss(ctx,'s_alpha','stalker','stalkeralpha',-170,130,19,{name:'The Old One',scale:1.8,hpMul:5,elite:true});ctx.nodes('resin',-160,120,40,8);
     ctx.chest('ca_reeds',-180,100,{});ctx.glyph('g_ca1',-140,150);ctx.log('ca_hunter',-150,96,'A hunter\'s tally stick','Notches for every stalker taken. The last six are crossed out, and someone has carved an eye.');
@@ -5178,13 +5187,14 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
     ctx.nodes('pearl',0,60,80,10);ctx.nodes('pearl',-100,-80,60,6);ctx.nodes('pearl',120,160,60,6);
     /* ---- the four shrines ---- */
     for(const [id,x,z,path] of [['shrine1',-200,-40,[]],['shrine2',210,20,[]],['shrine3',-30,-220,[]],['shrine4',-150,232,[[-150,218,1.4],[-146,222,2.4],[-149,226,3.4]]]]){
-      const y=groundY(x,z),g=grp(ctx,x,y,z,rr(0,3));P.add(g,MAT.runes,lathe([[1.2,0],[1,1],[.6,1.6],[.7,2.4],[0,2.6]],8),0,0,0);const fl=new THREE.Mesh(sph(.35,16,12),MAT.amber);fl.position.y=2.9;g.add(fl);const gl=glowAt(ctx,g,0,2.9,0,0xffc35a,4,.8);
+      const y=groundY(x,z),g=grp(ctx,x,y,z,rr(0,3));P.add(g,MAT.basalt,cyl(2.6,2.9,.35,8),0,.05,0);P.add(g,MAT.basalt,cyl(1.9,2.1,.3,8),0,.35,0);P.add(g,MAT.runes,lathe([[1.2,0],[1,1],[.6,1.6],[.7,2.4],[0,2.6]],8),0,.5,0);
+      for(let k=0;k<4;k++){const a=k*Math.PI/2+Math.PI/4;P.add(g,MAT.runes,scaleUV(cyl(.22,.32,2.2,5),1,2),Math.cos(a)*3.6,1,Math.sin(a)*3.6,rr(-.08,.08),a,rr(-.08,.08));}const fl=new THREE.Mesh(sph(.35,16,12),MAT.amber);fl.position.y=3.4;g.add(fl);const gl=glowAt(ctx,g,0,3.4,0,0xffc35a,4,.8);
       ctx.anim(()=>{const on=!!st.flags['used_'+id];fl.visible=gl.visible=on;});ctx.col(x,z,1.3);if(path.length)stones(ctx,path.map(([a,b,h])=>[a,b,y+h,1]),{abs:true,water:true});qUse(ctx,id,x+1.6,z,'Light the shrine',{h:2});}
     /* ---- the Shoal Path and the drowned temple ---- */
     ctx.poi('shoal',60,140,'The Shoal Path',{r:20});
     {const pts=[];for(let i=0;i<16;i++){const t=i/15,x=lerp(60,86,t)+Math.sin(i*1.4)*4,z=lerp(140,232,t);pts.push([x,z,.9+Math.sin(i*.9)*.3+(i%4===3?.8:0),1.1]);}stones(ctx,pts,{abs:true,water:true,mat:MAT.runes,glow:0x8fffe0});}
     ctx.poi('temple',90,262,'The Drowned Temple',{r:30});const T=PF.spire(ctx,90,276,20);T.lit=st.flags.used_spire2?1:0;ruins(ctx,90,262,26,16,{tall:7});
-    for(const [id,x,z] of [['pylon1',62,262],['pylon2',118,262],['pylon3',90,292]]){const y=groundY(x,z),g=grp(ctx,x,y,z,0);P.add(g,MAT.runes,scaleUV(cyl(.7,.9,5,6),1,2),0,2.5,0);const c=new THREE.Mesh(new THREE.OctahedronGeometry(.6,0),new THREE.MeshStandardMaterial({color:0x8fffe0,emissive:0x2a6a60,emissiveIntensity:.3,flatShading:true}));c.position.y=5.8;g.add(c);
+    for(const [id,x,z] of [['pylon1',62,262],['pylon2',118,262],['pylon3',90,285]]){const y=groundY(x,z),g=grp(ctx,x,y,z,0);P.add(g,MAT.runes,scaleUV(cyl(.7,.9,5,6),1,2),0,2.5,0);const c=new THREE.Mesh(new THREE.OctahedronGeometry(.6,0),new THREE.MeshStandardMaterial({color:0x8fffe0,emissive:0x2a6a60,emissiveIntensity:.3,flatShading:true}));c.position.y=5.8;g.add(c);
       ctx.anim(dt=>{c.rotation.y+=dt;c.material.emissiveIntensity=st.flags['used_'+id]?1.6:.3;});ctx.col(x,z,1);qUse(ctx,id,x+1.4,z,'Wake the pylon',{h:2});}
     qBoss(ctx,'m14_drowned','leviathan','leviathan',90,240,20,{cond:()=>['pylon1','pylon2','pylon3'].every(p=>st.flags['used_'+p])});
     qUse(ctx,'spire2',90,272,'Touch the drowned spire',{ok:()=>!!st.killed.leviathan,act:()=>{T.lit=1;sfx('warp');FX.burst(new THREE.Vector3(90,groundY(90,272)+3,272),0x8fffe0,80,8,1,.18);}});
@@ -6351,7 +6361,7 @@ async function boot(){try{await loadAllModels();envInit();}catch(e){console.erro
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={build:TL_BUILD,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={build:TL_BUILD,groundY,collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
