@@ -6125,7 +6125,7 @@ function decalTex(lines,w,h,{fg='#ece6f5',bg=null,size=.5,wear=true}={}){
   const cw=512,ch=Math.max(32,Math.round(512*h/w)),c=mkCanvas(cw,ch),g=c.getContext('2d');
   if(bg){g.fillStyle=bg;g.fillRect(0,0,cw,ch);}
   g.fillStyle=fg;g.textAlign='center';g.textBaseline='middle';
-  const L=Array.isArray(lines)?lines:[lines];L.forEach((t,k)=>{const fs=Math.round(ch*size/(k?1.8:1));g.font=`bold ${fs}px "Arial Narrow",Arial,sans-serif`;g.fillText(t,cw/2,ch*(L.length>1?(k?.75:.38):.52));});
+  const L=Array.isArray(lines)?lines:[lines];L.forEach((t,k)=>{let fs=Math.round(ch*size/(k?1.8:1));g.font=`bold ${fs}px "Arial Narrow",Arial,sans-serif`;const tw=g.measureText(t).width;if(tw>cw*.92){fs=Math.floor(fs*cw*.92/tw);g.font=`bold ${fs}px "Arial Narrow",Arial,sans-serif`;}g.fillText(t,cw/2,ch*(L.length>1?(k?.75:.38):.52));});
   if(wear){const r=mulberry(lines.length*31+7);g.globalCompositeOperation='destination-out';for(let i=0;i<220;i++){g.globalAlpha=r()*.6;g.beginPath();g.arc(r()*cw,r()*ch,r()*2.4,0,7);g.fill();}g.globalAlpha=1;g.globalCompositeOperation='source-over';}
   return new THREE.CanvasTexture(c);}
 function decal(lines,w,h,opts){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({map:decalTex(lines,w,h,opts),transparent:true,roughness:.7,polygonOffset:true,polygonOffsetFactor:-4,depthWrite:false}));m.receiveShadow=true;return m;}
@@ -7994,7 +7994,8 @@ function spawnCrowd(cx,cz,r,count,o={}){const bodies=['soldier','michelle'],tint
   for(let i=0;i<count;i++){const name=pick(CROWD_NAMES)+' '+pick(['Ostrander','Achebe','Lund','Varga','Sato','Okoro','Reyes','Brandt','Halden','Mercer','Ng','Petrov','Dube','Kova']);
     const body=pick(bodies);const look={body,tint:pick(tints),tintAmt:rf(.15,.45),hair:Math.random()<.7?pick(HAIRS):null,scale:rf(.95,1.04),npcModel:npcCrowdLook(body==='michelle'?'f':'m')};
     const def={name,role:o.role||'',look,barks:o.barks||CROWD_BARKS,crowd:true,talk:'crowd'};const a=Math.random()*6.28,d=Math.sqrt(Math.random())*r,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;
-    if(seats){const [sx,sz,sf,dr]=seats[i];const n=spawnNPC('crowd_s'+i+'_'+Math.round(cx)+'_'+Math.round(cz),sx,sz,{def,face:sf,beh:{type:'stand'}});if(n)n.seat={drop:dr||.42};continue;}
+    if(seats){let [sx,sz,sf,dr]=seats[i];sx+=Math.sin(sf)*.16;sz+=Math.cos(sf)*.16;// sat on the front of the seat, legs clear of its base
+      const n=spawnNPC('crowd_s'+i+'_'+Math.round(cx)+'_'+Math.round(cz),sx,sz,{def,face:sf,beh:{type:'stand'}});if(n)n.seat={drop:dr||.42};continue;}
     const pts=o.pts||null;spawnNPC('crowd_'+i+'_'+Math.round(cx),x,z,{def,face:rf(0,6.28),beh:pts?{type:'route',pts:pts.slice().sort(()=>Math.random()-.5),pause:[2,7]}:{type:'wander',r:o.wander||r,pause:[3,9]}});}}
 const CROWD_BARKS=['Another long dusk.','Have you seen the prices at the stores?','My boots are full of grit again.','Watch the ridge after dark. Not that it ever gets dark.','They say the spire hums at night.','I miss rain.','Morning. Or evening. Who can tell?','Ines is in a mood today.','Okafor\'s doubling the patrols.','You\'re the one from the crash, aren\'t you?'];
 // a spot an NPC can stand on: not inside a collider, a wall or off the edge of the zone
@@ -8005,7 +8006,7 @@ function npcPick(n,cx,cz,r,away){for(let k=0;k<10;k++){const a=away!==undefined?
 function updateNPCs(dt){const W_=W;for(const n of W_.npcs){const P=n.P,D=n.D;const dxp=player.x-n.x,dzp=player.z-n.z,dp=Math.hypot(dxp,dzp);
   if(n.ko){n.ko-=dt;if(P.anim)P.anim.update(dt,0);if(P.rider)P.rider.sync();if(n.bubT>0){n.bubT-=dt;if(n.bubT<=0)n.bub.hidden=true;}if(n.ko<=0)reviveNPC(n);continue;}
   let sp=0;
-  if(n.talking){n.face+=wrapA(Math.atan2(dxp,dzp)-n.face)*clamp(dt*5,0,1);n.talkAnim+=dt;}
+  if(n.seat){n.face=n.homeFace;if(n.talking)n.talkAnim+=dt;}else if(n.talking){n.face+=wrapA(Math.atan2(dxp,dzp)-n.face)*clamp(dt*5,0,1);n.talkAnim+=dt;}
   else if(n.beh.type==='stand'){const tgt=dp<6?Math.atan2(dxp,dzp):n.homeFace;n.face+=wrapA(tgt-n.face)*clamp(dt*(dp<6?3:1),0,1);}
   else{if(n.wait>0){n.wait-=dt;}else{const dx=n.tx-n.x,dz=n.tz-n.z,d=Math.hypot(dx,dz);
       if(d<.4){const pa=n.beh.pause||[2,6];n.wait=rf(pa[0],pa[1]);if(n.beh.type==='route'){n.wp=(n.wp+1)%n.beh.pts.length;n.tx=n.beh.pts[n.wp][0];n.tz=n.beh.pts[n.wp][1];}else if(!npcPick(n,n.home.x,n.home.z,n.beh.r||6)){n.tx=n.home.x;n.tz=n.home.z;}}
@@ -8021,7 +8022,7 @@ function updateNPCs(dt){const W_=W;for(const n of W_.npcs){const P=n.P,D=n.D;con
   if(n.beh.type!=='stand'&&dp<.75&&dp>.01){player.x+=dxp/dp*(.75-dp);player.z+=dzp/dp*(.75-dp);}
   n.y=W.interior?W.floorY:support(n.x,n.z,n.y+.5).y;P.root.position.set(n.x,n.y-(n.seat?n.seat.drop*(P.root.scale.y||1):0),n.z);P.root.rotation.y=n.face;
   // head turns toward the player when nearby but not facing them
-  const rel=dp<12&&!n.talking?clamp(wrapA(Math.atan2(dxp,dzp)-n.face),-1.1,1.1):0;n.look=lerp(n.look,rel,clamp(dt*3,0,1));
+  const lim=n.seat?.45:1.1,rel=dp<12&&(!n.talking||n.seat)?clamp(wrapA(Math.atan2(dxp,dzp)-n.face),-lim,lim):0;n.look=lerp(n.look,rel,clamp(dt*3,0,1));
   tickIdle(n.act,dt,sp>0||n.talking,D.idle||['look','wrist','talk','stretch']);
   n.animAcc=(n.animAcc||0)+dt;const onScr=P.root.visible&&inView(n.x,n.y+1,n.z,1.6),far=dp>28;n.animTick=(n.animTick||0)+1;
   if(P.anim&&onScr&&(!far||n.animTick%2===0)){const adt=n.animAcc;n.animAcc=0;P.anim.update(adt,sp);const B=P.B;if(B&&B.Head){poseLayers(B,{look:n.look,act:n.talking?(n.talkAct=n.talkAct||{kind:'talk',w:.8,t:0}):(n.talkAct=null,n.act)},P.anim);if(n.seat){P.root.updateMatrixWorld(true);seatLegs(B,n.face);}}if(P.rider)P.rider.sync();if(n.seat&&P.rider){const R=P.rider;n._rb=n._rb||{UpperLegL:R.T('UpperLegL'),LowerLegL:R.T('LowerLegL'),FootL:R.T('FootL'),UpperLegR:R.T('UpperLegR'),LowerLegR:R.T('LowerLegR'),FootR:R.T('FootR')};P.root.updateMatrixWorld(true);seatLegs(n._rb,n.face);}if(P.updateHeld)P.updateHeld(0,n.face);}
@@ -10667,7 +10668,7 @@ function stBench(ctx,x,z,ry){const M=stM(),g=grp(ctx,x,W.floorY,z,ry),P=ctx.P;P.
 function stSign(ctx,text,x,y,z,ry,color='#8fd8ff',w=5){const s=neon(text,w,.9,color);s.position.set(x,y,z);s.rotation.y=ry;ctx.g.add(s);return s;}
 
 ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery b',blurb:'Halcyon\'s orbital waystation: docks, an atrium, a cantina and too many secrets.',kind:'interior',size:240,floorY:0,ceiling:18,seed:41,lvl:[12,16],
-  sky:Object.assign({},INT_SKY,{fog:[0x0a0b12,400,2400],hemi:[0xe2e6f2,0x3c3e48,1.2],sunInt:.45}),tempAt:()=>19,bloom:{threshold:1.05,strength:.5},
+  sky:Object.assign({},INT_SKY,{fog:[0x0a0b12,400,2400],hemi:[0xe8ecf6,0x50525e,1.4],sunInt:.5}),tempAt:()=>19,bloom:{threshold:1.05,strength:.5},
   entries:{ship:{x:0,z:-46,face:0},dock:{x:0,z:-46,face:0}},spawn:{x:0,z:-46,face:0},
   build(ctx){const P=ctx.P,st=ctx.state(),M=stM(),y0=W.floorY,PI=Math.PI;
     stSkyDome(ctx);
@@ -10690,7 +10691,7 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
     if(G.shipAt==='anchorage'){const fx=PF.vesper(ctx,-12,-71,PI,{y:0});ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>enterZone('vesper','ramp')});}
     {const v=stModel('sabre',17,{axis:'x',shadow:true});if(v){v.position.set(12,2.2,-75);v.rotation.y=PI/2;ctx.g.add(v);for(const [lx,lz] of[[-3,-4],[3,-4],[0,5]]){P.add(ctx.g,M.dark,cyl(.25,.3,2.4,10),12+lx,1.2,-75+lz);P.add(ctx.g,MAT.hazard,cyl(.6,.7,.15,12),12+lx,.08,-75+lz);ctx.col(12+lx,-75+lz,.45);}
       stSign(ctx,'CS KESTREL MOTH · COURIER',12,1,-62.5,0,'#ffc35a',5);}}
-    PF.container(ctx,-24,-52,PI/2,0x4a6a8a);PF.container(ctx,24,-88,0,0x8a5a3a);PF.crates(ctx,22,-50,6,4);PF.crates(ctx,-24,-88,5,5);PF.barrels(ctx,25,-60,4,3);
+    PF.container(ctx,-23,-63,PI/2,0x4a6a8a);PF.container(ctx,24,-88,0,0x8a5a3a);PF.crates(ctx,22,-50,6,4);PF.crates(ctx,-24,-88,5,5);PF.barrels(ctx,25,-60,4,3);
     PF.console(ctx,6,-48,0,1);ctx.npc('sato',8,-50,-PI/2);ctx.npc('rook',-12,-48,PI/2);ctx.bench(-20,-47,PI/2);
     stSign(ctx,'DOCKING BAY 3',0,4.2,-45.3,PI,'#ffc35a',6);stSign(ctx,'MAINTENANCE',-27.7,3.9,-50,PI/2,'#ffa040',4);
     spawnCrowd(0,-62,14,4,{role:'DOCK CREW',pts:[[-4,-56],[-4,-86],[4,-86],[4,-56],[20,-66],[-22,-66]],barks:['Bay three\'s backed up again.','Watch the loader!','Halcyon freighter due at shift change.']});
@@ -10736,7 +10737,7 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
     for(let i=0;i<10;i++){const x=rr(-78,-42),z=rr(-66,-34);if(Math.hypot(x+72,z+58)<4)continue;if(i%3)PF.crates(ctx,x,z,3,i);else PF.barrels(ctx,x,z,3,i);}
     for(const [x,z,w,d] of [[-50,-42,8,1],[-70,-40,1,10],[-64,-62,10,1],[-48,-60,1,8]])slab(ctx,x,z,w,d,2.6,M.dark);
     for(let z=-68;z<-30;z+=6)P.add(ctx.g,M.trim,cyl(.15,.15,44,10),-60,3.9,z,0,0,PI/2);for(const x of[-70,-50])P.add(ctx.g,MAT.metal,cyl(.25,.25,40,10),x,3.6,-50,PI/2,0,0);
-    ctx.light(-60,3.6,-50,0xffa040,1.2,26,true);ctx.light(-74,3.6,-60,0xff5a3a,.9,14,true);ctx.light(-46,3.6,-38,0xffa040,.9,16);
+    ctx.light(-60,3.6,-50,0xffd8a0,1.6,28,true);ctx.light(-74,3.6,-60,0xff7a5a,1.1,16,true);ctx.light(-46,3.6,-40,0xffe0b0,1.3,18);ctx.light(-34,3,-50,0xffe8c8,1,10);
     ctx.enemies('drone',-60,-50,14,6,13,{respawn:70});ctx.enemies('sentinel',-66,-56,8,2,14);ctx.enemies('drone',-44,-60,4,2,12);
     PF.console(ctx,-72,-60,0,4);qUse(ctx,'records_terminal',-72,-58,'Enter Dax\'s passcode at the records junction',{ok:()=>countItem('passcode')>0});
     for(const [id,x,z] of [['breach1',-56,-34],['breach2',-80,-44],['breach3',-48,-66]]){qUse(ctx,id,x,z,'Seal the hull breach',{h:1.2});ctx.anim(()=>{if(!st.flags['used_'+id]&&Math.random()<.4)FX.spawn(x,1.2,z,rf(-1,1),rf(0,1),rf(-1,1),{life:.5,size:.14,c0:0xffffff,c1:0x8fd8ff,drag:2,grav:0});});}
@@ -10800,12 +10801,12 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
         P.add(ctx.g,M.rail,cyl(.02,.02,1.9,6),-48.6,.95,z+1.1);P.add(ctx.g,M.rail,cyl(.25,.25,.02,10),-48.6,.02,z+1.1);P.add(ctx.g,MAT.glass,RB(.16,.24,.06,.02,1),-48.6,1.7,z+1.1);P.add(ctx.g,M.rail,new THREE.BoxGeometry(.3,.02,.02),-48.6,1.86,z+1.1);}
       P.add(ctx.g,M.dark,cyl(.05,.05,1.2,8),-50,3.8,22);P.add(ctx.g,M.white,cyl(.55,.7,.18,24),-50,3.15,22);P.add(ctx.g,M.strip,cyl(.5,.5,.02,24),-50,3.05,22);
       // a body scanner arch, a cryo pod, cabinets with the cross
-      {const g=grp(ctx,-44,0,13.4,0);for(const s2 of[-1,1])P.add(g,M.white,RB(.3,2.4,.5,.06,1),s2*1.1,1.2,0);P.add(g,M.white,RB(2.5,.3,.5,.06,1),0,2.4,0);P.add(g,M.teal,new THREE.BoxGeometry(2,.05,.52),0,2.22,0);P.add(g,M.dark,RB(2.6,.1,1.4,.03,1),0,.05,0);ctx.box(-45.1,13.4,.2,.3,0,2.5);ctx.box(-42.9,13.4,.2,.3,0,2.5);}
+      {const g=grp(ctx,-46.5,0,13.4,0);for(const s2 of[-1,1])P.add(g,M.white,RB(.3,2.4,.5,.06,1),s2*1.1,1.2,0);P.add(g,M.white,RB(2.5,.3,.5,.06,1),0,2.4,0);P.add(g,M.teal,new THREE.BoxGeometry(2,.05,.52),0,2.22,0);P.add(g,M.dark,RB(2.6,.1,1.4,.03,1),0,.05,0);ctx.box(-47.6,13.4,.2,.3,0,2.5);ctx.box(-45.4,13.4,.2,.3,0,2.5);}
       {const g=grp(ctx,-36,0,13.5,0);P.add(g,M.white,RB(2.2,.6,1,.1,1),0,.3,0);const lid=new THREE.Mesh(cyl(.48,.48,2.1,24,1,true,0,PI),MAT.glass);lid.rotation.z=PI/2;lid.position.y=.62;g.add(lid);P.add(g,M.teal,new THREE.BoxGeometry(2.1,.04,.04),0,.6,.5);ctx.box(-36,13.5,1.1,.5,0,.95);}
       for(const x of[-46.5,-42.5,-38.5]){P.add(ctx.g,M.white,RB(1.6,2,.5,.05,1),x,1,31.6);P.add(ctx.g,M.trim,new THREE.BoxGeometry(.02,1.9,.52),x,1,31.6);P.add(ctx.g,MAT.redGlow,new THREE.BoxGeometry(.3,.08,.52),x-.4,1.6,31.6);P.add(ctx.g,MAT.redGlow,new THREE.BoxGeometry(.08,.3,.52),x-.4,1.6,31.6);}
       // the pharmacy counter, where Dr. Feng sells supplies
-      P.add(ctx.g,M.white,RB(.9,1.05,4,.05,1),-35.5,.52,22);P.add(ctx.g,M.teal,new THREE.BoxGeometry(.92,.05,4),-35.5,.9,22);P.add(ctx.g,M.white,RB(1,.06,4.2,.02,1),-35.5,1.07,22);ctx.box(-35.5,22,.5,2,0,1.1);
-      for(let k=0;k<3;k++)P.add(ctx.g,M.trim,RB(.3,.05,3,.02,1),-31.5+.15,1.4+k*.5,22);ctx.npc('feng',-34,22,-PI/2);stSign(ctx,'PHARMACY',-35.5,2.4,22,PI/2,'#6ff2d6',3);
+      P.add(ctx.g,M.white,RB(4,1.05,.9,.05,1),-40.5,.52,14.6);P.add(ctx.g,M.teal,new THREE.BoxGeometry(4,.05,.92),-40.5,.9,14.6);P.add(ctx.g,M.white,RB(4.2,.06,1,.02,1),-40.5,1.07,14.6);ctx.box(-40.5,14.6,2,.5,0,1.1);
+      for(let k=0;k<3;k++)P.add(ctx.g,M.trim,RB(3,.05,.3,.02,1),-40.5,1.4+k*.5,12.35);ctx.npc('feng',-40.5,13.3,0);stSign(ctx,'PHARMACY',-40.5,3,12.3,0,'#6ff2d6',3);
       spawnCrowd(-45,22,3,0,{role:'PATIENT',seats:[[-48,24.8,PI/2,.43]],barks:['It\'s just a scratch. Mostly.']});stChair(ctx,'a',-48,24.8,PI/2);}
     stWindow(ctx,-53.75,2.4,22,PI/2,6,2.2);for(const z of[19,25])P.add(ctx.g,MAT.glass,new THREE.BoxGeometry(2.6,2.2,.05),-50,1.1,z);ctx.light(-42,3.8,22,0xe0f6ff,1,16);
     /* ---- to the hab ring ---- */
@@ -10823,7 +10824,7 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
     ctx.npc('oriel',-6,66,PI);ctx.npc('pip',-20,60,0,{type:'wander',r:10,pause:[1,4],speed:1.9});ctx.npc('arn',-30,64,PI/2);
     {const g=grp(ctx,-19.2,0,74.7,0);P.add(g,MAT.grate,RB(1.4,.9,.1,.03,1),0,.5,0);}qUse(ctx,'biscuit',-19.2,73.6,'Coax Biscuit out of the vent',{h:1});
     for(const [x,z] of[[-22,62],[0,62],[22,62]])ctx.light(x,5,z,0xfff0e0,.85,18);
-    spawnCrowd(0,62,24,6,{role:'RESIDENT',pts:[[-30,56],[30,56],[30,68],[-30,68],[0,60]]});
+    spawnCrowd(0,62,10,6,{role:'RESIDENT',pts:[[-30,56],[30,56],[30,68],[-30,68],[0,60]]});
     ctx.chest('an_hab',34,72,{});ctx.glyph('g_an2',-34,72);
     ctx.log('an_arn',-32,58,'Liaison Arn\'s discarded memo','“Director Vash wants the pilot alive. If the Vesper turns up, flag it stolen and hold the pilot. Do not let the Choir woman near them.”',{y:.9});
     /* ---- observation deck: the planet, close enough to touch ---- */
@@ -10889,8 +10890,8 @@ function stSkyDome(ctx){const m=stSkyMat().clone();m.side=THREE.BackSide;m.depth
 let ST_GLASS=null;const stGlass=()=>ST_GLASS||(ST_GLASS=new THREE.MeshStandardMaterial({color:0xa8ccff,transparent:true,opacity:.1,roughness:.05,metalness:.3,depthWrite:false}));
 /* ---- service robots: glossy cylinders gliding on set rounds, a message band scrolling round their heads ---- */
 let BOT_TEX=null;
-function botTex(){if(BOT_TEX)return BOT_TEX;const c=mkCanvas(1024);c.height=64;const g=c.getContext('2d');g.fillStyle='#0a1416';g.fillRect(0,0,1024,64);g.font='bold 34px monospace';g.fillStyle='#8ff2e0';
-  g.fillText('WELCOME TO ANCHORAGE  ·  MIND THE LOADERS  ·  BAY 3 OPEN  ·  ',8,44);g.fillStyle='#ffc35a';g.fillText('STATION',890,44);const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;return BOT_TEX=t;}
+function botTex(){if(BOT_TEX)return BOT_TEX;const c=mkCanvas(2048);c.height=128;const g=c.getContext('2d');g.fillStyle='#04080a';g.fillRect(0,0,2048,128);g.font='bold 92px "Arial Narrow",Arial,sans-serif';g.textBaseline='middle';
+  let x=20;for(const [t,col] of [['WELCOME TO ANCHORAGE','#9ffff0'],['  ◆  ','#ffc35a'],['BAY 3 OPEN','#ffffff'],['  ◆  ','#ffc35a'],['MIND THE LOADERS','#9ffff0'],['  ◆  ','#ffc35a']]){g.fillStyle=col;g.fillText(t,x,66);x+=g.measureText(t).width;}const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;return BOT_TEX=t;}
 function stBots(ctx,routes){const body=new THREE.MeshStandardMaterial({color:0x0e0f12,roughness:.18,metalness:.55}),grey=new THREE.MeshStandardMaterial({color:0x5a5e66,roughness:.4,metalness:.5}),
     band=new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffffff,emissiveMap:botTex(),emissiveIntensity:.9,map:botTex()}),glow=stM().teal,bots=[];
   for(const pts of routes){const g=new THREE.Group();ctx.g.add(g);
@@ -10902,9 +10903,9 @@ function stBots(ctx,routes){const body=new THREE.MeshStandardMaterial({color:0x0
         if(q.name==='Circle_1'){const pos=q.geometry.attributes.position,m=q.matrixWorld.clone().premultiply(real.matrixWorld.clone().invert()),v=new THREE.Vector3(),pts=[];
           for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i).applyMatrix4(m);pts.push(v.clone());}
           const bb=new THREE.Box3().setFromPoints(pts),c=bb.getCenter(new THREE.Vector3()),body=new THREE.Box3().setFromObject(real),bc=body.getCenter(new THREE.Vector3()),uv=new Float32Array(pos.count*2);
-          pts.forEach((p,i)=>{uv[i*2]=-Math.atan2(p.z-bc.z,p.x-bc.x)/(Math.PI*2)*1.2;uv[i*2+1]=(p.y-bb.min.y)/Math.max(1e-6,bb.max.y-bb.min.y);});
+          pts.forEach((p,i)=>{uv[i*2]=-Math.atan2(p.z-bc.z,p.x-bc.x)/(Math.PI*2)*.55;uv[i*2+1]=(p.y-bb.min.y)/Math.max(1e-6,bb.max.y-bb.min.y);});
           q.geometry=q.geometry.clone();q.geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));
-          q.material=new THREE.MeshStandardMaterial({color:0x000000,map:botTex(),emissive:0xffffff,emissiveMap:botTex(),emissiveIntensity:1,roughness:.35});q.material.userData.noGlow=true;}});
+          q.material=new THREE.MeshStandardMaterial({color:0x000000,map:botTex(),emissive:0xffffff,emissiveMap:botTex(),emissiveIntensity:1.5,roughness:.35});q.material.userData.noGlow=true;}});
       const bot={g,pts,i:0,x:pts[0][0],z:pts[0][1],face:0,wait:rf(0,3),ph:rf(0,6),b:null};g.position.set(bot.x,W.floorY,bot.z);bots.push(bot);continue;}
     // one straight-sided column in three solid sections (no overlapping shells): body, the message band, the upper body and cap
     g.add(new THREE.Mesh(cyl(.3,.3,.62,32),body)).position.y=.45;
@@ -10913,7 +10914,7 @@ function stBots(ctx,routes){const body=new THREE.MeshStandardMaterial({color:0x0
     g.add(new THREE.Mesh(cyl(.305,.305,.03,32),grey)).position.y=.745;g.add(new THREE.Mesh(cyl(.305,.305,.03,32),grey)).position.y=.975;
     g.add(new THREE.Mesh(cyl(.34,.36,.12,24),grey)).position.y=.08;const ring=new THREE.Mesh(tor(.33,.02,6,32),glow);ring.rotation.x=Math.PI/2;ring.position.y=.03;g.add(ring);
     const bot={g,pts,i:0,x:pts[0][0],z:pts[0][1],face:0,wait:rf(0,3),ph:rf(0,6),b};g.position.set(bot.x,W.floorY,bot.z);bots.push(bot);}
-  ctx.anim(dt=>{botTex().offset.x-=dt*.05;for(const r of bots){const t=r.pts[(r.i+1)%r.pts.length],dx=t[0]-r.x,dz=t[1]-r.z,d=Math.hypot(dx,dz);
+  ctx.anim(dt=>{botTex().offset.x-=dt*.035;for(const r of bots){const t=r.pts[(r.i+1)%r.pts.length],dx=t[0]-r.x,dz=t[1]-r.z,d=Math.hypot(dx,dz);
       if(r.wait>0){r.wait-=dt;continue;}const pd=Math.hypot(player.x-r.x,player.z-r.z),ahead=(player.x-r.x)*dx+(player.z-r.z)*dz>0;if(pd<1.6&&ahead)continue;// someone in the way: wait
       const want=Math.atan2(dx,dz);let df=wrapA(want-r.face);r.face+=clamp(df,-dt*2.5,dt*2.5);
       if(Math.abs(df)<.3){const s=Math.min(d,dt*1.15);r.x+=dx/d*s;r.z+=dz/d*s;}if(d<.05){r.i=(r.i+1)%r.pts.length;r.wait=rf(1.5,4);}
@@ -12172,7 +12173,7 @@ async function boot(){try{await loadAllModels();envInit();}catch(e){console.erro
   showTitle();$('#bNew').disabled=false;$('#bNew').querySelector('.tl').textContent='NEW EXPEDITION';window.__tlBooted=true;
   }
 if(isTouch)document.documentElement.classList.add('touch');
-window.__tidelock={audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
+window.__tidelock={collide,platWalls,audioState:()=>({ac:!!AC&&AC.state,breath:!!breathSrc,sfx:Object.keys(SFXB).join(",")}),PROJ,MUS,musTracks:()=>Object.fromEntries(Object.entries(TR).map(([k,t])=>[k,{on:t.on,el:!!t.el,g:+t.g.gain.value.toFixed(3),ct:t.el?+t.el.currentTime.toFixed(1):null}])),packState:()=>({packCat,packSel,packSlot}),INTRO,lookTabN:()=>lookTab,cpkS:()=>cpk,padFocus,padButtons,skinBox,envVariants,buildPerson,buildWeaponModel,WEAPONS,W,POST,setBloom,MODELS,spawnProjectile,setHudPref,TT,refreshAvatar,renderer,scene,G:()=>G,W,player,cam,UI,pad,enterZone,placePlayer,startTalk,Bus,checkObjectives,spawnEnemy,fireWeapon,qActive,qDone,countItem,PS,openMenu,openWorkbench,openShop,openStarMap,openLooks,useItem,FX,QUESTS,startQuest,give,newGame,loadGame,saveNow,avatar:()=>avatar,setFlag,completeQuest};
 boot();
 
 })();
