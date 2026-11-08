@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.39 · 2026-11-08";
+const TL_BUILD="1.40 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -3511,6 +3511,7 @@ PPL('sato',{zone:'anchorage',name:'Ama Sato',role:'DOCK CHIEF',look:{body:'miche
 PPL('arn',{zone:'anchorage',name:'Celeste Arn',role:'HALCYON LIAISON',look:{body:'michelle',tint:0xe8e0d0,coat:0xd8c8a0,accent:0xffd86a},beh:{type:'stand'},greet:'Halcyon Lines. How may I help you within the bounds of company policy?',barks:['The Director sends his regards.','Everything is above board. Documented, even.']});
 PPL('dax',{zone:'anchorage',name:'Dax Mercer',role:'FIXER',look:{body:'soldier',tint:0x5a3a6a,visor:0xd36cf0,hat:'cap',scarf:0x2a1a3a},beh:{type:'stand'},vendor:{tags:['mod','weapon','util'],gear:[3,4],label:'What\'s for sale under the counter?'},greet:'You\'ve got the look of someone who needs a favor.',barks:['Everything has a price.','Information is my favorite currency.']});
 PPL('oriel',{zone:'anchorage',name:'Sister Oriel',role:'THE CHOIR',look:{body:'michelle',tint:0x8a8a9a,coat:0x5a5a6a,halo:true,accent:0x8fffe0,hat:'hood'},beh:{type:'stand'},greet:'I knew you would come. You hear it too, don\'t you?',barks:['The song is louder in the dark.'],cond:()=>!qActive('m15_ashfall')&&!qDone('m14_drowned')});
+PPL('juno',{zone:'anchorage',name:'Juno Okafor',role:'ORBIT CAFÉ',look:{body:'michelle',tint:0xc9703a,coat:0x5a3a2a,hat:'band',accent:0xffc35a},beh:{type:'stand'},vendor:{tags:['food'],label:'What\'s fresh today?'},greet:'Orbit Café. The coffee came up on the last freighter, so it\'s practically fresh. What can I get you?',barks:['Order up!','Fresh pot in five.']});
 PPL('vonn',{zone:'anchorage',name:'Vonn',role:'THE HALO · BARTENDER',look:{body:'robot',tint:0xd8b04a,tint2:0x2a2a30},beh:{type:'stand'},vendor:{tags:['food','med','junkbuy'],label:'One of everything, Vonn.'},greet:'WELCOME TO THE HALO. I HAVE BEEN TOLD I MIX A FINE NEBULA SOUR.',barks:['ANOTHER ROUND?','I HEAR EVERYTHING. I SAY NOTHING. MOSTLY.']});
 PPL('prin',{zone:'anchorage',name:'Prin Halvorsen',role:'ARMORY',look:{body:'soldier',tint:0x7a7a82,visor:0xff6a5a},beh:{type:'stand'},vendor:{tags:['weapon'],gear:[3,4],label:'Show me your weapons.'},greet:'Licensed, registered and very, very effective.'});
 PPL('hollis',{zone:'anchorage',name:'Hollis Kade',role:'OUTFITTER',look:{body:'michelle',tint:0x3a8a8a,coat:0x2a5a5a},beh:{type:'stand'},vendor:{tags:['gear','heat','cold'],gear:[3,4],label:'I need new gear.'},greet:'Suits, helmets, boots. Everything to keep space on the outside.'});
@@ -4799,7 +4800,7 @@ function stRail(ctx,ax,az,bx,bz,y,o={}){const M=stM(),P=ctx.P,L=Math.hypot(bx-ax
   for(const hy of[1.05,.55])P.beam(ctx.g,M.rail,new THREE.Vector3(ax,y+hy,az),new THREE.Vector3(bx,y+hy,bz),hy>1?.045:.025,6);}
 function stBench(ctx,x,z,ry){const M=stM(),g=grp(ctx,x,W.floorY,z,ry),P=ctx.P;P.add(g,M.white,RB(2.4,.12,.7,.05,1),0,.46,0);P.add(g,M.white,RB(2.4,.5,.12,.05,1),0,.78,-.3);for(const s of[-1,1])P.add(g,M.dark,RB(.12,.42,.6,.03,1),s*1,.21,0);
   const w=toW(x,z,ry,0,0);ctx.box(w.x,w.z,1.2,.4,ry,W.floorY+.55);}
-function stSign(ctx,text,x,y,z,ry,color='#8fd8ff',w=5){const s=neon(text,w,.9,color);s.position.set(x,y,z);s.rotation.y=ry;ctx.g.add(s);return s;}
+function stSign(ctx,text,x,y,z,ry,color='#8fd8ff',w=5){const s=neon(text,w,.9,color);{const bk=new THREE.Mesh(new THREE.PlaneGeometry(w*1.02,.95),new THREE.MeshBasicMaterial({color:0x07080d,transparent:true,opacity:.9}));bk.position.z=-.02;bk.renderOrder=-1;s.add(bk);const fr=new THREE.Mesh(new THREE.PlaneGeometry(w*1.06,1.02),new THREE.MeshBasicMaterial({color:new THREE.Color(color).multiplyScalar(.35)}));fr.position.z=-.03;s.add(fr);}s.position.set(x,y,z);s.rotation.y=ry;ctx.g.add(s);return s;}
 
 ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery b',blurb:'Halcyon\'s orbital waystation: docks, an atrium, a cantina and too many secrets.',kind:'interior',size:240,floorY:0,ceiling:18,seed:41,lvl:[12,16],
   sky:Object.assign({},INT_SKY,{fog:[0x0a0b12,400,2400],hemi:[0xe8ecf6,0x50525e,1.4],sunInt:.5}),tempAt:()=>19,bloom:{threshold:1.05,strength:.5},
@@ -4869,8 +4870,9 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
     stRoom(ctx,-33,-50,10,5,3.4,{open:['e','w'],floor:MAT.grate,wall:dk,stripMat:M.amber});
     stRoom(ctx,-60,-50,44,40,4.4,{gaps:{e:[[0,3.4]]},floor:MAT.grate,wall:dk,stripMat:M.amber});ctx.poi('maint',-60,-50,'Maintenance Tunnels',{r:22});
     for(let i=0;i<10;i++){const x=rr(-78,-42),z=rr(-66,-34);if(Math.hypot(x+72,z+58)<4)continue;if(i%3)PF.crates(ctx,x,z,3,i);else PF.barrels(ctx,x,z,3,i);}
-    for(const [x,z,w,d] of [[-50,-42,8,1],[-70,-40,1,10],[-64,-62,10,1],[-48,-60,1,8]])slab(ctx,x,z,w,d,2.6,M.dark);
-    for(let z=-68;z<-30;z+=6)P.add(ctx.g,M.trim,cyl(.15,.15,44,10),-60,3.9,z,0,0,PI/2);for(const x of[-70,-50])P.add(ctx.g,MAT.metal,cyl(.25,.25,40,10),x,3.6,-50,PI/2,0,0);
+    // partition walls standing on the deck, with a lit cap
+    for(const [x,z,w,d] of [[-50,-42,8,1],[-70,-40,1,10],[-64,-62,10,1],[-48,-60,1,8]]){P.add(ctx.g,M.dark,RB(w,2.6,d,.06,1),x,1.3,z);P.add(ctx.g,M.trim,RB(w+.1,.12,d+.1,.03,1),x,2.66,z);P.add(ctx.g,MAT.hazard,new THREE.BoxGeometry(w+.02,.3,d+.02),x,.15,z);ctx.box(x,z,w/2,d/2,0,2.7,-1);}
+    for(let z=-68;z<-30;z+=6){P.add(ctx.g,M.trim,cyl(.15,.15,44,10),-60,3.9,z,0,0,PI/2);for(let x=-78;x<=-42;x+=6)P.add(ctx.g,M.dark,RB(.08,.5,.08,.01,1),x,4.15,z);}// pipes hung from the ceilingfor(const x of[-70,-50])P.add(ctx.g,MAT.metal,cyl(.25,.25,40,10),x,3.6,-50,PI/2,0,0);
     ctx.light(-60,3.6,-50,0xffd8a0,1.6,28,true);ctx.light(-74,3.6,-60,0xff7a5a,1.1,16,true);ctx.light(-46,3.6,-40,0xffe0b0,1.3,18);ctx.light(-34,3,-50,0xffe8c8,1,10);
     ctx.enemies('drone',-60,-50,14,6,13,{respawn:70});ctx.enemies('sentinel',-66,-56,8,2,14);ctx.enemies('drone',-44,-60,4,2,12);
     PF.console(ctx,-72,-60,0,4);qUse(ctx,'records_terminal',-72,-58,'Enter Dax\'s passcode at the records junction',{ok:()=>countItem('passcode')>0});
@@ -4904,7 +4906,9 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
       const at=(deg,r)=>pt(deg*PI/180,r),face=deg=>-(deg*PI/180)-PI/2;
       // café corners under the balcony where people sit and talk
       {const seats=[];for(const deg of[225,315]){const [x,z]=at(deg,18.6);seats.push(...stCluster(ctx,x,z,4,'a',2,{rot:deg*PI/180}));const [x2,z2]=at(deg+22,16.2);seats.push(...stCluster(ctx,x2,z2,3,'a',1,{rot:.4}));}
-        const [kx,kz]=at(270,19.4);P.add(ctx.g,M.dark,RB(4,1.05,1,.05,1),kx,.52,kz+0,0,0,0);P.add(ctx.g,M.white,RB(4.2,.06,1.1,.02,1),kx,1.07,kz);ctx.box(kx,kz,2.1,.55,0,1.1);stSign(ctx,'ORBIT CAFÉ',kx,3.2,kz-.4,0,'#ffc35a',3.6);
+        {const fa=face(292),[kx,kz]=at(292,19);P.add(ctx.g,M.dark,RB(4,1.05,1,.05,1),kx,.52,kz,0,fa,0);P.add(ctx.g,M.white,RB(4.2,.06,1.1,.02,1),kx,1.07,kz,0,fa,0);ctx.box(kx,kz,2.1,.55,fa,1.1);
+          const [bx,bz]=at(292,20.3);ctx.npc('juno',bx,bz,fa);const [sx,sz]=at(292,21.1);stSign(ctx,'ORBIT CAFÉ',sx,3.3,sz,fa,'#ffc35a',3.6);
+          for(const k of[-1.4,0,1.4]){const q=toW(kx,kz,fa,k,0);P.add(ctx.g,M.white,cyl(.07,.09,.16,10),q.x,1.18,q.z);}}
         spawnCrowd(cx,cz,4,0,{role:'VISITOR',seats,barks:['This coffee came up on the last freighter. You can tell.','Shift change in ten.','Have you seen the view from the obs deck?']});}
       {const [x,z]=at(135,20.2);ctx.board(x,z,face(135)+PI,'anchorage','Station Security Contracts');}
       {const [x,z]=at(45,20.2);PF.kiosk(ctx,x,z,face(45)+PI,'ANCHORAGE');}
