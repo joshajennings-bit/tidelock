@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.44 · 2026-11-08";
+const TL_BUILD="1.45 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -5104,7 +5104,7 @@ function stTraffic(ctx){const ships=[],navR=new THREE.MeshBasicMaterial({color:0
 const CA_ISLES=[[0,-34,34,3.2],[90,262,30,2.6],[-160,120,46,.9],[130,90,32,3],[-120,206,40,3.4],[-30,-210,22,2.2],[-200,-40,10,2],[210,20,10,2.2],[-150,232,8,2],[200,-170,26,2.6],[-240,-180,24,2.8],[230,220,20,2.4]];
 const CA_BARS=[[0,-6,-130,100,7],[30,-20,130,80,6],[-150,150,-120,190,6],[-30,-60,-30,-190,6],[130,90,200,-150,5],
   // wading routes to every island and site: the nets, the shrines, the far isles, and the Shoal Path out to the drowned temple
-  [-18,-12,-62,-8,4],[16,28,52,44,4],[-24,-30,-194,-40,5],[150,20,206,20,5],[-30,-205,-222,-183,5],[140,100,224,212,5],[118,100,62,140,5],[60,140,86,234,6]];
+  [-18,-12,-62,-8,4],[-21,29,-46,30,4],[16,28,52,44,4],[-24,-30,-194,-40,5],[150,20,206,20,5],[-30,-205,-222,-183,5],[140,100,224,212,5],[118,100,62,140,5],[60,140,86,234,6]];
 function caHeight(x,z){let h=-3.4+(fbm(x*.02,z*.02)-.5)*1.6;
   for(const [cx,cz,r,ih] of CA_ISLES){const d=Math.hypot(x-cx,z-cz)/r;if(d<1.3)h=Math.max(h,-3.4+(ih+3.4)*(1-smooth(.55,1.25,d))+(fbm(x*.06,z*.06)-.5)*1.2*(1-smooth(.4,1,d)));}
   for(const [ax,az,bx,bz,w] of CA_BARS){const L=Math.hypot(bx-ax,bz-az),ux=(bx-ax)/L,uz=(bz-az)/L,t=clamp((x-ax)*ux+(z-az)*uz,0,L),px=ax+ux*t,pz=az+uz*t,d=Math.hypot(x-px,z-pz);if(d<w*1.6)h=Math.max(h,-.55-smooth(w*.5,w*1.6,d)*2.8+Math.sin(t*.2)*.15);}
@@ -5133,7 +5133,7 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
     ctx.poi('reedwater',0,10,'Reedwater',{r:30,ft:true,icon:'town'});const DY=1.9,deck=std(TEX.reed,{color:0xc8a878,roughness:.9}),plank=std(TEX.reed,{color:0x8a6a48,roughness:.95}),
       thatch=std(TEX.reed,{color:0xb89a58,roughness:.95,side:THREE.DoubleSide}),wall=std(TEX.reed,{color:0xa88a5a,roughness:.95,side:THREE.DoubleSide}),cloth=std(TEX.fabric,{color:0x2a8a8a,roughness:.9,side:THREE.DoubleSide});
     const decks=[[0,12,14,14],[-17,14,9,9],[17,16,9,9],[0,31,10,9],[-14,30,7,7],[16,32,7,7]],walks=[[0,-10,0,5,3],[-7,13,-12.5,13,2.4],[7,14,12.5,15,2.4],[0,19,0,26.5,2.4],[-5,31,-10.5,30,2],[5,31,12.5,32,2],[-17,18.5,-15,26.5,2],[17,20.5,16,28.5,2]];
-    const ends=[];for(const [ax,az,bx,bz] of walks)ends.push([ax,az],[bx,bz]);const nearEnd=(x,z)=>ends.some(([ex,ez])=>Math.hypot(x-ex,z-ez)<2.2);
+    const ends=[];for(const [ax,az,bx,bz] of walks)ends.push([ax,az],[bx,bz]);ends.push([-17.5,29]);// the steps down to the net pathconst nearEnd=(x,z)=>ends.some(([ex,ez])=>Math.hypot(x-ex,z-ez)<2.2);
     // the decks are ground: register them first, so everything placed or standing on them sits on the planks
     W.decks=[];for(const [x,z,w,d] of decks)W.decks.push({x,z,hw:w/2,hd:d/2,rot:0,y:DY});
     for(const [ax,az,bx,bz,w] of walks){const L=Math.hypot(bx-ax,bz-az),ry=Math.atan2(bx-ax,bz-az);W.decks.push({x:(ax+bx)/2,z:(az+bz)/2,hw:w/2,hd:L/2+.3,rot:ry,y:DY-.05});}
@@ -5154,6 +5154,9 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
       for(let t=0;t<=L;t+=2.5){const px=ax+(bx-ax)*t/L,pz=az+(bz-az)*t/L;for(const s of[-1,1]){const qx=px+Math.cos(ry)*s*w/2,qz=pz-Math.sin(ry)*s*w/2;P.add(ctx.g,MAT.bark,cyl(.07,.07,1,6),qx,DY+.45,qz);post(qx,qz,.13,DY-.1);}}
       for(const s of[-1,1]){const o=new THREE.Vector3(Math.cos(ry)*s*w/2,0,-Math.sin(ry)*s*w/2);P.beam(ctx.g,MAT.rope||MAT.bark,new THREE.Vector3(ax,DY+.9,az).add(o),new THREE.Vector3(bx,DY+.9,bz).add(o),.03,5);
         const c=new THREE.Vector3(mx,0,mz).add(o);ctx.plat({x:c.x,z:c.z,hw:.08,hd:L/2-.6,rot:ry,top:DY+1,bot:DY-.2});}}
+    // steps from the west hut's deck down to the water and the stepping stones out to the net
+    for(let k=0;k<5;k++){const sx=-18.2-k*.8,top=1.45-k*.44;slab(ctx,sx,29,.8,1.6,top,deck,0,.2);post(sx,29.7,.07,top);post(sx,28.3,.07,top);}
+    W.decks.push({x:-20,z:29,hw:2.1,hd:.8,rot:0,y:-.3});
     // huts: reed walls with a real doorway facing the village, a door curtain, a thatched roof with a rim and finial; inside, a mat and a lamp
     for(const [x,z,r,name] of [[-17,14,3.2,'MARU'],[17,16,3.2,'ONA'],[0,33,3.6,'LONGHOUSE'],[-14,30,2.4,''],[16,32,2.4,'']]){
       const toC=Math.atan2(-x,12-z),gapH=Math.asin(Math.min(.9,.7/r)),g=grp(ctx,x,DY,z,toC);// local +z faces the village centre
@@ -6283,7 +6286,10 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
     if(nearAny(player.x,player.z,W.safe||[])&&!W.enemies.some(e=>!e.dead&&e.state==='chase'))G.hp=Math.min(PS.maxHp,G.hp+3*dt);
     // hazards
     let hz=null;if(!busy)for(const h of W.hazards){if(h.test(player.x,player.z,player.y)){if(h.kind==='pit'&&(player.plat||!player.onGround))continue;hz=h;break;}}
-    if(hz){if(hz.kind==='pit'||hz.kind==='deep'){if(!player.falling){player.falling=true;if(hz.kind==='pit')hurtPlayerSoft(10);toast(hz.msg||'You fell into the crevasse.');$('#fade').style.opacity=1;setTimeout(()=>{placePlayer(player.lastSafe.x,player.lastSafe.z,player.face);$('#fade').style.opacity=0;player.falling=false;},450);}}
+    if(hz){if(hz.kind==='pit'||hz.kind==='deep'){if(!player.falling){player.falling=true;if(hz.kind==='pit')hurtPlayerSoft(10);toast(hz.msg||'You fell into the crevasse.');$('#fade').style.opacity=1;// stranded: sent back to the same spot over and over (a stone in deep water, a ledge over a pit), so take them to solid ground
+      const L=player.lastSafe,S=player._strand,now=performance.now();if(S&&Math.hypot(S.x-L.x,S.z-L.z)<1.5&&now-S.t<25000)S.n++;else player._strand={x:L.x,z:L.z,n:1,t:now};
+      const stuck=player._strand.n>=3;if(stuck){player._strand=null;toast('You make your way back to solid ground.','',3500);}
+      setTimeout(()=>{if(stuck){const e=(W.def.entries&&(W.def.entries.town||W.def.entries.ship))||W.def.spawn||{x:0,z:0,face:0};placePlayer(e.x,e.z,e.face||0);}else placePlayer(L.x,L.z,player.face);$('#fade').style.opacity=0;player.falling=false;},450);}}
       else{hurtPlayerSoft(dt*hz.dps*(1-armorReduce()*.5));w=hz.msg||'HAZARD';hazT+=dt;if(hz.kind==='lava'&&hazT>.7&&!player.falling){hazT=0;player.falling=true;$('#fade').style.opacity=.7;setTimeout(()=>{placePlayer(player.lastSafe.x,player.lastSafe.z,player.face);$('#fade').style.opacity=0;player.falling=false;},300);}}}
     else{hazT=0;slowT+=dt;if(player.onGround&&slowT>.4){slowT=0;player.lastSafe={x:player.x,z:player.z};}}
     if(w!==warnState){warnState=w;$('#warn').hidden=!w;$('#warn').textContent=w;}
