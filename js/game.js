@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.40 · 2026-11-08";
+const TL_BUILD="1.41 · 2026-11-08";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -1830,7 +1830,10 @@ function spawnEnemy(type,hx,hz,lvl,o={}){
     id:o.id,quest:o.quest,respawnT:o.respawn===undefined?(T.ai==='boss'?Infinity:55):o.respawn,leash:o.leash||(T.ai==='boss'?40:45),scaleBase:sc,burn:0,frozen:0,stun:0,fleeT:0,shootT:rf(.5,2),fly:T.fly||0,t:Math.random()*10,loot:o.loot,elite:T.elite||o.elite,
     baseEm:m.mat&&m.mat.emissive?m.mat.emissive.getHex():0,baseEi:m.mat?m.mat.emissiveIntensity:1};
   e.hp=e.maxHp;if(m.tele)W.group.add(m.tele);W.enemies.push(e);return e;}
-function spawnGroup(type,cx,cz,r,n,lvl,o={}){const out=[];let k=0,t=0;while(k<n&&t<200){t++;const a=Math.random()*6.28,d=Math.sqrt(Math.random())*r,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;if(nearAny(x,z,W.safe||[]))continue;if(W.water&&groundY(x,z)<W.water.y-.4&&!ETYPES[type].fly)continue;out.push(spawnEnemy(type,x,z,lvl,o));k++;}return out;}
+function spawnGroup(type,cx,cz,r,n,lvl,o={}){const out=[];let k=0,t=0;while(k<n&&t<200){t++;const a=Math.random()*6.28,d=Math.sqrt(Math.random())*r,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;if(nearAny(x,z,W.safe||[]))continue;if(W.water&&groundY(x,z)<W.water.y-.4&&!ETYPES[type].fly)continue;
+    // indoors, never inside a wall: a spot the walls would push you out of is no good
+    if(W.interior){const q={x,z};collide(q,.5);platWalls(q,W.floorY,.5);if(Math.hypot(q.x-x,q.z-z)>.01)continue;}
+    out.push(spawnEnemy(type,x,z,lvl,o));k++;}return out;}
 
 /* ---------- AI ---------- */
 const _ev=new THREE.Vector3();
@@ -3682,7 +3685,12 @@ Q({id:'m12_choir',type:'main',act:2,auto:true,req:()=>qDone('m11_records'),title
     {text:'Survive the Cohort ambush',obj:[{k:'kill',types:['merc','breacher'],n:5,label:'Defeat the Gray Cohort ambush',zone:'anchorage',at:{x:0,z:82}}]},
     {text:'Talk to Sister Oriel',obj:[{k:'talk',npc:'oriel',label:'Talk to Sister Oriel',opt:'★ They\'re down. Are you all right?',text:'Thanks to you. I\'m adding Calder\'s coordinates to your ship\'s star map. Reedwater, the fishing village, will help you if you show them respect. I\'ll follow when I can.'}]}],
   reward:{xp:900,cr:300},onComplete:()=>{setFlag('mapCalder');toast('Calder added to the Vesper\'s star map.','gold');}});
-Bus.on('qstage',(id,s)=>{if(id==='m12_choir'&&s===1&&W.id==='anchorage'){const e=spawnGroup('merc',0,84,7,4,15,{respawn:Infinity});spawnGroup('breacher',4,88,4,1,15,{respawn:Infinity});for(const x of e)x.provoked=20;}});
+// the Gray Cohort ambush on the observation deck: spawned when the stage starts, and again (whoever is left) whenever you come
+// back to Anchorage with it unfinished, so a fight left half done can always be completed
+function choirAmbush(){const q=G.q.m12_choir;if(!q||q.st!=='active'||q.s!==1||W.id!=='anchorage')return;const o=QUESTS.m12_choir.stages[1].obj[0],left=o.n-(q.p[0]||0);if(left<=0)return;
+  const nb=left>=2?1:0,e=spawnGroup('merc',0,90,6,left-nb,15,{respawn:Infinity});if(nb)e.push(...spawnGroup('breacher',4,92,3,1,15,{respawn:Infinity}));for(const x of e)x.provoked=20;}
+Bus.on('qstage',(id,s)=>{if(id==='m12_choir'&&s===1)choirAmbush();});
+Bus.on('zone',id=>{if(id==='anchorage')setTimeout(choirAmbush,0);});
 
 /* ---- Act III: Calder ---- */
 Q({id:'m13_reedwater',type:'main',act:3,auto:true,req:()=>qDone('m12_choir'),title:'Reedwater',zone:'calder',summary:'Fly to Calder and ask the people of Reedwater for passage to the drowned temple.',
