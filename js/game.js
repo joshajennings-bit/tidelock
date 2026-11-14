@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.49 · 2026-11-14";
+const TL_BUILD="1.50 · 2026-11-14";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -1589,7 +1589,7 @@ function makeAlien(frost,tint){const M=MODELS.alien,g=new THREE.Group(),inner=ne
   const feet=['L_toes','R_toes','L_frontfingers','R_frontfingers'].filter(n=>B[n]);const low=()=>Math.min(...feet.map(n=>wp(B[n]).y));
   const k=1.55/wp(B.head).distanceTo(wp(B.L_toes));wrap.scale.setScalar(k);g.updateMatrixWorld(true);
   const hp=wp(B.hips),hd=wp(B.head);wrap.position.set(-(hp.x+hd.x)/2,-low(),-(hp.z+hd.z)/2);g.updateMatrixWorld(true);
-  const mixer=new THREE.AnimationMixer(body),clip=M.animations[0];const tracked=new Set();if(clip){mixer.clipAction(clip).play();clip.tracks.forEach(t=>tracked.add(t.name.split('.')[0]));}
+  const mixer=new THREE.AnimationMixer(body),clip=M.animations[0];const tracked=new Set();if(clip){mixer.clipAction(clip).play();clip.tracks.forEach(t=>{const [b,pr]=t.name.split('.');if(pr==='quaternion')tracked.add(b);});/* only bones the clip rotates count: the rest reset each frame, so the gait's turns can't pile up */}
   mixer.update(Math.random()*2);
   const rest={};for(const n in B)rest[n]=B[n].quaternion.clone();
   const qi=new THREE.Quaternion(),qa=new THREE.Quaternion(),ax=new THREE.Vector3(),X=new THREE.Vector3(1,0,0),Y=new THREE.Vector3(0,1,0),Z=new THREE.Vector3(0,0,1);
