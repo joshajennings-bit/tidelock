@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.47 · 2026-11-08";
+const TL_BUILD="1.48 · 2026-11-14";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4150,7 +4150,8 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
       // the repair: plates of your own hull to salvage along the furrow, and what the reactor's noise brings
       {const crW=(u,v)=>({x:CR.x+CR.fx*u+CR.fz*v,z:CR.z+CR.fz*u-CR.fx*v}),pm=new THREE.MeshStandardMaterial({color:0x8a8e96,roughness:.4,metalness:.45,side:THREE.DoubleSide,envMap:SABRE_ENV||null});
         [[-22,-10],[-40,11],[-49,-7],[-63,5],[-12,-13],[7,-13]].forEach(([u,v],i)=>{const q=crW(u,v),y=groundY(q.x,q.z),id='salv_'+i,st=ctx.state();
-          const m=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1.6,10,1,true,i,.7),pm);m.position.set(q.x,y+.5,q.z);m.rotation.set(.5,i*1.3,1.2);ctx.g.add(m);ctx.anim(()=>{m.visible=!st.flags['used_'+id];});
+          const m=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1.6,10,1,true,i,.7),pm);m.rotation.set(rr(-.25,.25),i*1.3,Math.PI/2+rr(-.5,-.2));m.position.set(q.x,y,q.z);m.updateMatrixWorld(true);// a torn plate driven edge-first into the ground, leaning
+          {const bb=new THREE.Box3().setFromObject(m);m.position.y+=y-.35-bb.min.y;m.castShadow=true;}ctx.g.add(m);ctx.anim(()=>{m.visible=!st.flags['used_'+id];});
           qUse(ctx,id,q.x,q.z,'Pry loose a usable hull plate',{ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!G.flags.vr_hull&&countItem('hullplate')<4,act:()=>{give('hullplate');sfx('pick');const n=countItem('hullplate');if(n>=4)vesta('That\'s four plates. Enough to close the breach once Tamsin\'s sealant is in hand.');}});});
         if(qStage('m09_grounded')===GR.DEFEND)ctx.enemies('skitter',-44,136,16,7);}
       qUse(ctx,'cockpit_hatch',-71.9,156.1,'Cut open the cockpit hatch',{ok:()=>countItem('cutter')>0,act:()=>{give('recorder');FX.burst(new THREE.Vector3(-71.9,TW_H.crash+2,156.1),0xffc35a,40,4,.6,.1);}});}
