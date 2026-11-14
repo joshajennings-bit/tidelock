@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.48 · 2026-11-14";
+const TL_BUILD="1.49 · 2026-11-14";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -6476,8 +6476,10 @@ function update(dt){viewCull();T+=dt;SFX_TIME.value=T;pollPad(dt);skyMat.uniform
     if(cam.shake>0){cam.shake-=dt;const k=cam.shake*.3;cx+=(Math.random()-.5)*k;cy+=(Math.random()-.5)*k;cz+=(Math.random()-.5)*k;}
     const bob=player.onGround?Math.sin(T*9)*Math.min(player.speedAmt,6)*.006:0;camera.position.set(cx,cy+bob,cz);camera.lookAt(cx+f.x,cy+bob+f.y,cz+f.z);
     if(cam.dk>.002&&dlgNpc){const n=dlgNpc,fh=n.y+(n.D.look&&n.D.look.body==='robot'?1.05:1.55)*((n.D.look&&n.D.look.scale)||1),k=smooth(0,1,cam.dk);_dlgL.set(lerp(cx+f.x,n.x,k),lerp(cy+f.y,fh,k),lerp(cz+f.z,n.z,k));camera.lookAt(_dlgL);}
-    if(avatar&&avatar.weaponG){const wg=avatar.weaponG,q=camera.quaternion;wg.visible=!!avatar.weapon;_fpV.set((avatar.weapon&&avatar.weapon.two?.19:.21)+Math.sin(T*4.5)*Math.min(player.speedAmt,6)*.002,(avatar.weapon&&avatar.weapon.two?-.24:-.2)+bob*.6,(avatar.weapon&&avatar.weapon.two?-.6:-.44)+player.recoil*.07).applyQuaternion(q);
-      wg.position.copy(camera.position).add(_fpV);wg.quaternion.copy(q).multiply(_fpFlip);wg.scale.setScalar(1);if(player.melee>0)wg.rotateX(-Math.sin(player.melee*Math.PI)*.9);if(avatar.sleeve)avatar.sleeve.visible=true;}
+    if(avatar&&avatar.weaponG){const wg=avatar.weaponG,q=camera.quaternion;wg.visible=!!avatar.weapon;// no hand: the grip sits below the bottom of the screen, so you see the barrel and top of a gun, the upper half of a blade
+      const W0=avatar.weapon,two=W0&&W0.two,mel=W0&&W0.cls==='melee';
+      _fpV.set((two?.17:mel?.24:.2)+Math.sin(T*4.5)*Math.min(player.speedAmt,6)*.002,(two?-.33:mel?-.36:-.29)+bob*.6,(two?-.58:mel?-.42:-.46)+player.recoil*.07).applyQuaternion(q);
+      wg.position.copy(camera.position).add(_fpV);wg.quaternion.copy(q).multiply(_fpFlip);wg.scale.setScalar(1);if(player.melee>0)wg.rotateX(-Math.sin(player.melee*Math.PI)*.9);if(avatar.sleeve)avatar.sleeve.visible=false;}
     if(avatar&&avatar.fpLeft){const L=avatar.fpLeft;cam.holoT=lerp(cam.holoT||0,UI.holo?1:0,clamp(dt*7,0,1));L.visible=cam.holoT>.02;if(L.visible){const k=smooth(0,1,cam.holoT);_fpV.set(-.2,lerp(-.75,-.22,k),-.46).applyQuaternion(camera.quaternion);L.position.copy(camera.position).add(_fpV);L.quaternion.copy(camera.quaternion).multiply(_fpTilt);}}}
   else{if(avatar&&avatar.sleeve)avatar.sleeve.visible=false;if(avatar&&avatar.fpLeft)avatar.fpLeft.visible=false;cam.tx=lerp(cam.tx,player.x,clamp(dt*10,0,1));cam.ty=lerp(cam.ty,player.y+1.7,clamp(dt*8,0,1));cam.tz=lerp(cam.tz,player.z,clamp(dt*10,0,1));
     const cp=Math.cos(cam.pitch),dist=W.interior?Math.min(cam.dist,6.5):cam.dist;let dist2=dist;
