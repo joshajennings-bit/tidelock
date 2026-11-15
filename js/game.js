@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.58 · 2026-11-15";
+const TL_BUILD="1.59 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -3641,6 +3641,7 @@ Q({id:'m08_spire',type:'main',act:1,giver:'vey',req:()=>qDone('m05_relays'),titl
   reward:{xp:900,cr:300,items:[{id:'spirekey'}],perk:1},onComplete:()=>{}});
 // Grounded: the repair. Survey the wreck system by system, report to Tamsin, then gather and fit the parts for six systems
 // yourself (each one visibly recovers aboard), restart the reactor, drive off what its noise brings, and lift her out of the furrow.
+K('oldbottle','Bo\'s Bottle','Old Earth whiskey, back from Pell Ashgrove for the Long Dusk\'s anniversary. Carry it careful.','◈');
 K('hullplate','Hull Plate','A torn plate of the Vesper\'s own hull, salvaged from the crash debris. Still good metal.','▤');
 K('coolant','Cryo-coolant Cell','Dr. Varga\'s coolant, cold enough to frost the casing.','❄');
 K('wiring','Superconductor Wiring','A spool of Builder-era superconductor from the ruins. Still flawless.','≋');
@@ -3867,9 +3868,12 @@ S({id:'s_stories',giver:'jory',zone:'twilight',title:'Old Jory\'s Stories',summa
 S({id:'s_bottle',giver:'bo',zone:'twilight',title:'Something Old',summary:'Bo traded a bottle of Old Earth whiskey to Pell Ashgrove years ago, and wants it back for the cantina\'s anniversary.',
   ask:'What\'s good here?',offer:'Nothing, until the anniversary. Ten years of the Long Dusk. I want to open the bottle I traded to Pell Ashgrove back when I was broke. He lives out in the far antispinward hills. He won\'t give it up easy.',accept:'I\'ll talk to Pell.',
   stages:[{text:'Talk to Pell Ashgrove',obj:[{k:'talk',npc:'pell',label:'Ask Pell about Bo\'s bottle',opt:'Bo wants the bottle back.',text:'Bo wants it back, does he? Fine. I never drank it anyway. But you\'ll carry it careful. And tell him he still owes me a stew.',zone:'twilight'}]},
-    {text:'Bring the bottle to Bo',obj:[{k:'deliver',npc:'bo',item:'j_bottle',n:1,label:'Bring the bottle to Bo',opt:'One bottle of Old Earth whiskey.',text:'Ten years. You\'re drinking free at the Long Dusk for life. Well, for a week. Here\'s something for the road.'}]}],
+    {text:'Bring the bottle to Bo',obj:[{k:'deliver',npc:'bo',item:'oldbottle',n:1,label:'Bring the bottle to Bo',opt:'One bottle of Old Earth whiskey.',text:'Ten years. You\'re drinking free at the Long Dusk for life. Well, for a week. Here\'s something for the road.'}]}],
   reward:{xp:180,cr:120,items:[{id:'ration',q:4}]},onComplete:()=>{}});
-Bus.on('qstage',(id,s)=>{if(id==='s_bottle'&&s===1)give('j_bottle');});
+Bus.on('qstage',(id,s)=>{if(id==='s_bottle'&&s===1)give('oldbottle');});
+// Bo's bottle is a story item now (the old one was a sellable valuable, so it could be sold off and the job got stuck):
+// anyone on the delivery step without it gets it back
+function fixBottle(){const q=G.q.s_bottle;if(!q||q.st!=='active'||q.s!==1||countItem('oldbottle')>0)return;if(countItem('j_bottle')>0)removeItem('j_bottle',1);give('oldbottle',1,{},true);}
 S({id:'s_drone',giver:'tamsin',zone:'twilight',req:()=>qDone('m03_keep'),title:'SD-7',summary:'Meridian\'s survey drone SD-7 went down in the glass crater spinward of the crash site.',
   ask:'Anything else need fixing?',offer:'SD-7. Our survey drone. It went down in the glass crater three weeks back and the skitters have been chewing on it since. Pull its memory core before they finish the job.',accept:'I\'ll get the core.',
   stages:[{text:'Recover SD-7\'s memory core',obj:[{k:'use',id:'sd7',label:'Pull the memory core from SD-7',zone:'twilight',x:112,z:143}]},
@@ -6460,14 +6464,14 @@ async function beginPlay(){cam.dist=Math.max(cam.dist,2.6);initAudio();UI.title=
   $('#hint').style.opacity=1;$('#hint').textContent=isTouch?'Left side: move · Right side: look · Pinch: zoom':'WASD move · Shift sprint · Space jump · Drag to look · F or click: fire · E use · R swap · Q quick item · I pack · J journal · M map';setTimeout(()=>$('#hint').style.opacity=0,14000);}
 // TEMPORARY (remove next build): on 15 Nov 2026 only, the first save loaded that is partway through "Grounded" jumps to just
 // after the last repair, aboard the Vesper by the drive core, so the new ending can be played straight through. Once per device.
-function grTestJump(){try{const k='tl_grtest_20261115',d=new Date(),today=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+function grTestJump(){try{const k='tl_grtest_20261115b',d=new Date(),today=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
   if(today!=='2026-11-15'||localStorage.getItem(k))return false;const q=G.q.m09_grounded;if(!q||q.st!=='active'||G.flags.vesperFixed)return false;localStorage.setItem(k,'1');
   for(const f of ['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'])G.flags[f]=true;for(const f of ['vesperRepaired','gr_waves','gr_wave','gr_walk'])delete G.flags[f];
   for(const it of ['hullplate','sealant','coupling','coolant','navcore','emitter'])removeItem(it,countItem(it));
   q.s=GR.REACTOR;q.p=[];q.v2=q.v3=1;const zs=G.zs.vesper=G.zs.vesper||{opened:{},flags:{},killed:{},dug:{}};zs.flags.door_eng=zs.flags.door_qtr=true;G.zone='vesper';G.entry='ramp';G.track='m09_grounded';return true;}catch(e){return false;}}
 async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();const jump=grTestJump();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
   const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}if(jump){placePlayer(1.4,-9.4,Math.PI);setTimeout(()=>toast('Test jump: all six repairs fitted. Restart the reactor to begin the new ending.','gold',8000),1500);}
-  migrateGrounded();migrateArk();for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k,true);}
+  migrateGrounded();migrateArk();fixBottle();for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k,true);}
   for(const id in G.q)if(G.q[id].st==='active'&&!(G.q[id].p||[]).length)initStage(id);beginPlay();showBanner(W.def.world||'',W.def.name);saveNow();}
 async function newGame(){startSting();G=freshState();computeStats();refreshAvatar();playing=false;await enterZone('twilight','crash',{quiet:true,kicker:'OSSERY B',text:'Somewhere on the twilight band…'});
   playing=true;startQuest('m01_wake',true);G.track='m01_wake';beginPlay();const f=$('#fade');f.style.transition='none';f.style.opacity=1;
