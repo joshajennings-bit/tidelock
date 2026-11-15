@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.61 · 2026-11-15";
+const TL_BUILD="1.62 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2714,9 +2714,9 @@ function patriotShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.vesper;
   if(crashed)for(let lz=-L/2+3;lz<=L/2-3;lz+=3.2){const q=Wp(0,lz);addCol(q.x,q.z,W2*.42);}
   const warm=new THREE.MeshStandardMaterial({color:0x2a1806,emissive:0xffa040,emissiveIntensity:.85,roughness:.5}),eng=new THREE.MeshStandardMaterial({color:0x101820,emissive:0x5ab8ff,emissiveIntensity:crashed?.5:1.2,roughness:.3});
   const beacon=glowAt(ctx,body,0,H2+lift*0+.3,-2,0xff3a3a,2.2,.8);
-  const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};
+  const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g,meshes,lift,W2,H2,L};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};
   if(crashed)crashDress(ctx,{g,body,fit,meshes,W2,H2,L,x,z,th,fx});
-  else{for(const sg of[-1,1]){const gl=glowSprite(0x6ff2ff,1.4,.7);gl.position.set(sg*W2*.36,.6,-3);body.add(gl);}}
+  else{for(const sg of[-1,1]){const gl=glowSprite(0x6ff2ff,1.4,.7);gl.position.set(sg*W2*.36,.6,-3);body.add(gl);}shipLights(ctx,fx,{engines:o.engines??.35});}
   const smokeM=new THREE.SpriteMaterial({map:GLOW,color:0x2a2622,transparent:true,opacity:.35,depthWrite:false}),puffs=[];
   for(const v of fx.smoke)for(let i=0;i<11;i++){const sp=new THREE.Sprite(smokeM.clone());sp.userData={o:v,t:i/11,k:rf(.8,1.25)};ctx.g.add(sp);puffs.push(sp);}
   for(const v of fx.dust||[])for(let i=0;i<6;i++){const sp=new THREE.Sprite(smokeM.clone());sp.material.color.set(0x5a4844);sp.userData={o:v,t:i/6,k:.7,dust:1};ctx.g.add(sp);puffs.push(sp);}
@@ -2930,6 +2930,73 @@ function crashSkitter(ctx,fx){if(G.flags.skitterFled||!fx.breach||!MODELS.alien)
     if(r.m.alien)r.m.alien.update(st,dt,sp);
     r.dropT-=dt;if(r.dropT<=0){r.dropT=rf(.18,.4);const d=new THREE.Mesh(new THREE.CircleGeometry(rf(.06,.16),8),bloodM);d.rotation.x=-Math.PI/2;d.position.set(st.x+rf(-.2,.2),gy+.03,st.z+rf(-.2,.2));ctx.g.add(d);drops.push(d);}
     if(r.t>9){r.m.g.parent&&r.m.g.parent.remove(r.m.g);run=null;}});}
+
+// ===== 21d_shiplife.js =====
+/* ================= THE VESPER, ALIVE: running lights, engines, and the repair drones ================= */
+// Positions are in the ship's own frame (its root group): nose toward +z, the hull spans about z -15..15, x -5..5, y 2.4..16.
+const SL={};
+function slGlow(color,size,op){const s=glowSprite(color,size,op);s.material=s.material.clone();return s;}
+function shipLights(ctx,fx,o={}){const g=fx.g,ms=fx.meshes||[],P=ctx.P,eng=o.engines||0;g.updateMatrixWorld(true);const inv=g.matrixWorld.clone().invert(),v=new THREE.Vector3();
+  /* engines: the nozzle lights burn blue-white, with a flickering plume and glow out of each nozzle */
+  const el=ms.find(q=>/Engine_Lights/.test(q.name)),nozzles=[];
+  if(el){el.material=el.material.clone();el.material.emissive=new THREE.Color(0x8fd8ff);el.material.emissiveIntensity=.6+eng*2.4;el.material.color.set(0x8fd8ff);
+    const pos=el.geometry.attributes.position,pts=[];for(let k=0;k<pos.count;k+=Math.max(1,Math.floor(pos.count/400))){v.fromBufferAttribute(pos,k).applyMatrix4(el.matrixWorld).applyMatrix4(inv);pts.push(v.clone());}
+    if(pts.length){const ys=pts.map(p=>p.y),mid=(Math.min(...ys)+Math.max(...ys))/2;for(const part of[pts.filter(p=>p.y<mid),pts.filter(p=>p.y>=mid)]){if(!part.length)continue;const c=part.reduce((a,p)=>a.add(p),new THREE.Vector3()).multiplyScalar(1/part.length);c.z=Math.min(...part.map(p=>p.z));nozzles.push(c);}}}
+  const plumes=[];if(eng>0)for(const c of nozzles){const r=c.y>9?1.25:.9;
+    const gl=slGlow(0x8fd8ff,r*4.2,.55*eng+.2);gl.position.set(c.x,c.y,c.z-.6);g.add(gl);
+    const core=slGlow(0xffffff,r*2,.7*eng+.2);core.position.set(c.x,c.y,c.z-.4);g.add(core);
+    const out=g.localToWorld(new THREE.Vector3(c.x,c.y,c.z-.4)),back=new THREE.Vector3(0,0,-1).transformDirection(g.matrixWorld);
+    const w=g.localToWorld(new THREE.Vector3(c.x,c.y,c.z-2));ctx.light(w.x,w.y,w.z,0x6fc8ff,.9*eng+.2,16);plumes.push({gl,core,r,out,back});}
+  /* running lights: red to port, green to starboard on the wing pods, a double white strobe on the tail, the cockpit lit */
+  const nav=[];const navAt=(x,y,z,col,kind)=>{const s=slGlow(col,1.3,.95),b=new THREE.Mesh(sph(.12,10,8),new THREE.MeshBasicMaterial({color:col}));s.position.set(x,y,z);b.position.set(x,y,z);g.add(s);g.add(b);nav.push({s,b,kind,ph:Math.random()});};
+  navAt(-6.2,9.35,5.3,0xff3030,'steady');navAt(6.2,9.35,5.3,0x30ff60,'steady');navAt(-6.2,9.35,-.9,0xff3030,'steady');navAt(6.2,9.35,-.9,0x30ff60,'steady');
+  navAt(0,16.4,-12,0xffffff,'strobe');navAt(-5.2,3,-14.5,0xffffff,'strobe');navAt(5.2,3,-14.5,0xffffff,'strobe');
+  const cab=ms.find(q=>/Cabin1Glass/.test(q.name));if(cab){cab.material=cab.material.clone();cab.material.emissive=new THREE.Color(0x9fd8ff);cab.material.emissiveIntensity=.35;}
+  /* floodlights under the hull, light pooled on the ground, hazard lights blinking on the struts */
+  for(const [x,z] of[[-3,6],[3,6],[-3,-8],[3,-8]]){const s=slGlow(0xffd8a0,1.6,.8);s.position.set(x,2.25,z);g.add(s);}
+  {const pool=new THREE.Mesh(new THREE.CircleGeometry(9,40),new THREE.MeshBasicMaterial({map:GLOW,color:0xffc890,transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false}));pool.rotation.x=-Math.PI/2;pool.position.set(0,.08,-1);g.add(pool);}
+  {const w=g.localToWorld(new THREE.Vector3(0,1.4,-1));ctx.light(w.x,w.y,w.z,0xffd0a0,.8,14);}
+  const W2=fx.W2||9,L=fx.L||30;for(const [lx,lz] of[[-W2*.32,-L*.3],[W2*.32,-L*.3],[-W2*.28,L*.26],[W2*.28,L*.26]]){const s=slGlow(0xffa030,.9,.9);s.position.set(lx,1.6,lz);g.add(s);nav.push({s,kind:'hazard',ph:Math.random()});}
+  ctx.anim(()=>{const t=performance.now()/1000;
+    for(const n of nav){let on=1;if(n.kind==='strobe'){const f=(t*.8+n.ph*.1)%1;on=f<.05||(f>.12&&f<.17)?1:0;}else if(n.kind==='hazard')on=Math.sin(t*3+n.ph*6)>0?1:.1;else on=.85+Math.sin(t*1.3+n.ph*6)*.1;
+      n.s.material.opacity=on*.95;if(n.b)n.b.visible=on>.5;}
+    for(const p of plumes){const f=.85+Math.sin(t*37+p.r)*.06+Math.sin(t*23)*.05+Math.random()*.06;p.gl.material.opacity=(.55*eng+.2)*f;p.core.material.opacity=(.7*eng+.2)*f;if(eng>.5&&Math.random()<.6){const o=p.out,bk=p.back;FX.spawn(o.x+rf(-.3,.3)*p.r,o.y+rf(-.3,.3)*p.r,o.z+rf(-.3,.3)*p.r,bk.x*rf(3,6)+rf(-.4,.4),bk.y*rf(3,6)+rf(-.2,.5),bk.z*rf(3,6)+rf(-.4,.4),{life:rf(.4,.9),size:rf(.25,.5)*p.r,c0:0xbfe8ff,c1:0x2a5a9a,drag:1.5,grav:-.4});}}
+    if(el)el.material.emissiveIntensity=(.6+eng*2.4)*(.9+Math.sin(t*9)*.08);});}
+/* Repair drones (the station's saucer drones, in work colours) that work all over the hull: each picks a spot on the plating
+   (flanks, belly, top, nose, stern), backs off and flies round to it, hovers just off the surface and welds it (a sparking
+   laser) or scans it (a sweeping fan of light), then moves on. */
+function shipDrones(ctx,fx,n=6){const g=fx.g,ms=fx.meshes||[];if(!ms.length)return;g.updateMatrixWorld(true);const rc=new THREE.Raycaster(),jobs=[];
+  for(let k=0;k<160&&jobs.length<48;k++){const side=k%6,lz=rf(-14.5,14.5);let o,d;
+    if(side<2){const sg=side?1:-1;o=new THREE.Vector3(sg*14,rf(3.2,13),lz);d=new THREE.Vector3(-sg,0,0);}// flanks
+    else if(side===2){o=new THREE.Vector3(rf(-4,4),24,lz);d=new THREE.Vector3(0,-1,0);}// top
+    else if(side===3){const sg=Math.random()<.5?-1:1;o=new THREE.Vector3(sg*10,1.2,lz);d=new THREE.Vector3(-sg,.75,0).normalize();}// belly, from below the flank
+    else if(side===4){o=new THREE.Vector3(rf(-3.5,3.5),rf(4,12),26);d=new THREE.Vector3(0,0,-1);}// nose
+    else{o=new THREE.Vector3(rf(-4.5,4.5),rf(3.5,14),-26);d=new THREE.Vector3(0,0,1);}// stern
+    const wo=g.localToWorld(o.clone()),wd=d.clone().transformDirection(g.matrixWorld);rc.set(wo,wd);const h=rc.intersectObjects(ms,false)[0];if(!h||!h.face)continue;
+    const nn=h.face.normal.clone().transformDirection(h.object.matrixWorld);if(nn.dot(wd)>0)nn.negate();const st=h.point.clone().addScaledVector(nn,1.5);
+    if(st.y<groundY(st.x,st.z)+.9)continue;jobs.push({p:h.point.clone(),n:nn,st,side,kind:Math.random()<.6?'weld':'scan'});}
+  if(!jobs.length)return;
+  const ringM=new THREE.MeshStandardMaterial({color:0x4a5a6a,roughness:.35,metalness:.7}),dish=new THREE.MeshStandardMaterial({color:0xb8bcc6,roughness:.35,metalness:.5}),
+    coreM=new THREE.MeshStandardMaterial({color:0x04241e,emissive:0x6ff2d6,emissiveIntensity:1.2,roughness:.4}),list=[];
+  for(let i=0;i<n;i++){const d=new THREE.Group();ctx.g.add(d);d.add(new THREE.Mesh(cyl(.26,.2,.07,10,1,true),ringM));d.add(new THREE.Mesh(cyl(.19,.13,.05,10),dish)).position.y=-.01;
+    const dome=new THREE.Mesh(sph(.09,12,6,0,Math.PI*2,0,Math.PI/2),coreM);dome.position.y=.02;d.add(dome);d.add(slGlow(0x6ff2d6,1.1,.75));
+    const beam=new THREE.Mesh(cyl(.035,.035,1,6,1,true),new THREE.MeshBasicMaterial({color:0xffc070,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));beam.visible=false;ctx.g.add(beam);
+    const fan=new THREE.Mesh(new THREE.ConeGeometry(.7,1,18,1,true),new THREE.MeshBasicMaterial({color:0x6ff2d6,transparent:true,opacity:.16,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));fan.visible=false;ctx.g.add(fan);
+    const hot=slGlow(0xffd090,1.3,.95);hot.visible=false;ctx.g.add(hot);
+    const j=jobs.find(q=>q.side===i%6&&!list.some(o=>o.job===q))||jobs[(i*7)%jobs.length];d.position.copy(j.st);list.push({d,beam,fan,hot,job:j,path:[],t:rf(0,3),dur:rf(3,6),ph:rf(0,6)});}
+  const up=new THREE.Vector3(0,1,0),tmp=new THREE.Vector3(),q=new THREE.Quaternion();
+  const pick=dr=>{let best=null,bd=1e9;for(let k=0;k<6;k++){const c=jobs[Math.floor(Math.random()*jobs.length)];if(list.some(o=>o!==dr&&o.job===c))continue;const dd=c.st.distanceTo(dr.d.position)+rf(0,6);if(dd<bd){bd=dd;best=c;}}return best||jobs[0];};
+  ctx.anim(dt=>{const t=performance.now()/1000;for(const dr of list){const d=dr.d;
+    if(dr.path.length){const tgt=dr.path[0];tmp.copy(tgt).sub(d.position);const dist=tmp.length(),step=Math.min(dist,dt*3.2);if(dist>.05)d.position.addScaledVector(tmp,step/dist);if(dist<.08)dr.path.shift();dr.beam.visible=dr.fan.visible=dr.hot.visible=false;d.rotation.y+=dt*1.5;continue;}
+    const j=dr.job;dr.t+=dt;d.position.y+=Math.sin(t*2.3+dr.ph)*.002;
+    if(j.kind==='weld'){const a=d.position,b=j.p,len=a.distanceTo(b);dr.beam.visible=Math.sin(t*31+dr.ph)>-.6;dr.beam.position.copy(a).add(b).multiplyScalar(.5);dr.beam.scale.set(1,len,1);q.setFromUnitVectors(up,tmp.copy(b).sub(a).normalize());dr.beam.quaternion.copy(q);
+      dr.hot.visible=true;dr.hot.position.copy(b).addScaledVector(j.n,.05);dr.hot.material.opacity=.6+Math.random()*.4;
+      if(Math.random()<.5)for(let k=0;k<3;k++)FX.spawn(b.x,b.y,b.z,j.n.x*1.5+rf(-1.6,1.6),j.n.y*1.5+rf(0,2.2),j.n.z*1.5+rf(-1.6,1.6),{life:rf(.25,.6),size:rf(.03,.06),c0:0xffffff,c1:0xffa040,drag:1.2,grav:9});
+      if(Math.random()<.012)sparkSound(b.x,b.z,.35);}
+    else{const a=d.position,b=j.p,len=a.distanceTo(b);dr.fan.visible=true;dr.fan.position.copy(a).add(b).multiplyScalar(.5);dr.fan.scale.set(.6+Math.sin(t*3+dr.ph)*.35,len,.6+Math.sin(t*3+dr.ph)*.35);q.setFromUnitVectors(up,tmp.copy(a).sub(b).normalize());dr.fan.quaternion.copy(q);dr.fan.material.opacity=.12+Math.sin(t*9)*.04;}
+    if(dr.t>dr.dur){const nx=pick(dr);dr.path=[j.st.clone().addScaledVector(j.n,3),nx.st.clone().addScaledVector(nx.n,3),nx.st.clone()];for(const w of dr.path)w.y=Math.max(w.y,groundY(w.x,w.z)+1.2);
+      dr.job=nx;dr.t=0;dr.dur=rf(3,6.5);dr.beam.visible=dr.fan.visible=dr.hot.visible=false;}}});
+  return list;}
 
 // ===== 22_zonekit.js =====
 /* ================= ZONE KIT: helpers zone files use to populate a region ================= */
@@ -4190,11 +4257,10 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
     spawnCrowd(0,0,30,9,{});
     /* ---- crash site ---- */
     ctx.poi('crash',-60,150,'Crash Site',{r:26,ft:true});
-    if(!G.flags.vesperFixed){const whole=!!G.flags.vesperRepaired,fx=PF.vesper(ctx,-60,150,-.5,{crashed:!whole});if(!whole)ctx.light(-58,TW_H.crash+3,148,0xff7a2a,1.6,18,true);
+    if(!G.flags.vesperFixed){const whole=!!G.flags.vesperRepaired,fx=PF.vesper(ctx,-60,150,-.5,{crashed:!whole,engines:1});if(!whole)ctx.light(-58,TW_H.crash+3,148,0xff7a2a,1.6,18,true);
       // repaired overnight where she lay: a few drones still at work on the fine touches, until she lifts off
-      if(whole){debris(ctx,-60,150,16,14);const bb=new THREE.Box3().setFromObject(fx.g),top=bb.max.y-.9,jobs=[];
-        for(const [lx,lz,k] of[[-2.5,-9,'repair'],[2.5,-4,'repair'],[0,2,'scan'],[-2,7,'repair'],[2,10,'clean'],[0,-13,'scan']]){const q=toW(-60,150,-.5,lx,lz);jobs.push([q.x,q.z,top,k]);}
-        stDrones(ctx,4,jobs,{ring:0x4a5a6a,core:0x6ff2d6});/* the station's saucer drones, full size, in work colours */}
+      if(whole)debris(ctx,-60,150,16,14);
+      if(whole)shipDrones(ctx,fx,6);
       grSiege(ctx);grWalk(ctx,-60,150);
       const slk=ctx.use('survival_locker',-46.4,146,'Open the survival case',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});PF.survivalCase(ctx,-46.4,146,.9,slk.done);
       // the crashed ship can be boarded: its ramp hangs open
