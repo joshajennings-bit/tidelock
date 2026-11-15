@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.64 · 2026-11-15";
+const TL_BUILD="1.65 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4145,7 +4145,7 @@ function vesperPad(ctx,x,z,th,o={}){const y=o.y!==undefined?o.y:groundY(x,z),P=c
   ctx.light(x,y+5,z,0xffc35a,1,22);
   if(!(G.flags.vesperFixed&&G.shipAt===ctx.def.id))return null;
   const fx=PF.vesper(ctx,x,z,th,{y:y+.3});const h=fx.hatch;
-  ctx.inter({pos:()=>h,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>enterZone('vesper','ramp')});
+  ctx.inter({pos:()=>h,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>{captureShipView(fx,ctx.def.id);enterZone('vesper','ramp');}});
   W.pois.push({id:'ship_'+ctx.def.id,x,z,name:'The Vesper',r:16,ft:true,icon:'ship'});return fx;}
 function lampRing(ctx,cx,cz,r,n,color){for(let i=0;i<n;i++){const a=i/n*6.28+.2;PF.lamp(ctx,cx+Math.cos(a)*r,cz+Math.sin(a)*r,color);}}
 function ruins(ctx,cx,cz,r,n,o={}){for(let i=0;i<n;i++){const a=rr(0,6.28),d=rr(r*.25,r),x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;PF.pillar(ctx,x,z,rr(2,o.tall||9),rr(.6,1.1),rr(-.18,.18));}
@@ -4272,7 +4272,7 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
       grSiege(ctx);grWalk(ctx,-60,150);
       const slk=ctx.use('survival_locker',-46.4,146,'Open the survival case',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});PF.survivalCase(ctx,-46.4,146,.9,slk.done);
       // the crashed ship can be boarded: its ramp hangs open
-      ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Climb into the Vesper',ok:()=>!INTRO.on,act:()=>enterZone('vesper','ramp')});
+      ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Climb into the Vesper',ok:()=>!INTRO.on,act:()=>{if(whole)captureShipView(fx,'crash');enterZone('vesper','ramp');}});
       // the repair: plates of your own hull to salvage along the furrow, and what the reactor's noise brings
       {const crW=(u,v)=>({x:CR.x+CR.fx*u+CR.fz*v,z:CR.z+CR.fz*u-CR.fx*v}),pm=new THREE.MeshStandardMaterial({color:0x8a8e96,roughness:.4,metalness:.45,side:THREE.DoubleSide,envMap:SABRE_ENV||null});
         [[-22,-10],[-40,11],[-49,-7],[-63,5],[-12,-13],[7,-13]].forEach(([u,v],i)=>{const q=crW(u,v),y=groundY(q.x,q.z),id='salv_'+i,st=ctx.state();
@@ -4654,14 +4654,25 @@ function dmgFlick(t,seed){const h=v=>{const q=Math.sin(v*12.9898+seed*78.233)*43
   if(h(slot)<.16)return h(slot+.5)*.08;return .7+.2*Math.sin(t*31+seed)*Math.sin(t*4.3+seed*2)+.1*h(Math.floor(t*30));}
 function vkGrind(x,z){const d=Math.hypot(x-player.x,z-player.z);if(d>14)return;noise(.35,.07*(1-d/14),380,'lowpass');noise(.2,.03*(1-d/14),2600,'bandpass');}
 // what the bridge canopy looks out on: wherever the ship is parked, or the sky above the crash site
-function vkView(){const c=mkCanvas(1024);c.height=512;const g=c.getContext('2d');const at=G.flags.vesperFixed?(G.shipAt||'twilight'):'crash';
+// What the bridge canopy shows: a snapshot taken from just ahead of the nose the moment you board (kept between sessions),
+// or, until there is one for where she stands, a painted view. The glass is cracked only while she is still a wreck.
+let SHIPVIEW=null;try{const v=JSON.parse(localStorage.getItem('tidelock-shipview')||'null');if(v&&v.at&&v.img){SHIPVIEW={at:v.at,img:new Image()};SHIPVIEW.img.src=v.img;}}catch(e){}
+function captureShipView(fx,at){try{const g=fx.g;g.updateMatrixWorld(true);const W_=1024,H_=512,cam=new THREE.PerspectiveCamera(62,W_/H_,.3,4000);
+  cam.position.copy(g.localToWorld(new THREE.Vector3(0,9.6,15.8)));cam.lookAt(g.localToWorld(new THREE.Vector3(0,8.4,80)));cam.updateMatrixWorld(true);
+  const rt=new THREE.WebGLRenderTarget(W_,H_);rt.texture.encoding=THREE.sRGBEncoding;const was=renderer.getRenderTarget(),vis=avatar&&avatar.root?avatar.root.visible:null;if(vis!==null)avatar.root.visible=false;
+  renderer.setRenderTarget(rt);renderer.render(scene,cam);renderer.setRenderTarget(was);if(vis!==null)avatar.root.visible=vis;
+  const px=new Uint8Array(W_*H_*4);renderer.readRenderTargetPixels(rt,0,0,W_,H_,px);rt.dispose();
+  const c=mkCanvas(W_);c.height=H_;const x=c.getContext('2d'),id=x.createImageData(W_,H_);for(let y=0;y<H_;y++)id.data.set(px.subarray((H_-1-y)*W_*4,(H_-y)*W_*4),y*W_*4);x.putImageData(id,0,0);
+  SHIPVIEW={at,img:c};try{localStorage.setItem('tidelock-shipview',JSON.stringify({at,img:c.toDataURL('image/jpeg',.82)}));}catch(e){}}catch(e){}}
+function vkView(){const c=mkCanvas(1024);c.height=512;const g=c.getContext('2d');const at=G.flags.vesperFixed?(G.shipAt||'twilight'):'crash',whole=vsWhole();
+  if(whole&&SHIPVIEW&&SHIPVIEW.at===at&&(SHIPVIEW.img.complete!==false)){g.drawImage(SHIPVIEW.img,0,0,1024,512);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
   const sky={crash:['#140a1a','#4a1e34','#b8603a'],twilight:['#120c22','#3a2048','#c8704a'],dayward:['#3a2010','#c06a2a','#ffc070'],nightward:['#02040c','#0c1a34','#2a5070'],calder:['#06141c','#145060','#5ab8b0'],ashfall:['#100406','#401010','#c03a1a'],anchorage:['#020208','#060814','#101828']}[at]||['#120c22','#3a2048','#c8704a'];
   const gr=g.createLinearGradient(0,0,0,512);gr.addColorStop(0,sky[0]);gr.addColorStop(.62,sky[1]);gr.addColorStop(1,sky[2]);g.fillStyle=gr;g.fillRect(0,0,1024,512);
   for(let i=0;i<500;i++){g.fillStyle=`rgba(255,255,255,${Math.random()*(at==='dayward'?.15:.8)})`;g.fillRect(Math.random()*1024,Math.random()*300,1,1);}
   {const sx=at==='crash'?260:700,sy=at==='dayward'?150:300,sg=g.createRadialGradient(sx,sy,4,sx,sy,120);sg.addColorStop(0,'rgba(255,240,220,.95)');sg.addColorStop(.15,'rgba(255,200,150,.5)');sg.addColorStop(1,'rgba(255,160,120,0)');g.fillStyle=sg;g.fillRect(0,0,1024,512);}
   if(at==='anchorage'){const pg=g.createRadialGradient(700,760,60,700,760,420);pg.addColorStop(0,'#c88a5a');pg.addColorStop(.6,'#6a3a48');pg.addColorStop(1,'rgba(20,10,30,0)');g.fillStyle=pg;g.beginPath();g.arc(700,780,420,0,7);g.fill();}
   else{g.fillStyle='rgba(10,6,12,.92)';g.beginPath();g.moveTo(0,512);let y=380;for(let x=0;x<=1024;x+=16){y+=(Math.random()-.5)*14;y=Math.max(330,Math.min(430,y));g.lineTo(x,at==='crash'?y+40-x*.06:y);}g.lineTo(1024,512);g.fill();}
-  if(at==='crash'){vdCracks(g,330,190,330,18);vdCracks(g,780,300,200,11);g.fillStyle='rgba(10,8,10,.35)';g.fillRect(0,0,1024,512);}
+  if(at==='crash'&&!whole){vdCracks(g,330,190,330,18);vdCracks(g,780,300,200,11);g.fillStyle='rgba(10,8,10,.35)';g.fillRect(0,0,1024,512);}
   const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
 function exitVesper(){const fixed=!!G.flags.vesperFixed,to=fixed?(G.shipAt||'twilight'):'twilight';sfx('door');
   enterZone(to,fixed?'ship':'crash').then(()=>{const r=W.vesperRamp;if(r){placePlayer(r.x,r.z,r.face);cam.yaw=wrapA(r.face+Math.PI);}});}
