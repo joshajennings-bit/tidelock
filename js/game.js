@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.59 · 2026-11-15";
+const TL_BUILD="1.60 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4831,9 +4831,9 @@ function vesperRepairs(ctx,X){const y0=W.floorY,stg=()=>qStage('m09_grounded');
   fit(.9,14.2,'Install the navigation core','vr_nav',[['navcore',1]],()=>vesta('Navigation core installed. The screen\'s still cracked, but I can see the stars on it.'));
   fit(-2.5,12.1,'Fit the holo emitter into VESTA\'s projector','vr_emitter',[['emitter',1]],()=>vesta('Oh. That\'s better. I can see myself again. Thank you.'));
   // a night's sleep in your own bunk while she mends herself; you wake to a whole ship
-  qUse(ctx,'vs_rest',4.4,7.4,'Rest in your bunk',{ok:()=>stg()===GR.REST,act:()=>{setFlag('vesperRepaired');G.hp=PS.maxHp;G.en=PS.maxEn;saveSoon();
+  qUse(ctx,'vs_rest',4.4,7.4,'Rest in your bunk',{persist:false,ok:()=>stg()===GR.REST,act:()=>{setFlag('vesperRepaired');G.hp=PS.maxHp;G.en=PS.maxEn;saveSoon();
     setTimeout(()=>enterZone('vesper','quarters',{kicker:'REST',text:'You needed the rest after a fight like that. You wake feeling much better, and the Vesper hums the way she used to.'}),200);}});
-  qUse(ctx,'vs_reactor',-1.6,-10.6,'Restart the reactor',{ok:()=>stg()===GR.REACTOR,act:()=>{setFlag('vr_reactor');sfx('scan');for(let i=0;i<4;i++)setTimeout(()=>{FX.burst(new THREE.Vector3(0,y0+1.6,-12.2),0x8fd8ff,40,4,.7,.1);sfx('thump');},i*450);}});
+  qUse(ctx,'vs_reactor',-1.6,-10.6,'Restart the reactor',{persist:false,ok:()=>stg()===GR.REACTOR,act:()=>{setFlag('vr_reactor');sfx('scan');for(let i=0;i<4;i++)setTimeout(()=>{FX.burst(new THREE.Vector3(0,y0+1.6,-12.2),0x8fd8ff,40,4,.7,.1);sfx('thump');},i*450);}});
   // the breach in the cargo bay's starboard wall: the dusk outside showing through torn plating, until it is welded shut
   {const V=vdMats(),c=mkCanvas(256),g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#2a1830');gr.addColorStop(.7,'#8a4038');gr.addColorStop(1,'#c8704a');g.fillStyle=gr;g.fillRect(0,0,256,256);
     const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const sky=new THREE.Mesh(new THREE.CircleGeometry(1,20),new THREE.MeshBasicMaterial({map:t}));sky.scale.set(.9,1.05,1);sky.position.set(X-.6,y0+1.5,-4);sky.rotation.y=-Math.PI/2;ctx.g.add(sky);
@@ -6464,11 +6464,11 @@ async function beginPlay(){cam.dist=Math.max(cam.dist,2.6);initAudio();UI.title=
   $('#hint').style.opacity=1;$('#hint').textContent=isTouch?'Left side: move · Right side: look · Pinch: zoom':'WASD move · Shift sprint · Space jump · Drag to look · F or click: fire · E use · R swap · Q quick item · I pack · J journal · M map';setTimeout(()=>$('#hint').style.opacity=0,14000);}
 // TEMPORARY (remove next build): on 15 Nov 2026 only, the first save loaded that is partway through "Grounded" jumps to just
 // after the last repair, aboard the Vesper by the drive core, so the new ending can be played straight through. Once per device.
-function grTestJump(){try{const k='tl_grtest_20261115b',d=new Date(),today=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+function grTestJump(){try{const k='tl_grtest_20261115c',d=new Date(),today=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
   if(today!=='2026-11-15'||localStorage.getItem(k))return false;const q=G.q.m09_grounded;if(!q||q.st!=='active'||G.flags.vesperFixed)return false;localStorage.setItem(k,'1');
-  for(const f of ['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'])G.flags[f]=true;for(const f of ['vesperRepaired','gr_waves','gr_wave','gr_walk'])delete G.flags[f];
+  for(const f of ['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'])G.flags[f]=true;for(const f of ['vesperRepaired','vr_reactor','gr_waves','gr_wave','gr_walk'])delete G.flags[f];
   for(const it of ['hullplate','sealant','coupling','coolant','navcore','emitter'])removeItem(it,countItem(it));
-  q.s=GR.REACTOR;q.p=[];q.v2=q.v3=1;const zs=G.zs.vesper=G.zs.vesper||{opened:{},flags:{},killed:{},dug:{}};zs.flags.door_eng=zs.flags.door_qtr=true;G.zone='vesper';G.entry='ramp';G.track='m09_grounded';return true;}catch(e){return false;}}
+  q.s=GR.REACTOR;q.p=[];q.v2=q.v3=1;const zs=G.zs.vesper=G.zs.vesper||{opened:{},flags:{},killed:{},dug:{}};zs.flags.door_eng=zs.flags.door_qtr=true;delete zs.flags.used_vs_reactor;delete zs.flags.used_vs_rest;G.zone='vesper';G.entry='ramp';G.track='m09_grounded';return true;}catch(e){return false;}}
 async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();const jump=grTestJump();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
   const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}if(jump){placePlayer(1.4,-9.4,Math.PI);setTimeout(()=>toast('Test jump: all six repairs fitted. Restart the reactor to begin the new ending.','gold',8000),1500);}
   migrateGrounded();migrateArk();fixBottle();for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k,true);}
