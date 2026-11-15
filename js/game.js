@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.50 · 2026-11-14";
+const TL_BUILD="1.51 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -1519,7 +1519,7 @@ function addItem(it,silent){if(!it)return;const k=itemKind(it);
 function addItems(list,silent){for(const it of list)addItem(it,silent);}
 function removeItem(id,q=1){for(let i=G.inv.length-1;i>=0&&q>0;i--){const it=G.inv[i];if(it.id!==id)continue;if(it.q!==undefined){const t=Math.min(q,it.q);it.q-=t;q-=t;if(it.q<=0)G.inv.splice(i,1);}else{G.inv.splice(i,1);q--;}}Bus.emit('item',id,countItem(id));}
 function removeInst(u){const i=G.inv.findIndex(x=>x.u===u);if(i>=0)return G.inv.splice(i,1)[0];return null;}
-function give(id,q=1,o={}){const k=itemKind(id);if(k==='weapon'||k==='gear'){for(let i=0;i<q;i++)addItem(makeItem(id,o));}else addItem(makeItem(id,{q}));}
+function give(id,q=1,o={},silent){const k=itemKind(id);if(k==='weapon'||k==='gear'){for(let i=0;i<q;i++)addItem(makeItem(id,o),silent);}else addItem(makeItem(id,{q}),silent);}
 function giveCr(n,silent){G.cr+=Math.round(n);if(!silent&&n>0)floatText('+'+Math.round(n)+' cr',player.x,player.y+2.3,player.z,'info');}
 function gainXP(n,silent){if(G.lvl>=MAX_LVL)return;G.xp+=Math.round(n);if(!silent)floatText('+'+Math.round(n)+' XP',player.x,player.y+2.6,player.z,'xp');
   while(G.lvl<MAX_LVL&&G.xp>=xpNeed(G.lvl)){G.xp-=xpNeed(G.lvl);G.lvl++;G.perkPts++;computeStats();G.hp=PS.maxHp;toast(`Level ${G.lvl}! You have a perk point to spend (Menu → Character).`,'teal');sfx('level');showBanner('LEVEL UP','Level '+G.lvl);}}
@@ -5617,12 +5617,12 @@ function renderWorkbench(){const b=sheet();const eqs=[...['w1','w2','helmet','su
   let inner='';const sel=eqs.find(x=>x.u===wbSel)||eqs[0];
   if(wbTab==='up'||wbTab==='mods')inner=`<div class="inv"><div class="grid">${eqs.map(it=>slotBtn(it,sel&&it.u===sel.u,isEquipped(it))).join('')}</div><div class="detail" id="wbd"></div></div>`;
   if(wbTab==='craft')inner=`<div class="cards">${RECIPES.filter(([id])=>itemDef(id)).map(([id,n,m],i)=>`<div class="card"><img class="ico" src="${iconURL(id)}" alt=""><div class="cd"><b>${esc(itemDef(id).name)}${n>1?' ×'+n:''} <span class="cnt">have ${countItem(id)}</span></b><small>${esc(itemDef(id).desc||MODS[id]&&MODS[id].desc||'')}</small><div class="chips">${needHtml(m)}</div></div><button class="buy" type="button" data-c="${i}"${hasMats(m)?'':' disabled'}>MAKE</button></div>`).join('')}</div>`;
-  if(wbTab==='rec'){const L=G.inv.filter(it=>{const k=itemKind(it);return k==='weapon'||k==='gear';});inner=`<p class="note">Break down equipment you don't need into materials. Higher rarity and upgrades return more.</p><div class="cards">${L.map(it=>{const y=recycleYield(it);return `<div class="card"><img class="ico" src="${iconURL(it)}" alt=""><div class="cd"><b class="rc-${RAR[it.r||0].id}">${esc(itemName(it))} <small class="dim">LV ${it.lv}</small></b><div class="chips">${y.map(([id,n])=>`<span class="need"><img src="${iconURL(id)}" alt="">+${n} ${esc(itemDef(id).name)}</span>`).join('')}</div></div><button class="buy alt" type="button" data-r="${it.u}">RECYCLE</button></div>`;}).join('')||'<p class="note">No spare equipment in your pack.</p>'}</div>`;}
+  if(wbTab==='rec'){const L=G.inv.filter(it=>{const k=itemKind(it);return k==='weapon'||k==='gear';});inner=`<p class="note">Break down equipment you don't need into materials. Higher rarity and upgrades return more.</p${wbGot&&wbGot.at>Date.now()-60000?`<div class="card"><div class="cd"><b>Recycled ${esc(wbGot.name)}</b><div class="chips">${wbGot.list.map(([id,n])=>`<span class="need"><img src="${iconURL(id)}" alt="">+${n} ${esc(itemDef(id).name)} <small class="dim">(${countItem(id)} now)</small></span>`).join('')}</div></div></div>`:''}<div class="cards">${L.map(it=>{const y=recycleYield(it);return `<div class="card"><img class="ico" src="${iconURL(it)}" alt=""><div class="cd"><b class="rc-${RAR[it.r||0].id}">${esc(itemName(it))} <small class="dim">LV ${it.lv}</small></b><div class="chips">${y.map(([id,n])=>`<span class="need"><img src="${iconURL(id)}" alt="">+${n} ${esc(itemDef(id).name)}</span>`).join('')}</div></div><button class="buy alt" type="button" data-r="${it.u}">RECYCLE</button></div>`;}).join('')||'<p class="note">No spare equipment in your pack.</p>'}</div>`;}
   b.innerHTML=head('Workbench','xW')+'<p class="note">Upgrade any weapon or suit piece up to +5, install mods into free slots, craft supplies and mods, or recycle spare gear.</p>'+tabsHtml([['up','UPGRADE'],['mods','MODS'],['craft','CRAFT'],['rec','RECYCLE']],wbTab)+inner;
   b.querySelectorAll('[data-tab]').forEach(e=>e.onclick=()=>{wbTab=e.dataset.tab;sfx('click');renderWorkbench();});$('#xW').onclick=closePanel;
   b.querySelectorAll('[data-u]').forEach(e=>e.onclick=()=>{wbSel=+e.dataset.u;sfx('click');renderWorkbench();padFocus('#wbd');});
   b.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{const [id,n,m]=RECIPES[+e.dataset.c];if(!hasMats(m))return;takeMats(m);give(id,n);sfx('craft');FX.craft&&FX.craft(new THREE.Vector3(player.x,player.y+1.2,player.z));saveSoon();renderWorkbench();});
-  b.querySelectorAll('[data-r]').forEach(e=>e.onclick=()=>{if(!e.dataset.ok){e.dataset.ok=1;e.textContent='CONFIRM';return;}const it=removeInst(+e.dataset.r);if(it){for(const [id,n] of recycleYield(it))give(id,n);(it.mods||[]).forEach(m=>give(m));sfx('craft');saveSoon();}renderWorkbench();});
+  b.querySelectorAll('[data-r]').forEach(e=>e.onclick=()=>{if(!e.dataset.ok){e.dataset.ok=1;e.textContent='CONFIRM';return;}const it=removeInst(+e.dataset.r);if(it){const got=recycleYield(it).concat((it.mods||[]).map(m=>[m,1]));for(const [id,n] of got)give(id,n,{},true);wbGot={name:itemName(it),list:got,at:Date.now()};sfx('craft');saveSoon();}renderWorkbench();});
   if(sel&&$('#wbd')){const box=$('#wbd');const k=itemKind(sel),r=RAR[sel.r||0];
     if(wbTab==='up'){if(sel.up>=5)box.innerHTML=`<div class="nm rc-${r.id}">${esc(itemName(sel))}</div>${statTable(sel)}<p class="note">Fully upgraded.</p>`;
       else{const c=upCost(sel),nx=Object.assign({},sel,{up:sel.up+1}),ok=hasMats(c.mats)&&G.cr>=c.cr;box.innerHTML=`<div class="ty">UPGRADE +${sel.up} → +${sel.up+1}</div><div class="nm rc-${r.id}">${esc(itemName(sel))}</div>${statTable(nx,sel)}<div class="chips">${needHtml(c.mats)}<span class="need${G.cr<c.cr?' short':''}">${G.cr}/${c.cr} cr</span></div><div class="cb"><button class="buy" type="button" id="doUp"${ok?'':' disabled'}>UPGRADE</button></div>`;
@@ -5634,6 +5634,7 @@ function renderWorkbench(){const b=sheet();const eqs=[...['w1','w2','helmet','su
       box.querySelectorAll('[data-in]').forEach(e=>e.onclick=()=>{sel.mods=sel.mods||[];if(sel.mods.length>=slots)return;removeItem(e.dataset.in,1);sel.mods.push(e.dataset.in);computeStats();sfx('craft');saveSoon();renderWorkbench();});
       box.querySelectorAll('[data-rm]').forEach(e=>e.onclick=()=>{const m=sel.mods.splice(+e.dataset.rm,1)[0];give(m);computeStats();sfx('click');saveSoon();renderWorkbench();});}}
   padFocus(b,4);}
+let wbGot=null;// what the last recycle gave: the HUD's pickup notes are hidden behind the workbench, so the bench shows it
 function recycleYield(it){const d=itemDef(it),t=d.tier||1,m=1+(it.r||0)*.5+(it.up||0)*.3;const out=[['scrap',Math.round((2+t)*m)]];if(t>=2)out.push(['alloy',Math.round(t*m*.6)]);if(t>=3||it.r>=2)out.push(['wiring',Math.round((1+t*.4)*m)]);if(t>=4||it.r>=3)out.push(['powercell',Math.max(1,Math.round(m*.7))]);if(it.r>=4||t>=5)out.push(['glass',1]);return out;}
 
 /* ---------- shops ---------- */
