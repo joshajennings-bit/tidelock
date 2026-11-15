@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.54 · 2026-11-15";
+const TL_BUILD="1.55 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2165,7 +2165,7 @@ function updateNPCs(dt){const W_=W;for(const n of W_.npcs){const P=n.P,D=n.D;con
   else{if(n.wait>0){n.wait-=dt;}else{const dx=n.tx-n.x,dz=n.tz-n.z,d=Math.hypot(dx,dz);
       if(d<.4){const pa=n.beh.pause||[2,6];n.wait=rf(pa[0],pa[1]);if(n.beh.type==='route'){n.wp=(n.wp+1)%n.beh.pts.length;n.tx=n.beh.pts[n.wp][0];n.tz=n.beh.pts[n.wp][1];}else if(!npcPick(n,n.home.x,n.home.z,n.beh.r||6)){n.tx=n.home.x;n.tz=n.home.z;}}
       else if(dp<1.3&&(dxp*dx+dzp*dz)>0){n.wait=.6;}
-      else{sp=n.beh.speed||1.35;const p={x:n.x+dx/d*sp*dt,z:n.z+dz/d*sp*dt};collide(p,.35);platWalls(p,n.y,.35);
+      else{sp=n.beh.speed||1.35;const p={x:n.x+dx/d*sp*dt,z:n.z+dz/d*sp*dt};if(!n.ghost){collide(p,.35);platWalls(p,n.y,.35);}
         // blocked: little progress toward the target (walking into a wall or sliding along a corner). Pause, then turn and head the other way
         const prog=((p.x-n.x)*dx+(p.z-n.z)*dz)/d;if(prog<sp*dt*.4){n.stuck=(n.stuck||0)+dt;if(n.stuck>.45){n.stuck=0;n.wait=rf(.4,1);n.blocks=(n.blocks||0)+1;
             if(n.beh.type==='route'&&n.blocks<3){n.wp=(n.wp+1)%n.beh.pts.length;n.tx=n.beh.pts[n.wp][0];n.tz=n.beh.pts[n.wp][1];}
@@ -3519,6 +3519,11 @@ PPL('clank',{zone:'dayward',name:'Clank',role:'MAINTENANCE DROID',look:{body:'ro
 /* ---- Cold Harbor (Nightward Expanse) ---- */
 PPL('varga',{zone:'nightward',name:'Dr. Ilse Varga',role:'STATION LEAD',look:{body:'michelle',tint:0x5a7a9a,coat:0x3a5a7a,hat:'band',accent:0x8fd8ff},beh:{type:'wander',r:4,pause:[5,10]},greet:'Cold Harbor research station. We study the dark side, and it studies us back.',barks:['Our relay went silent three weeks ago.','Wear your liner. Always.']});
 PPL('pavo',{zone:'nightward',name:'Pavo Kessler',role:'TECHNICIAN',look:{body:'soldier',tint:0x3a7a7a,visor:0x8fd8ff,held:'tool',belt:true},beh:{type:'wander',r:3,pause:[3,7]},greet:'Mind the heat lines. And the floor. And the cold.',barks:['The pipes are freezing again.','I could use more heat packs.'],services:[{label:'Can I use the workbench?',fn:()=>openWorkbench()}]});
+PPL('anik',{zone:'nightward',name:'Anik',role:'RANGER',look:{body:'soldier',tint:0xc8d0dc,visor:0x8fd8ff,hat:'hood',coat:0x8a9aaa},beh:{type:'stand'},canTalk:()=>!!(G.q.s_lost&&G.q.s_lost.st==='done'),
+  greet:'Leg\'s splinted. Siku won\'t let me out of her sight for a month. I owe you.',barks:['Still limping. Still here.','Siku hasn\'t stopped fussing.']});
+PPL('brin',{zone:'dayward',name:'Hauler Brin',role:'KILN HOLLOW HAULER',look:{body:'soldier',tint:0xb88a5a,visor:0xffc35a,coat:0x8a6a4a},beh:{type:'stand'},canTalk:()=>false});
+PPL('unit_c2',{zone:'dayward',name:'Unit C-2',role:'MAINTENANCE DROID · OFFLINE',look:{body:'robot',tint:0xc9a06a,tint2:0x5a4a3a,scale:.8},beh:{type:'stand'},canTalk:()=>false});
+PPL('unit_c3',{zone:'dayward',name:'Unit C-3',role:'MAINTENANCE DROID · OFFLINE',look:{body:'robot',tint:0xc9a06a,tint2:0x5a4a3a,scale:.8},beh:{type:'stand'},canTalk:()=>false});
 PPL('siku',{zone:'nightward',name:'Siku',role:'RANGER',look:{body:'soldier',tint:0xd8e0e8,visor:0x8fd8ff,hat:'hood',coat:0xb8c8d8,held:'rifle'},beh:{type:'stand'},greet:'The Expanse doesn\'t care if you live. I do, a little.',barks:['Frost skitters hunt in packs.','My partner went north and didn\'t come back.']});
 PPL('hale',{zone:'nightward',name:'Hale Brandt',role:'COOK',look:{body:'soldier',tint:0xb0a090,visor:0xffc35a,apron:0x8a7a6a},beh:{type:'stand'},vendor:{tags:['food','cold'],label:'What\'s cooking?'},greet:'Soup\'s hot. It\'s always hot. That\'s the point.',barks:['Frost-skitter stew, anyone?','Eat something. You look frozen.']});
 PPL('index',{zone:'nightward',name:'Index',role:'ARCHIVIST DROID',look:{body:'robot',tint:0x5a8aba,tint2:0x2a3a4a},beh:{type:'wander',r:3,pause:[3,6]},greet:'Archive unit Index. My memory banks are... incomplete.',barks:['Recalibrating.','Data integrity: sixty-one percent.']});
@@ -4045,6 +4050,15 @@ function questUses(id){for(const k in QUESTS)for(const st of QUESTS[k].stages)if
 function qUse(ctx,id,x,z,label,o={}){const tied=questUses(id),need=()=>tied?needsUse(id):true;const y=o.y!==undefined?o.y:(W.interior?W.floorY:groundY(x,z));const mk=glowAt(ctx,null,x,y+(o.h||1.6),z,0xffc35a,1.6,.8);mk.visible=false;
   ctx.anim(()=>{mk.visible=need()&&!(o.ok&&!o.ok());if(mk.visible)mk.scale.setScalar(1.4+Math.sin(performance.now()*.005)*.3);});
   return ctx.use(id,x,z,label,Object.assign({},o,{ok:()=>need()&&(o.ok?o.ok():true),y}));}
+// something to sit on out in the open: a rock, or a supply crate, just behind where a seated person's root is
+function groundSeat(ctx,x,z,face,kind='rock'){const sx=x-Math.sin(face)*.12,sz=z-Math.cos(face)*.12,y=groundY(sx,sz);
+  if(kind==='crate')ctx.P.add(ctx.g,MAT.crate,rbox(.62,.46,.56,.04,2),sx,y+.23,sz,0,face,0);
+  else ctx.P.add(ctx.g,MAT.rock,rockGeo(1,x*3.1+z),sx,y+.08,sz,0,face,0,.42,.38,.4);}
+// Someone (or something) waiting where a task sends you: sat on the ground (robots stand) while they still need you, then
+// up and off home once you've helped, out of sight after a while. Not there at all once that's over.
+function questPerson(ctx,id,x,z,face,wait,home,o={}){if(!wait())return null;const n=ctx.npc(id,x,z,face);if(!n)return null;if(o.sit!==false){n.seat={drop:.42};groundSeat(ctx,x,z,face,o.on);}
+  let t=-1;ctx.anim(dt=>{if(t<0){if(wait())return;t=0;n.seat=null;n.ghost=true;n.beh={type:'route',pts:[[home.x,home.z]],pause:[99,99],speed:o.speed||1.2};n.tx=home.x;n.tz=home.z;n.wait=1.2;return;}
+    t+=dt;if(t>16&&n.P.root.visible){n.P.root.visible=false;n.el.remove();n.bub.remove();n.hidden=true;const i=W.npcs.indexOf(n);if(i>=0)W.npcs.splice(i,1);}});return n;}
 // bosses tied to a task appear once the task is active
 function qBoss(ctx,qid,type,id,x,z,lvl,o={}){(W.bossIds=W.bossIds||[]).push(id);(W.qbosses=W.qbosses||[]).push({qid,type,id,x,z,lvl,o,spawned:false});}
 function updateQBosses(){if(!W.qbosses)return;const st=zoneState(W.id);for(const b of W.qbosses){if(b.spawned||st.killed[b.id])continue;if(qActive(b.qid)&&(!b.o.cond||b.o.cond())){b.spawned=true;spawnEnemy(b.type,b.x,b.z,b.lvl,Object.assign({id:b.id},b.o));}}}
@@ -4306,11 +4320,11 @@ ZONES.dayward={arch:KILN_ARCH,bloom:{threshold:1.08,strength:.55},id:'dayward',n
       for(const v of vents){const y=groundY(v.x,v.z);P.add(ctx.g,MAT.basalt,tor(v.r*.7,.4,6,16),v.x,y,v.z,Math.PI/2,0,0);v.y=y;}
       ctx.hazard({kind:'vent',dps:30,test:(x,z,y)=>{const t=performance.now()/1000;return vents.some(v=>Math.hypot(x-v.x,z-v.z)<v.r&&y<v.y+2.4&&((t*.5+v.ph)%3)<1.1);},msg:'Scalding steam!'});
       ctx.anim(()=>{const t=performance.now()/1000;for(const v of vents){if(((t*.5+v.ph)%3)<1.1&&Math.random()<.9)FX.spawn(v.x+rf(-.6,.6),v.y+.2,v.z+rf(-.6,.6),rf(-.4,.4),rf(5,9),rf(-.4,.4),{life:rf(.6,1.1),size:rf(.4,.8),c0:0xffffff,c1:0x8a7a6a,drag:1.4,grav:-1});else if(Math.random()<.05)FX.spawn(v.x,v.y+.2,v.z,0,1.4,0,{life:1,size:.4,c0:0xd8d0c8,c1:0x6a5a4a,drag:1,grav:-.5});}});
-      stones(ctx,[[156,32,1.6],[143,47,1.6],[150,40,2.6,1.3]],{mat:MAT.basalt});qUse(ctx,'clank2',150,40,'Reboot maintenance unit C-2',{y:groundY(150,40)+2.6});
+      stones(ctx,[[156,32,1.6],[143,47,1.6],[150,40,2.6,1.3]],{mat:MAT.basalt});qUse(ctx,'clank2',147.2,42.6,'Reboot maintenance unit C-2');questPerson(ctx,'unit_c2',147.2,42.6,2.4,()=>needsUse('clank2'),{x:20,z:165},{sit:false});
       ctx.nodes('powercell',150,40,26,4);ctx.chest('dw_vents',166,30,{kind:'locked'});}
     /* ---- solar farm ---- */
     ctx.poi('solar',-140,160,'Solar Farm',{r:34});for(let i=0;i<4;i++)for(let k=0;k<3;k++)PF.solar(ctx,-162+i*12,140+k*16,.1,2,4);
-    qUse(ctx,'hauler',-140,160,'Treat the collapsed hauler');qUse(ctx,'clank3',-134,150,'Reboot maintenance unit C-3');ctx.enemies('sandSkitter',-150,180,16,4,7);ctx.nodes('wiring',-140,160,30,4);ctx.glyph('g_dw3',-190,190);
+    qUse(ctx,'hauler',-140,160,'Treat the collapsed hauler');qUse(ctx,'clank3',-134,150,'Reboot maintenance unit C-3');questPerson(ctx,'brin',-140,160,1.2,()=>needsUse('hauler'),{x:-60,z:172},{on:'crate'});questPerson(ctx,'unit_c3',-134,150,-.6,()=>needsUse('clank3'),{x:-60,z:165},{sit:false});ctx.enemies('sandSkitter',-150,180,16,4,7);ctx.nodes('wiring',-140,160,30,4);ctx.glyph('g_dw3',-190,190);
     /* ---- the open flats ---- */
     ctx.enemies('sandSkitter',-80,60,30,6,6);ctx.enemies('sandSkitter',90,80,30,5,7);ctx.enemies('raider',-40,-60,20,4,8);ctx.enemies('sandSkitter',220,0,30,6,10);ctx.enemies('raider',200,-260,16,4,11);ctx.enemies('raiderBrute',200,-260,10,1,11);
     ctx.enemies('brood',-240,120,10,1,9);ctx.enemies('sandSkitter',-240,120,20,4,8);
@@ -4369,7 +4383,7 @@ ZONES.nightward={arch:HARBOR_ARCH,bloom:{threshold:1.0,strength:1.1},id:'nightwa
     {const y=groundY(30,-160),g=grp(ctx,30,y,-160,0);P.add(g,MAT.metal,cyl(.25,.4,8,12),0,4,0);P.add(g,MAT.hull,sph(3,40,16,0,6.3,0,1.2),0,8.6,0,2.2,0,0);P.add(g,MAT.metal,cyl(.06,.06,3,8),0,10,1.6,.9,0,0);ctx.col(30,-160,1);}
     lampRing(ctx,30,-190,40,12,0x8fd8ff);PF.gate(ctx,30,-232,0,'COLD HARBOR','RESEARCH POST');campfire(ctx,22,-176);
     ctx.bench(46,-188,-Math.PI/2);ctx.board(18,-176,Math.PI*.8,'nightward','Cold Harbor Contract Board');
-    ctx.npc('varga',30,-194,Math.PI);ctx.npc('pavo',12,-186,Math.PI/2,{type:'route',pts:[[12,-186],[30,-160],[46,-172],[24,-180]],pause:[4,9]});ctx.npc('siku',20,-172,Math.PI*.8);ctx.npc('hale',archAt(HA('galley'),0,-2.15).x,archAt(HA('galley'),0,-2.15).z,-Math.PI/2);ctx.npc('index',archAt(HA('archive'),0,-1.2).x,archAt(HA('archive'),0,-1.2).z,-Math.PI/2);
+    ctx.npc('varga',30,-194,Math.PI);ctx.npc('pavo',12,-186,Math.PI/2,{type:'route',pts:[[12,-186],[30,-160],[46,-172],[24,-180]],pause:[4,9]});ctx.npc('siku',20,-172,Math.PI*.8);if(G.q.s_lost&&G.q.s_lost.st==='done'){const an=ctx.npc('anik',22.2,-170.6,Math.PI*1.1);if(an){an.seat={drop:.42};groundSeat(ctx,22.2,-170.6,Math.PI*1.1);}}// home, her leg splinted, sat beside Sikuctx.npc('hale',archAt(HA('galley'),0,-2.15).x,archAt(HA('galley'),0,-2.15).z,-Math.PI/2);ctx.npc('index',archAt(HA('archive'),0,-1.2).x,archAt(HA('archive'),0,-1.2).z,-Math.PI/2);
     spawnCrowd(30,-190,26,6,{barks:['Is it colder today? It\'s always colder today.','The aurora was beautiful last night.','The spire\'s been humming.','Don\'t go near the ice caves.','Hale\'s soup is the only reason I\'m still here.']});
     vesperPad(ctx,-8,-226,.4,{y:2});
     /* ---- weather pods ---- */
@@ -4390,14 +4404,20 @@ ZONES.nightward={arch:HARBOR_ARCH,bloom:{threshold:1.0,strength:1.1},id:'nightwa
     /* ---- the Kestrel Dawn ---- */
     ctx.poi('kestrel',190,120,'Wreck of the Kestrel Dawn',{r:30});
     {const y=NW_H.kestrel,s=PF.shuttle(ctx,190,y-1.2,120,.8,3.4,0x9aa0b0);s.rotation.z=.3;s.rotation.x=.12;ctx.col(190,120,6);const a=toW(190,120,.8,0,9),b=toW(190,120,.8,0,-9);ctx.col(a.x,a.z,4);ctx.col(b.x,b.z,4);debris(ctx,190,120,22,30);
-      const d=decal(['KESTREL DAWN','HALCYON LINES · KD-04'],6,1,{fg:'#2a2436'});d.position.set(194,y+4,124);d.rotation.y=.8+Math.PI/2;ctx.g.add(d);ctx.light(196,y+2,114,0xff3a2a,1,12,true);
+      const d=decal(['KESTREL DAWN','HALCYON LINES · KD-04'],4.6,.8,{fg:'#2a2436'});d.position.set(194,y+4,124);d.rotation.y=.8+Math.PI/2;
+      // painted on the hull: find the flank where it faces out (the wreck lies tilted), and sit the name on it
+      {s.updateMatrixWorld(true);const n=new THREE.Vector3(Math.sin(.8+Math.PI/2),0,Math.cos(.8+Math.PI/2)),rc=new THREE.Raycaster(),ms=[];s.traverse(q=>{if(q.isMesh)ms.push(q);});let best=null;
+        for(let dy=-1;dy<=6;dy+=.25){rc.set(new THREE.Vector3(194,y+dy,124).addScaledVector(n,25),n.clone().negate());const h=rc.intersectObjects(ms,false)[0];if(!h||!h.face)continue;
+          const nn=h.face.normal.clone().transformDirection(h.object.matrixWorld);if(nn.dot(n)<0)nn.negate();if(!best||Math.abs(nn.y)<best.k)best={p:h.point,n:nn,k:Math.abs(nn.y)};}
+        if(best){d.position.copy(best.p).addScaledVector(best.n,.05);d.lookAt(best.p.clone().add(best.n));}}
+      ctx.g.add(d);ctx.light(196,y+2,114,0xff3a2a,1,12,true);
       qUse(ctx,'kestrel_core',198,112,'Pull the Kestrel Dawn\'s navigation core',{persist:false,ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!countItem('navcore')&&!G.flags.vr_nav&&!G.flags.vesperFixed,act:()=>{give('navcore');vesta('Navigation core recovered. Tamsin will want this.');}});
       qUse(ctx,'kestrel_emitter',183,116,'Pull the Kestrel Dawn\'s holo emitter',{persist:false,ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!countItem('emitter')&&!G.flags.vr_emitter,act:()=>{give('emitter');vesta('Her emitter. The Kestrel\'s assistant used it for years. I\'ll try to make it mine.');}});
       ctx.enemies('frost',190,120,20,5,12);ctx.enemies('brood',204,140,6,1,13);ctx.chest('nw_kestrel',180,110,{kind:'locked',lockText:'The Kestrel\'s secure locker. It needs a Data Chip.'});
       ctx.log('nw_kestrel',184,128,'Kestrel Dawn captain\'s log','“Halcyon wants us to scan the spire and leave. No landing. Our passenger, the girl from the Choir, keeps humming. The navigator says the instruments hum back.”');}
     /* ---- Anik and the snares ---- */
     ctx.poi('snares',-60,150,'Ranger Snares',{r:20});{const y=NW_H.anik;PF.tent(ctx,-56,154,.3,MAT.fabricTeal);ctx.light(-60,y+2,150,0xffc35a,.8,10,true);}
-    qUse(ctx,'anik',-60,148,'Help Anik',{ok:()=>qStage('s_lost')>=1});ctx.enemies('frost',-60,140,18,4,11);
+    qUse(ctx,'anik',-60,148,'Help Anik',{ok:()=>qStage('s_lost')>=1});questPerson(ctx,'anik',-60,148,Math.PI,()=>!!(G.q.s_lost&&G.q.s_lost.st==='active'&&(G.q.s_lost.s===0||needsUse('anik'))),{x:-30,z:110},{speed:.7});ctx.enemies('frost',-60,140,18,4,11);
     /* ---- frozen cache and the white alpha ---- */
     ctx.poi('cache',-220,-120,'Frozen Cache',{r:20});ctx.chest('nw_cache',-222,-118,{kind:'locked'});ctx.chest('nw_cache2',-214,-126,{});PF.crates(ctx,-226,-112,6,9);
     qBoss(ctx,'s_hunt','frost','frostalpha',-220,-120,14,{name:'The White Alpha',scale:1.9,hpMul:5,elite:true});ctx.enemies('frost',-220,-120,20,3,12);ctx.glyph('g_nw2',-250,-160);
