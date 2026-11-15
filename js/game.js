@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.63 · 2026-11-15";
+const TL_BUILD="1.64 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2716,7 +2716,7 @@ function patriotShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.vesper;
   const beacon=glowAt(ctx,body,0,H2+lift*0+.3,-2,0xff3a3a,2.2,.8);
   const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g,meshes,lift,W2,H2,L};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};shipBeacon(fx);
   if(crashed)crashDress(ctx,{g,body,fit,meshes,W2,H2,L,x,z,th,fx});
-  else{for(const sg of[-1,1]){const gl=glowSprite(0x6ff2ff,1.4,.7);gl.position.set(sg*W2*.36,.6,-3);body.add(gl);}shipLights(ctx,fx,{engines:o.engines??.35});}
+  else shipLights(ctx,fx,{engines:o.engines??.35});// (the two old glows hung in the air either side of the ramp: the belly floodlights do that job)
   const smokeM=new THREE.SpriteMaterial({map:GLOW,color:0x2a2622,transparent:true,opacity:.35,depthWrite:false}),puffs=[];
   for(const v of fx.smoke)for(let i=0;i<11;i++){const sp=new THREE.Sprite(smokeM.clone());sp.userData={o:v,t:i/11,k:rf(.8,1.25)};ctx.g.add(sp);puffs.push(sp);}
   for(const v of fx.dust||[])for(let i=0;i<6;i++){const sp=new THREE.Sprite(smokeM.clone());sp.material.color.set(0x5a4844);sp.userData={o:v,t:i/6,k:.7,dust:1};ctx.g.add(sp);puffs.push(sp);}
