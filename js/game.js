@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.52 · 2026-11-15";
+const TL_BUILD="1.53 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2709,7 +2709,7 @@ function patriotShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.vesper;
   // the hull's collision follows the fuselage (the ramp stays walkable)
   // parked, she stands on her struts and you can walk underneath: only the struts are solid
   if(!crashed)for(const [lx,lz] of[[-W2*.32,-L*.3],[W2*.32,-L*.3],[-W2*.28,L*.26],[W2*.28,L*.26]]){const q=Wp(lx,lz);addCol(q.x,q.z,.75);}
-  if(crashed)for(let lz=-L/2+3;lz<=L/2-3;lz+=3.2){if(lz<-L/2+6)continue;const q=Wp(0,lz);addCol(q.x,q.z,W2*.42);}
+  if(crashed)for(let lz=-L/2+3;lz<=L/2-3;lz+=3.2){const q=Wp(0,lz);addCol(q.x,q.z,W2*.42);}
   const warm=new THREE.MeshStandardMaterial({color:0x2a1806,emissive:0xffa040,emissiveIntensity:.85,roughness:.5}),eng=new THREE.MeshStandardMaterial({color:0x101820,emissive:0x5ab8ff,emissiveIntensity:crashed?.5:1.2,roughness:.3});
   const beacon=glowAt(ctx,body,0,H2+lift*0+.3,-2,0xff3a3a,2.2,.8);
   const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};
@@ -2833,9 +2833,9 @@ const BODIES={list:[],group:new THREE.Group(),
 
 // ===== 21c_crash.js =====
 /* ================= THE VESPER'S CRASH SITE: the wreck itself ================= */
-// The crashed Vesper ploughed in from behind: its tail section tore away and lies rolled over in the furrow, the hull is holed,
+// The crashed Vesper ploughed in from behind and came to rest in one piece, half buried and rolled a little: the hull is holed,
 // soot-streaked and heat-tinted, the starboard flank is ripped open (the way in), hull plating and rock are strewn along the
-// track, fires burn in the torn ends and smoke climbs off it. A hurt skitter that was sheltering in the wreck bolts as you come.
+// track, fires burn in the wrecked engines and smoke climbs off it. A hurt skitter that was sheltering in the wreck bolts as you come.
 const CTEX={};
 function crashTex(kind){if(CTEX[kind])return CTEX[kind];const c=mkCanvas(256),g=c.getContext('2d');g.clearRect(0,0,256,256);
   if(kind==='soot'){// a smoke stain climbing up from a hole: dense at the bottom, feathering out above
@@ -2864,21 +2864,11 @@ function crashTornEnd(parent,W2,H2,zc,dir,M){const V=vdMats(),cy=H2*.46,cap=new 
   for(let i=0;i<6;i++){const x=rf(-W2*.25,W2*.25),y=cy+rf(0,H2*.2),pts=[];for(let k=0;k<=6;k++){const u=k/6;pts.push(new THREE.Vector3(x+rf(-.1,.1),y-u*u*rf(2,4),zc+dir*(.8-u*rf(1.5,2.5))));}crashTube(parent,pts,rf(.03,.06),[V.rubber,V.wireR,V.wireY][i%3]);}
   const t1=new THREE.Vector3(1,0,0),t2=new THREE.Vector3(0,1,0),n=new THREE.Vector3(0,0,-dir);crashPetals(parent,new THREE.Vector3(0,cy,zc),t1,t2,n,W2*.36,H2*.4,18,M,[.2,.8]);}
 function crashDress(ctx,S){const {g,body,fit,meshes,W2,H2,L,x,z,th,fx}=S,P=ctx.P,Wp=(lx,lz)=>toW(x,z,th,lx,lz),V=vdMats();renderer.localClippingEnabled=true;g.updateMatrixWorld(true);
-  const ZC=-L/2+5.4,hullMesh=meshes.find(q=>/Hull/.test(q.name))||meshes[0],hullMat=hullMesh.material.clone();hullMat.side=THREE.DoubleSide;
+  const ZC=-L/2-2,hullMesh=meshes.find(q=>/Hull/.test(q.name))||meshes[0],hullMat=hullMesh.material.clone();hullMat.side=THREE.DoubleSide;
   const debrisM=new THREE.MeshStandardMaterial({color:0x7a7e86,roughness:.45,metalness:.35,side:THREE.DoubleSide,envMap:SABRE_ENV,envMapIntensity:1.2}),plateM=new THREE.MeshStandardMaterial({color:0x4a4d55,roughness:.6,metalness:.55,side:THREE.DoubleSide}),burntPlate=new THREE.MeshStandardMaterial({color:0x4a423e,roughness:.85,metalness:.25,side:THREE.DoubleSide,envMap:SABRE_ENV,envMapIntensity:.6}),rockM=new THREE.MeshStandardMaterial({color:0x7a625c,roughness:.95,flatShading:true}),clodM=new THREE.MeshStandardMaterial({color:0x58423e,roughness:1,flatShading:true});
-  /* the tail section is gone: the hull is cut off at ZC (everything aft of it is clipped away) */
+  /* she came down in one piece: the whole hull stays, burnt and holed (ZC lies past the stern, so nothing is clipped) */
   const keep=new THREE.Plane(new THREE.Vector3(0,0,1),-ZC).applyMatrix4(body.matrixWorld);for(const q of meshes){q.material.clippingPlanes=[keep];q.material.clipShadows=true;q.material.side=THREE.DoubleSide;}
-  crashTornEnd(body,W2,H2,ZC,1,plateM);
-  /* ...and lies rolled onto its side in the furrow behind, half buried */
-  {const tail=new THREE.Group(),tb=new THREE.Group(),f2=fit.clone(true),tm=[];ctx.g.add(tail);tail.add(tb);tb.add(f2);
-    f2.traverse(q=>{if(q.isMesh){q.material=q.material.clone();q.material.color.lerp(new THREE.Color(0x2a2420),.3);q.castShadow=q.receiveShadow=true;tm.push(q);}});
-    const pc=new THREE.Vector3(0,H2*.42,(ZC-L/2)/2);tb.position.copy(pc).negate();const at=Wp(6,-L/2-13);tail.rotation.order='YXZ';tail.rotation.set(.3,th+2.3,1.15);tail.position.set(at.x,groundY(at.x,at.z)+2.2,at.z);tail.updateMatrixWorld(true);
-    const kt=new THREE.Plane(new THREE.Vector3(0,0,-1),ZC).applyMatrix4(tb.matrixWorld);for(const q of tm){q.material.clippingPlanes=[kt];q.material.clipShadows=true;q.material.side=THREE.DoubleSide;}
-    crashTornEnd(tb,W2,H2,ZC,-1,plateM);addCol(at.x,at.z,5.5);const b2=Wp(6,-L/2-9);addCol(b2.x,b2.z,4);
-    const fp=new THREE.Vector3(0,H2*.5,ZC-1).applyMatrix4(tb.matrixWorld);fx.fires.push(fp);fx.smoke.push(fp.clone());fx.sparks.push(new THREE.Vector3(rf(-2,2),H2*.4,ZC-.5).applyMatrix4(tb.matrixWorld));
-    // a gouge of torn ground where it came to rest
-    for(let i=0;i<10;i++){const q=Wp(6+rf(-6,6),-L/2-13+rf(-7,7)),s2=rf(.8,2.2);P.add(ctx.g,i%3?rockM:clodM,rockGeo(1,i*5.1+2),q.x,groundY(q.x,q.z)+s2*.1,q.z,rr(0,3),rr(0,3),rr(0,3),s2*1.3,s2*.6,s2);}}
-  {const e=new THREE.Vector3(0,H2*.5,ZC+1).applyMatrix4(body.matrixWorld),e2=new THREE.Vector3(-W2*.15,H2*.3,ZC+1.2).applyMatrix4(body.matrixWorld);fx.fires.push(e,e2);fx.smoke.push(e.clone());fx.sparks.push(new THREE.Vector3(W2*.2,H2*.55,ZC+.5).applyMatrix4(body.matrixWorld));
+  {const e=new THREE.Vector3(0,H2*.55,-L/2+2.5).applyMatrix4(body.matrixWorld),e2=new THREE.Vector3(-W2*.18,H2*.35,-L/2+3).applyMatrix4(body.matrixWorld);fx.fires.push(e,e2);fx.smoke.push(e.clone());fx.sparks.push(new THREE.Vector3(W2*.2,H2*.55,-L/2+3).applyMatrix4(body.matrixWorld));
     ctx.light(e.x,e.y+1.5,e.z,0xff7a2a,1.3,20,true);}
   /* hits on the hull: raycast from outside to find the surface (nothing aft of the tear) */
   const rc=new THREE.Raycaster(),hitAt=(lx,ly,lz,dx,dy,dz)=>{const org=new THREE.Vector3(lx,ly,lz).applyMatrix4(body.matrixWorld),dir=new THREE.Vector3(dx,dy,dz).transformDirection(body.matrixWorld).normalize();rc.set(org,dir);
@@ -3649,7 +3639,7 @@ Q({id:'m09_grounded',type:'main',act:1,giver:'tamsin',req:()=>qDone('m08_spire')
   ask:'Can the Vesper fly again?',offer:'Maybe. She came down hard, and I won\'t guess what\'s broken from out here. Climb aboard and run diagnostics on everything: navigation, the drive core, the power trunk, the hull. You\'ll have to force a couple of doors. Come back and tell me what you find, and I\'ll work out a parts list.',accept:'I\'ll survey the damage.',
   stages:[{text:'Survey the damage aboard the Vesper',obj:[
       {k:'use',id:'vs_diag_nav',label:'Run diagnostics on the navigation terminal (bridge)',zone:'vesper',x:-.9,z:14.1},
-      {k:'use',id:'vs_diag_core',label:'Inspect the drive core (engineering)',zone:'vesper',x:-1.7,z:-11.2},
+      {k:'use',id:'vs_diag_core',label:'Inspect the drive core (engineering)',zone:'vesper',x:-1.6,z:-10.6},
       {k:'use',id:'vs_diag_power',label:'Trace the power fault (crew quarters)',zone:'vesper',x:4.1,z:6},
       {k:'use',id:'vs_diag_hull',label:'Inspect the hull breach (cargo bay)',zone:'vesper',x:4.1,z:-4}]},
     {text:'Tell Tamsin what the Vesper needs',obj:[{k:'talk',npc:'tamsin',label:'Report the damage to Tamsin',opt:'★ I surveyed the Vesper.',text:'That\'s a long list. All right. The hull: salvage plates from your own debris field and I\'ll mix sealant to weld them in. The drive coupling is cracked, so Oduya\'s foundry will have to cast a new one. The coolant line burst, and Dr. Varga at Cold Harbor keeps cryo-coolant. The power trunk is fried: the Builder ruins are full of superconductor wiring nobody\'s touched in a thousand years. Navigation needs the Kestrel Dawn\'s core, and pull her holo emitter while you\'re in there so VESTA has a face again. Fit each part as you get it. I\'ll talk you through it over comms.'}]},
@@ -3660,7 +3650,7 @@ Q({id:'m09_grounded',type:'main',act:1,giver:'tamsin',req:()=>qDone('m08_spire')
       {k:'flag',flag:'vr_power',item:'wiring',n:1,label:'Power: rewire the trunk with superconductor wiring (Builder Ruins)',zone:'twilight',at:{x:-256,z:-136}},
       {k:'flag',flag:'vr_nav',item:'navcore',n:1,label:'Navigation: install the Kestrel Dawn\'s core (Nightward Expanse)',zone:'nightward',at:{x:198,z:112}},
       {k:'flag',flag:'vr_emitter',item:'emitter',n:1,label:'VESTA: replace her projector\'s emitter (Kestrel Dawn wreck)',zone:'nightward',at:{x:183,z:116}}]},
-    {text:'Restart the reactor',obj:[{k:'use',id:'vs_reactor',label:'Restart the Vesper\'s reactor (engineering)',zone:'vesper',x:-1.7,z:-11.2}]},
+    {text:'Restart the reactor',obj:[{k:'use',id:'vs_reactor',label:'Restart the Vesper\'s reactor (engineering)',zone:'vesper',x:-1.6,z:-10.6}]},
     {text:'Drive off the skitters drawn by the reactor',obj:[{k:'kill',type:'skitter',n:6,zone:'twilight',label:'Skitters driven off around the Vesper',at:{x:-46,z:138}}]},
     {text:'Lift off with VESTA',obj:[{k:'talk',npc:'vesta',label:'Tell VESTA to take her up (Vesper bridge)',opt:'★ Let\'s get her out of this ditch.',text:'Reactor stable. Hull holding. Navigation\'s found the stars again, and so have I. Hold on to something. … There. Meridian\'s pad is clear, and Tamsin is waving at us with both arms.'}]},
     {text:'Fly the Vesper to Anchorage',obj:[{k:'go',zone:'anchorage',x:0,z:-44,r:14,label:'Fly to Anchorage station (Vesper bridge, star map)'}]}],
@@ -4477,6 +4467,7 @@ function vkDoor(ctx,x,z,along,w,o={}){const y0=W.floorY,g=grp(ctx,x,y0,z,along==
   if(o.mode==='force'){const st=ctx.state(),key='door_'+o.id,ax=along==='x';
     const block=ctx.plat({x,z,hw:ax?w/2:.2,hd:ax?.2:w/2,rot:0,top:y0+h,bot:y0-1});
     const done=()=>{block.top=block.bot=-99;};if(st.flags[key]){open=.62;set(open);done();}
+    if(o.hint){const mk=glowAt(ctx,null,x,y0+1.4,z,0xffc35a,1.6,.8);mk.visible=false;ctx.anim(()=>{mk.visible=!st.flags[key]&&o.hint();if(mk.visible)mk.scale.setScalar(1.4+Math.sin(performance.now()*.005)*.3);});}
     let pry=-1;ctx.inter({pos:()=>({x,z}),r:2.2,label:()=>'Force the jammed door',ok:()=>!st.flags[key]&&pry<0,act:()=>{pry=0;sfx('thump');}});
     ctx.anim(dt=>{if(pry<0||pry>=1)return;pry=Math.min(1,pry+dt*.55);const k=Math.floor(pry*5),j=pry*5-k;
       const tgt=.62*Math.min(1,(k+smooth(.3,.7,j))/5);open+=(tgt-open)*Math.min(1,dt*9);set(open);
@@ -4487,6 +4478,34 @@ function vkDoor(ctx,x,z,along,w,o={}){const y0=W.floorY,g=grp(ctx,x,y0,z,along==
       if(Math.sin(t*5.3+x)>-.25){const step=dt*.32*(want>open?1:.6);open=want>open?Math.min(want,open+step):Math.max(want,open-step);}
       const moving=Math.abs(open-was)>1e-4;if(moving&&Math.random()<.02)vkGrind(x,z);was=open;set(open+Math.sin(t*40)*.004*(moving?1:0));});return;}
   ctx.anim(dt=>{const want=Math.hypot(player.x-x,player.z-z)<3.4?1:0;open+=(want-open)*Math.min(1,dt*5);set(open);});}
+// The drive core: a column of glass chambers between metal rings, a reaction chamber at its waist, plasma rising through it.
+// Dark and guttering after the crash; a faint blue once the coupling is fitted; alive once the reactor restarts.
+function vkCore(ctx,x,z,broken){const y0=W.floorY,P=ctx.P,g=grp(ctx,x,y0,z,0);
+  const c=mkCanvas(64);c.height=256;const cg=c.getContext('2d');for(let y=0;y<256;y++){const v=.35+.65*Math.pow(.5+.5*Math.sin(y/256*Math.PI*2*4),3);cg.fillStyle=`rgb(${Math.round(255*v)},${Math.round(255*v)},${Math.round(255*v)})`;cg.fillRect(0,y,64,1);}
+  const bands=new THREE.CanvasTexture(c);bands.wrapS=bands.wrapT=THREE.RepeatWrapping;
+  const plasma=new THREE.MeshStandardMaterial({color:0x000000,emissive:0x5ab8ff,emissiveMap:bands,emissiveIntensity:0,roughness:.4});
+  const glass=new THREE.MeshStandardMaterial({color:0x1a2a38,roughness:.08,metalness:.2,transparent:true,opacity:.42,depthWrite:false});
+  const ringM=new THREE.MeshStandardMaterial({color:0x5ab8ff,emissive:0x5ab8ff,emissiveIntensity:0,roughness:.5});
+  // plinth with a hazard band, a railing round it
+  P.add(g,MAT.hullDark,cyl(1.15,1.25,.22,32),0,.11,0);P.add(g,MAT.hazard,cyl(1.16,1.16,.06,32,1,true),0,.2,0);P.add(g,MAT.metal,cyl(.72,.82,.38,24),0,.41,0);
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2;P.add(g,MAT.metal,cyl(.03,.03,1,6),Math.cos(a)*1.45,.5,Math.sin(a)*1.45);}P.add(g,MAT.metal,tor(1.45,.035,6,48),0,1,0,Math.PI/2,0,0);P.add(g,MAT.hazard,tor(1.45,.02,6,48),0,.55,0,Math.PI/2,0,0);
+  // the column: inner plasma tube inside glass chambers, metal collars between them
+  const tube=new THREE.Mesh(cyl(.2,.2,2.3,20,1,true),plasma);tube.position.y=1.75;g.add(tube);
+  const segs=[[.6,1.15],[1.95,2.55],[2.55,2.9]];for(const [a,b] of segs){const m=new THREE.Mesh(cyl(.38,.38,b-a,24,1,true),glass);m.position.y=(a+b)/2;g.add(m);}
+  for(const y of[.6,1.15,1.95,2.55])P.add(g,MAT.metal,cyl(.46,.46,.1,24),0,y,0);
+  const lit=[];for(const y of[.88,2.25,2.72]){const r=new THREE.Mesh(tor(.4,.025,6,32),ringM);r.rotation.x=Math.PI/2;r.position.y=y;g.add(r);lit.push(r);}
+  // the reaction chamber at its waist
+  const ch=new THREE.Mesh(sph(.6,28,16),glass);ch.scale.y=.7;ch.position.y=1.55;g.add(ch);const core=new THREE.Mesh(sph(.3,20,12),plasma.clone());core.material.emissiveMap=null;core.position.y=1.55;g.add(core);
+  P.add(g,MAT.metal,tor(.6,.05,8,40),0,1.55,0,Math.PI/2,0,0);for(let i=0;i<4;i++){const a=i/4*Math.PI*2+.4;P.add(g,MAT.metal,RB(.08,2.55,.08,.02,1),Math.cos(a)*.52,1.6,Math.sin(a)*.52);}
+  // up into the deckhead
+  P.add(g,MAT.metal,cyl(.55,.46,.22,24),0,2.99,0);for(const [dx,dz] of[[.75,0],[-.75,0]])P.add(g,MAT.hullDark,cyl(.1,.1,.6,10),dx,2.9,dz);
+  ctx.col(x,z,1.5);ctx.light(x,y0+1.6,z,0x5ab8ff,0,9);const L=ctx.lights[ctx.lights.length-1];
+  ctx.anim(dt=>{const t=performance.now()/1000,fixed=!broken,run=fixed||G.flags.vr_reactor,coupled=G.flags.vr_coupling;
+    let k,col;if(run){k=1.3+Math.sin(t*3.2)*.25;col=0x5ab8ff;bands.offset.y-=dt*.9;}
+    else if(coupled){k=.22+Math.sin(t*.8)*.05;col=0x5ab8ff;bands.offset.y-=dt*.08;}
+    else{const f=dmgFlick(t,11);k=f<.2?f*.6:.05+(Math.random()<.03?.35:0);col=0xff5a2a;}
+    plasma.emissive.setHex(col);plasma.emissiveIntensity=k;core.material.emissive.setHex(col);core.material.emissiveIntensity=k*1.3;ringM.emissive.setHex(col);ringM.emissiveIntensity=k*.8;ringM.color.setHex(run||coupled?0x5ab8ff:0x3a2a28);
+    if(L){L.color=col;L.i=k*1.1;L._warm=1;}});}
 // a short metallic grind where something heavy is forced
 // brightness of a failing light at time t (each fitting has its own seed): a buzzing sag, and short blackouts
 function dmgFlick(t,seed){const h=v=>{const q=Math.sin(v*12.9898+seed*78.233)*43758.5453;return q-Math.floor(q);};const slot=Math.floor(t*7);
@@ -4512,7 +4531,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
       if(q.isMesh&&q.material.emissive&&q.material.emissive.r>.5){const m=q.material,u=m.userData;if(u._pb)delete u._pb;m.emissiveIntensity=.22;if(!u._dim){u._dim=true;m.color.multiplyScalar(.5);m.emissive.setRGB(.85,.92,1);}}});
     if(!MODELS.shipkit){PF.room(ctx,0,0,11,32,3.2,{});}
     /* ---- shell: decks, outer hull walls, partitions with doorways ---- */
-    const well=[-1.7,1.7,-6.6,-2.2];// the open belly hatch in the cargo deck
+    const well=[-1.7,1.7,-5.6,-2.2];// the open belly hatch in the cargo deck
     vkDeck(ctx,-X,X,-15,17,{skip:[well]});
     vkWall(ctx,X,-15,X,17,1,0);vkWall(ctx,-X,-15,-X,17,-1,0);vkWall(ctx,-X,-15,X,-15,0,-1);
     vkPartition(ctx,-X,-8,X,-8,0,1,[[X,2.4]]);// engineering | cargo
@@ -4520,7 +4539,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
     vkPartition(ctx,1.6,0,1.6,9,1,0,[[4.5,1.8]]);vkPartition(ctx,-1.6,0,-1.6,9,-1,0,[[4.5,1.8]]);// corridor | quarters, med bay
     vkPartition(ctx,-X,9,X,9,0,1,[[X,3]]);// corridor | bridge
     const dm=m=>broken?m:null,dglow=broken?new THREE.MeshStandardMaterial({color:0x200806,emissive:0xff3a1a,emissiveIntensity:.32,roughness:.6}):null;
-    vkDoor(ctx,0,-8,'x',2.4,{mode:dm('force'),id:'eng',glow:dglow});vkDoor(ctx,0,0,'x',3,{mode:dm('slow'),glow:dglow});vkDoor(ctx,1.6,4.5,'z',1.8,{mode:dm('force'),id:'qtr',glow:dglow});vkDoor(ctx,-1.6,4.5,'z',1.8,{mode:dm('slow'),glow:dglow||MAT.tealGlow});vkDoor(ctx,0,9,'x',3,{mode:dm('slow'),glow:dglow});
+    vkDoor(ctx,0,-8,'x',2.4,{mode:dm('force'),id:'eng',glow:dglow,hint:()=>['vs_diag_core','vs_reactor'].some(needsUse)||(qStage('m09_grounded')===GR.REPAIR&&!(G.flags.vr_coupling&&G.flags.vr_coolant))});vkDoor(ctx,0,0,'x',3,{mode:dm('slow'),glow:dglow});vkDoor(ctx,1.6,4.5,'z',1.8,{mode:dm('force'),id:'qtr',glow:dglow,hint:()=>needsUse('vs_diag_power')||(qStage('m09_grounded')===GR.REPAIR&&!G.flags.vr_power)});vkDoor(ctx,-1.6,4.5,'z',1.8,{mode:dm('slow'),glow:dglow||MAT.tealGlow});vkDoor(ctx,0,9,'x',3,{mode:dm('slow'),glow:dglow});
     /* ---- bridge: the canopy, one terminal, the pilot's seat at it and a second seat ---- */
     {const win=new THREE.Mesh(new THREE.PlaneGeometry(2*X,2.6),new THREE.MeshBasicMaterial({map:vkView()}));win.position.set(0,y0+1.75,16.95);win.rotation.y=Math.PI;ctx.g.add(win);
       for(const x of[-X*.5,X*.5])P.add(ctx.g,MAT.metal,RB(.14,2.7,.2,.04,1),x,y0+1.75,16.9);P.add(ctx.g,MAT.metal,RB(2*X,.22,.3,.05,1),0,y0+3.08,16.9);P.add(ctx.g,MAT.hullDark,RB(2*X,.45,.6,.06,1),0,y0+.22,16.75);
@@ -4565,12 +4584,20 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
     /* ---- corridor ---- */
     for(const z of[2,6.5])ctx.light(0,y0+2.8,z,broken?0xff2a1a:0xffe2c0,broken?0.32:0.63,8);
     /* ---- cargo bay: crates, and the belly hatch down to the ground ---- */
-    {PF.crates(ctx,-4,-5.5,4,8);PF.crates(ctx,4,-2.5,3,3);PF.barrels(ctx,4.2,-6.6,3,4);PF.shelf(ctx,-4.9,-1.6,Math.PI/2,2.4);
+    {PF.crates(ctx,-4.7,-7,3,8);PF.barrels(ctx,4.7,-7.2,3,4);PF.shelf(ctx,-4.9,-1.6,Math.PI/2,2.4);
       const [wx0,wx1,wz0,wz1]=well,ww=wx1-wx0;
       const rg=grp(ctx,0,y0,wz1,0),rm=std(TEX.deck,{color:0x6a6e76,metalness:.6,roughness:.5});const ang=.42,len=(wz1-wz0)/Math.cos(ang)+1.2;
       const ramp=new THREE.Mesh(RB(ww-.2,.2,len,.05,1),rm);ramp.position.set(0,-Math.sin(ang)*len/2,-Math.cos(ang)*len/2);ramp.rotation.x=-ang;rg.add(ramp);
       for(const sd of[-1,1]){P.add(ctx.g,MAT.metal,RB(.1,1,wz1-wz0,.03,1),sd*(ww/2+.05),y0+.5,(wz0+wz1)/2);P.add(ctx.g,MAT.hazard,RB(.16,.1,wz1-wz0,.02,1),sd*(ww/2+.05),y0+.02,(wz0+wz1)/2);}
       P.add(ctx.g,MAT.hazard,RB(ww,.1,.2,.02,1),0,y0+.02,wz1);
+      for(const sd of[-1,1])ctx.plat({x:sd*(ww/2+.05),z:(wz0+wz1)/2,hw:.08,hd:(wz1-wz0)/2,rot:0,top:y0+1,bot:y0-3});
+      P.add(ctx.g,MAT.metal,RB(ww+.2,1,.1,.03,1),0,y0+.5,wz0);P.add(ctx.g,MAT.hazard,RB(ww+.2,.1,.16,.02,1),0,y0+1.02,wz0);ctx.plat({x:0,z:wz0,hw:ww/2+.1,hd:.08,rot:0,top:y0+1,bot:y0-3});
+      // a sign hung over the aisle: the way to engineering
+      {const c=mkCanvas(512);c.height=112;const g2=c.getContext('2d');g2.fillStyle='#0c0e14';g2.fillRect(0,0,512,112);g2.strokeStyle=broken?'#ff7a3a':'#ffc35a';g2.lineWidth=6;g2.strokeRect(6,6,500,100);
+        g2.fillStyle=broken?'#ffb070':'#ffd890';g2.font='bold 44px sans-serif';g2.textAlign='center';g2.textBaseline='middle';g2.fillText('ENGINEERING',256,46);g2.font='26px sans-serif';g2.fillStyle=broken?'#e08a5a':'#c8b080';g2.fillText('DRIVE CORE  \u25BC',256,86);
+        const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const sg=new THREE.Mesh(new THREE.PlaneGeometry(2.1,.46),new THREE.MeshBasicMaterial({map:t}));sg.position.set(0,y0+2.62,-7.1);ctx.g.add(sg);
+        const bk=new THREE.Mesh(RB(2.2,.54,.06,.02,1),MAT.hullDark);bk.position.set(0,y0+2.62,-7.14);ctx.g.add(bk);for(const sx of[-.9,.9])P.add(ctx.g,MAT.metal,cyl(.015,.015,.3,6),sx,y0+2.98,-7.12);
+        if(broken)ctx.anim(()=>{sg.material.color.setScalar(.55+.45*dmgFlick(performance.now()/1000,4));});}
       // daylight (or red emergency light) coming up through the hatch
       const glow=new THREE.Mesh(new THREE.PlaneGeometry(ww,wz1-wz0),new THREE.MeshBasicMaterial({color:broken?0xff8a5a:0xffe6b8,transparent:true,opacity:.9}));glow.rotation.x=-Math.PI/2;glow.position.set(0,y0-2.2,(wz0+wz1)/2);ctx.g.add(glow);
       ctx.light(0,y0+.4,(wz0+wz1)/2,broken?0xff7a4a:0xffe0b0,0.98,9);ctx.light(0,y0+2.8,-4,broken?0xff2a1a:0xffc890,broken?0.35:0.7,10);
@@ -4579,11 +4606,8 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
       // stepping onto the ramp takes you down it
       let gone=false;ctx.anim(()=>{if(!gone&&!UI.loading&&player.x>wx0+.2&&player.x<wx1-.2&&player.z>wz0&&player.z<wz1-.9){gone=true;exitVesper();}});}
     /* ---- engineering: the workbench and the drive core ---- */
-    {ctx.bench(4.4,-12,-Math.PI/2);
-      const g=grp(ctx,-3.2,y0,-12,0);P.add(g,MAT.metal,cyl(1,1,.3,24),0,.15,0);const core=new THREE.Mesh(cyl(.55,.55,2.4,24),new THREE.MeshStandardMaterial({color:0x103040,emissive:broken?0xff5a2a:0x5ab8ff,emissiveIntensity:1.4,transparent:true,opacity:.85}));core.position.y=1.5;g.add(core);
-      for(let i=0;i<4;i++)P.add(g,MAT.metal,tor(.68,.06,8,24),0,.5+i*.65,0,Math.PI/2,0,0);P.add(g,MAT.metal,cyl(1,1,.3,24),0,2.85,0);ctx.box(-3.2,-12,1.1,1.1,0,3);
-      ctx.light(-3.2,y0+1.8,-12,broken?0xff5a2a:0x5ab8ff,0.91,10);ctx.anim(()=>{if(broken&&G.flags.vr_coupling&&!core.userData.fixed){core.userData.fixed=1;core.material.emissive.setHex(0x5ab8ff);}core.material.emissiveIntensity=broken&&G.flags.vr_reactor?1+Math.sin(performance.now()*.004)*.2:broken&&G.flags.vr_coupling?.35:broken?.42*dmgFlick(performance.now()/1000,9):1.2+Math.sin(performance.now()*.004)*.25;});
-      for(const x of[-1.5,1.5])P.add(ctx.g,MAT.metal,cyl(.12,.12,7,10),x,y0+2.7,-11.5,Math.PI/2,0,0);PF.crates(ctx,3.8,-14,3,6);}
+    {ctx.bench(4.4,-12,-Math.PI/2);vkCore(ctx,0,-12.2,broken);
+      for(const x of[-3.4,3.4])P.add(ctx.g,MAT.metal,cyl(.12,.12,7,10),x,y0+2.7,-11.5,Math.PI/2,0,0);PF.crates(ctx,3.9,-14.2,3,6);}
     /* ---- before the repair: the decks took a beating ---- */
     if(broken){const smokes=[[-3,2.9,-11],[3,2.9,-4],[0,2.9,6]];
       // fallen ceiling strips and torn panels
@@ -4709,8 +4733,8 @@ function vesperDamage(ctx,X){const P=ctx.P,y0=W.floorY,sp=[];
   {sp.push(vdCable(ctx,-3.1,7.2,1.2));const t=vdTornWall(ctx,-X+.7,2.6,-1);sp.push([t.x+.1,y0+1.6,t.z]);vdShards(ctx,-3.9,y0+.83,4.5,.6,18);vdShards(ctx,-3,y0,4.4,1.2,20);vdDebris(ctx,-5,-2.2,.6,8.6,14);}
   /* cargo bay */
   {sp.push(vdCable(ctx,-2.6,-3.2,1.7),vdCable(ctx,2.9,-6.9,1.1));sp.push(vdHangPanel(ctx,3.2,-1.6,.4));vdSag(ctx,-5,-7.5,-1.8,-5.5,.9);
-    for(const [x,z,r,m] of[[-2.6,-1.2,.5,MAT.crate],[-3.4,-7.2,1.1,MAT.crateBlue],[2.5,-4.4,.25,MAT.crateRed]]){P.add(ctx.g,m,RB(1,1,1,.04,1),x,y0+.42,z,0,r,.42);ctx.box(x,z,.55,.55,r,y0+.9);}
-    for(const [x,z,r] of[[3.3,-3.6,.4],[2.4,-7.2,1.7]]){P.add(ctx.g,MAT.metal,cyl(.38,.38,1.1,14),x,y0+.38,z,0,r,Math.PI/2);P.add(ctx.g,MAT.hazard,cyl(.39,.39,.16,14,1,true),x,y0+.38,z,0,r,Math.PI/2);ctx.box(x,z,.55,.4,r,y0+.76);}
+    for(const [x,z,r,m] of[[-4.9,-3.7,.5,MAT.crate],[4.9,-5.7,1.1,MAT.crateBlue],[4.8,-1.3,.25,MAT.crateRed]]){P.add(ctx.g,m,RB(1,1,1,.04,1),x,y0+.42,z,0,r,.42);ctx.box(x,z,.55,.55,r,y0+.9);}
+    for(const [x,z,r] of[[4.7,-2.4,.4],[-4.8,-5,1.7]]){P.add(ctx.g,MAT.metal,cyl(.38,.38,1.1,14),x,y0+.38,z,0,r,Math.PI/2);P.add(ctx.g,MAT.hazard,cyl(.39,.39,.16,14,1,true),x,y0+.38,z,0,r,Math.PI/2);ctx.box(x,z,.55,.4,r,y0+.76);}
     vdDebris(ctx,-5,5,-7.8,-.4,22);}
   /* engineering */
   {sp.push(vdCable(ctx,.6,-10.2,1.7),vdCable(ctx,3,-13.6,1.2),vdCable(ctx,-1.2,-14.2,1));sp.push(vdHangPanel(ctx,-.8,-9.4,Math.PI));vdSag(ctx,1,-14.6,4.8,-12.5,.8);
@@ -4723,7 +4747,7 @@ function vesperDamage(ctx,X){const P=ctx.P,y0=W.floorY,sp=[];
 function vesperRepairs(ctx,X){const y0=W.floorY,stg=()=>qStage('m09_grounded');
   const diag=(id,x,z,label,line)=>qUse(ctx,id,x,z,label,{ok:()=>stg()===GR.ASSESS,act:()=>{vesta(line,9000);FX.burst(new THREE.Vector3(x,y0+1.2,z),0x6ff2d6,14,2,.4,.05);}});
   diag('vs_diag_nav',-.9,14.1,'Run diagnostics on the navigation terminal','Navigation is dead. The core burned out on impact and the display is smashed. Without a core we can\'t find our way off a parking pad, let alone to orbit.');
-  diag('vs_diag_core',-1.7,-11.2,'Inspect the drive core','The drive core is intact, but its flux coupling cracked, and the coolant line beside it has burst. Restart the reactor like this and it melts.');
+  diag('vs_diag_core',-1.6,-10.6,'Inspect the drive core','The drive core is intact, but its flux coupling cracked, and the coolant line beside it has burst. Restart the reactor like this and it melts.');
   diag('vs_diag_power',X-1.4,6,'Trace the power fault','Found it: the main power trunk behind this panel. Fused solid. Everything aboard is running on emergency cells, which is why the lights won\'t hold.');
   diag('vs_diag_hull',X-1.4,-4,'Inspect the hull breach','The breach goes right through both hull layers. We need plating to close it and sealant to make it hold. She won\'t keep air in orbit like this.');
   // fitting the parts: each one changes the ship as it goes in
@@ -4731,12 +4755,12 @@ function vesperRepairs(ctx,X){const y0=W.floorY,stg=()=>qStage('m09_grounded');
     act:()=>{for(const [k,n] of need)removeItem(k,n);setFlag(flag);sfx('thump');FX.burst(new THREE.Vector3(x,y0+1.3,z),0xffc35a,36,3.5,.6,.08);sparkSound(x,z,.55);done&&done();checkObjectives();renderTracker();saveSoon();
       const left=['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'].filter(f=>!G.flags[f]).length;if(!left)setTimeout(()=>vesta('That\'s every system. All that\'s left is to wake the reactor. Engineering.'),4200);}});
   fit(X-1.4,-4,'Weld the hull plates over the breach and seal them','vr_hull',[['hullplate',4],['sealant',1]],()=>vesta('Plates welded, sealant curing. She\'ll hold air again.'));
-  fit(-1.7,-11.2,'Fit the new flux coupling','vr_coupling',[['coupling',1]],()=>vesta('Coupling seated. The core\'s field is stable, for now.'));
+  fit(-1.6,-10.6,'Fit the new flux coupling','vr_coupling',[['coupling',1]],()=>vesta('Coupling seated. The core\'s field is stable, for now.'));
   fit(1.5,-10.1,'Replace the burst coolant line','vr_coolant',[['coolant',1]],()=>vesta('New line, full charge of coolant. That should stop the steam.'));
   fit(X-1.4,6,'Rewire the power trunk','vr_power',[['wiring',1]],()=>vesta('Power trunk rewired. Main power is back on the lights, at least.'));
   fit(.9,14.2,'Install the navigation core','vr_nav',[['navcore',1]],()=>vesta('Navigation core installed. The screen\'s still cracked, but I can see the stars on it.'));
   fit(-2.5,12.1,'Fit the holo emitter into VESTA\'s projector','vr_emitter',[['emitter',1]],()=>vesta('Oh. That\'s better. I can see myself again. Thank you.'));
-  qUse(ctx,'vs_reactor',-1.7,-11.2,'Restart the reactor',{ok:()=>stg()===GR.REACTOR,act:()=>{setFlag('vr_reactor');sfx('scan');for(let i=0;i<4;i++)setTimeout(()=>{FX.burst(new THREE.Vector3(-3.2,y0+1.5,-12),0x8fd8ff,40,4,.7,.1);sfx('thump');},i*450);}});
+  qUse(ctx,'vs_reactor',-1.6,-10.6,'Restart the reactor',{ok:()=>stg()===GR.REACTOR,act:()=>{setFlag('vr_reactor');sfx('scan');for(let i=0;i<4;i++)setTimeout(()=>{FX.burst(new THREE.Vector3(0,y0+1.6,-12.2),0x8fd8ff,40,4,.7,.1);sfx('thump');},i*450);}});
   // the breach in the cargo bay's starboard wall: the dusk outside showing through torn plating, until it is welded shut
   {const V=vdMats(),c=mkCanvas(256),g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#2a1830');gr.addColorStop(.7,'#8a4038');gr.addColorStop(1,'#c8704a');g.fillStyle=gr;g.fillRect(0,0,256,256);
     const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const sky=new THREE.Mesh(new THREE.CircleGeometry(1,20),new THREE.MeshBasicMaterial({map:t}));sky.scale.set(.9,1.05,1);sky.position.set(X-.6,y0+1.5,-4);sky.rotation.y=-Math.PI/2;ctx.g.add(sky);
