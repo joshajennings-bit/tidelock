@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.60 · 2026-11-15";
+const TL_BUILD="1.61 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2967,7 +2967,7 @@ function kit(ctx){const st=zoneState(ctx.def.id);
   ctx.bench=(x,z,ry)=>{const b=PF.bench(ctx,x,z,ry);ctx.inter({pos:()=>({x,z}),r:3,label:()=>'Use the workbench',ok:()=>true,act:()=>openWorkbench()});ctx.anim(()=>{if(Math.random()<.12){const v=b.arm.clone().applyMatrix4(b.g.matrixWorld);FX.spawn(v.x,v.y-.12,v.z,rf(-.6,.6),rf(-.2,.6),rf(-.6,.6),{life:rf(.2,.4),size:rf(.05,.09),c0:0xffffff,c1:0x6ff2d6,drag:2,grav:4});}});};
   ctx.board=(x,z,ry,pool,title)=>{PF.board(ctx,x,z,ry,'CONTRACTS');ctx.inter({pos:()=>({x,z}),r:2.8,label:()=>'Check the contract board',ok:()=>true,act:()=>openBoard(pool,ctx.def.id,title)});};
   ctx.locker=(x,z,ry)=>{PF.lockers(ctx,x,z,ry,3);ctx.inter({pos:()=>({x,z}),r:2.6,label:()=>'Change your look at the lockers',ok:()=>!qActive('m01_wake'),act:()=>openLooks(false)});};
-  ctx.bed=(x,z,ry)=>{PF.bunk(ctx,x,z,ry);ctx.inter({pos:()=>({x,z}),r:2.4,label:()=>'Rest in the bunk',ok:()=>true,act:()=>{G.hp=PS.maxHp;G.en=PS.maxEn;$('#fade').style.opacity=1;setTimeout(()=>{$('#fade').style.opacity=0;toast('You rest for a while. Fully healed.','teal');saveSoon();},700);}});};
+  ctx.bed=(x,z,ry,o={})=>{PF.bunk(ctx,x,z,ry);ctx.inter({pos:()=>({x,z}),r:2.4,label:()=>'Rest in the bunk',ok:()=>!(o.hide&&o.hide()),act:()=>{G.hp=PS.maxHp;G.en=PS.maxEn;$('#fade').style.opacity=1;setTimeout(()=>{$('#fade').style.opacity=0;toast('You rest for a while. Fully healed.','teal');saveSoon();},700);}});};
   ctx.heal=(x,z,label='Use the medical station')=>{ctx.inter({pos:()=>({x,z}),r:2.6,label:()=>label,ok:()=>true,act:()=>{G.hp=PS.maxHp;FX.heal();toast('Patched up. Fully healed.','teal');}});};
   return ctx;}
 
@@ -4641,7 +4641,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
       ctx.use('starmap',0,13.9,()=>broken?'Check the navigation terminal':'Open the star map',{persist:false,act:()=>{if(broken){toast(G.flags.vr_nav?'Navigation core online, but the Vesper can\'t fly yet. No course to plot until the repairs are finished.':'Navigation offline. The core burned out in the crash and the display is smashed.','',4000);sfx('deny');return;}openStarMap();}});
       ctx.light(0,y0+2.8,12.5,broken?0xff3a2a:0xd8e6ff,broken?0.49:0.91,14);ctx.light(0,y0+1.3,15.4,0x5ae0ff,broken?0.21:0.7,6);}
     /* ---- quarters: bunk, locker, table and your note ---- */
-    {ctx.bed(4.4,7.4,Math.PI/2);ctx.locker(4.9,1.4,-Math.PI/2);PF.table(ctx,3,4.2,0,1.1,.7,{stools:1});PF.shelf(ctx,4.9,4.3,-Math.PI/2,1.6);
+    {ctx.bed(4.4,7.4,Math.PI/2,{hide:()=>qActive('m09_grounded')&&qStage('m09_grounded')===GR.REST});/* while she repairs herself, the bunk is for the night's sleep that moves the story on */ctx.locker(4.9,1.4,-Math.PI/2);PF.table(ctx,3,4.2,0,1.1,.7,{stools:1});PF.shelf(ctx,4.9,4.3,-Math.PI/2,1.6);
       ctx.log('vs_note',3,4.2,'A note in your own handwriting','“If you\'re reading this, it worked, and you don\'t remember. Trust VESTA. Don\'t trust Halcyon. Find the second spire.” You don\'t remember writing it.',{y:.85});
       ctx.light(3.6,y0+2.7,4.5,broken?0xff3a2a:0xffd0a0,broken?0.35:0.7,9);}
     /* ---- med bay: the med pod ---- */
