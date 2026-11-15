@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.65 · 2026-11-15";
+const TL_BUILD="1.66 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4663,7 +4663,7 @@ function captureShipView(fx,at){try{const g=fx.g;g.updateMatrixWorld(true);const
   renderer.setRenderTarget(rt);renderer.render(scene,cam);renderer.setRenderTarget(was);if(vis!==null)avatar.root.visible=vis;
   const px=new Uint8Array(W_*H_*4);renderer.readRenderTargetPixels(rt,0,0,W_,H_,px);rt.dispose();
   const c=mkCanvas(W_);c.height=H_;const x=c.getContext('2d'),id=x.createImageData(W_,H_);for(let y=0;y<H_;y++)id.data.set(px.subarray((H_-1-y)*W_*4,(H_-y)*W_*4),y*W_*4);x.putImageData(id,0,0);
-  SHIPVIEW={at,img:c};try{localStorage.setItem('tidelock-shipview',JSON.stringify({at,img:c.toDataURL('image/jpeg',.82)}));}catch(e){}}catch(e){}}
+  SHIPVIEW={at,img:c};G.flags.vsShields=false;try{localStorage.setItem('tidelock-shipview',JSON.stringify({at,img:c.toDataURL('image/jpeg',.82)}));}catch(e){}}catch(e){}}
 function vkView(){const c=mkCanvas(1024);c.height=512;const g=c.getContext('2d');const at=G.flags.vesperFixed?(G.shipAt||'twilight'):'crash',whole=vsWhole();
   if(whole&&SHIPVIEW&&SHIPVIEW.at===at&&(SHIPVIEW.img.complete!==false)){g.drawImage(SHIPVIEW.img,0,0,1024,512);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
   const sky={crash:['#140a1a','#4a1e34','#b8603a'],twilight:['#120c22','#3a2048','#c8704a'],dayward:['#3a2010','#c06a2a','#ffc070'],nightward:['#02040c','#0c1a34','#2a5070'],calder:['#06141c','#145060','#5ab8b0'],ashfall:['#100406','#401010','#c03a1a'],anchorage:['#020208','#060814','#101828']}[at]||['#120c22','#3a2048','#c8704a'];
@@ -4695,6 +4695,15 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
     vkDoor(ctx,0,-8,'x',2.4,{mode:dm('force'),id:'eng',glow:dglow,hint:()=>['vs_diag_core','vs_reactor'].some(needsUse)||(qStage('m09_grounded')===GR.REPAIR&&!(G.flags.vr_coupling&&G.flags.vr_coolant))});vkDoor(ctx,0,0,'x',3,{mode:dm('slow'),glow:dglow});vkDoor(ctx,1.6,4.5,'z',1.8,{mode:dm('force'),id:'qtr',glow:dglow,hint:()=>needsUse('vs_diag_power')||(qStage('m09_grounded')===GR.REPAIR&&!G.flags.vr_power)});vkDoor(ctx,-1.6,4.5,'z',1.8,{mode:dm('slow'),glow:dglow||MAT.tealGlow});vkDoor(ctx,0,9,'x',3,{mode:dm('slow'),glow:dglow});
     /* ---- bridge: the canopy, one terminal, the pilot's seat at it and a second seat ---- */
     {const win=new THREE.Mesh(new THREE.PlaneGeometry(2*X,2.6),new THREE.MeshBasicMaterial({map:vkView()}));win.position.set(0,y0+1.75,16.95);win.rotation.y=Math.PI;ctx.g.add(win);
+      // blast shields: armoured slats that drop over the canopy for a flight and stay down until you've been outside again
+      {const n=6,slatH=2.7/n,slats=[],sm=new THREE.MeshStandardMaterial({color:0x4a4e58,metalness:.7,roughness:.45}),hz=MAT.hazard;
+        for(let i=0;i<n;i++){const g=new THREE.Group(),base=y0+.42+slatH*(i+.5);g.userData.base=base;const sl=new THREE.Mesh(RB(2*X-.1,slatH-.03,.1,.02,1),sm);g.add(sl);
+          if(i===0||i===n-1){const st=new THREE.Mesh(RB(2*X-.2,.07,.02,.005,1),hz);st.position.set(0,i?-.12:.12,-.06);g.add(st);}
+          for(const sx of[-X*.5,0,X*.5]){const r=new THREE.Mesh(cyl(.035,.035,.03,8),MAT.metal);r.rotation.x=Math.PI/2;r.position.set(sx,0,-.06);g.add(r);}
+          g.position.set(0,base,16.82);ctx.g.add(g);slats.push(g);}
+        let k=G.flags.vsShields?1:0;const top=y0+3.05;
+        const place=()=>{for(const g of slats){const b=g.userData.base;g.position.y=top+(b-top)*k;g.scale.y=Math.max(.05,k);g.visible=k>.02;}};place();
+        window.vkShieldsClose=()=>{G.flags.vsShields=true;};ctx.anim(dt=>{const w=G.flags.vsShields?1:0;if(Math.abs(k-w)>.001){k+=Math.sign(w-k)*Math.min(Math.abs(w-k),dt*.9);place();if(Math.random()<.05)vkGrind(0,15);}});}
       for(const x of[-X*.5,X*.5])P.add(ctx.g,MAT.metal,RB(.14,2.7,.2,.04,1),x,y0+1.75,16.9);P.add(ctx.g,MAT.metal,RB(2*X,.22,.3,.05,1),0,y0+3.08,16.9);P.add(ctx.g,MAT.hullDark,RB(2*X,.45,.6,.06,1),0,y0+.22,16.75);
       ctx.plat({x:0,z:16.9,hw:X,hd:.25,rot:0,top:y0+VK.H,bot:y0-1});
       if(MODELS.sterm){const t=MODELS.sterm.scene.clone(true),fit=new THREE.Group();fit.add(t);const b=new THREE.Box3().setFromObject(fit),s=b.getSize(new THREE.Vector3()),k=2.6/s.x,cn=b.getCenter(new THREE.Vector3());
@@ -5054,7 +5063,7 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
     P.add(ctx.g,M.dark,new THREE.BoxGeometry(2,.02,48),0,.012,-70);for(const s2 of[-1,1])P.add(ctx.g,M.teal,new THREE.BoxGeometry(.06,.025,48),s2*1.02,.014,-70);// the centre track, as in the reference station
     for(const [x,z] of[[-14,-82],[14,-82],[-14,-60],[14,-60]])ctx.light(x,13,z,0xdfe6ff,1.15,30);
     // berths: the Vesper (if she's here) on pad one, a visiting courier on pad two; both nose-out to the bay door
-    if(G.shipAt==='anchorage'){const fx=PF.vesper(ctx,-12,-71,PI,{y:0});ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>enterZone('vesper','ramp')});}
+    if(G.shipAt==='anchorage'){const fx=PF.vesper(ctx,-12,-71,PI,{y:0});ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Board the Vesper',ok:()=>true,act:()=>{captureShipView(fx,'anchorage');enterZone('vesper','ramp');}});}
     {const v=stModel('sabre',17,{axis:'x',shadow:true});if(v){v.position.set(12,2.2,-75);v.rotation.y=PI/2;ctx.g.add(v);for(const [lx,lz] of[[-3,-4],[3,-4],[0,5]]){P.add(ctx.g,M.dark,cyl(.25,.3,2.4,10),12+lx,1.2,-75+lz);P.add(ctx.g,MAT.hazard,cyl(.6,.7,.15,12),12+lx,.08,-75+lz);ctx.col(12+lx,-75+lz,.45);}
       stSign(ctx,'CS KESTREL MOTH · COURIER',12,1,-62.5,0,'#ffc35a',5);}}
     PF.container(ctx,-23,-63,PI/2,0x4a6a8a);PF.container(ctx,24,-88,0,0x8a5a3a);PF.crates(ctx,22,-50,6,4);PF.crates(ctx,-24,-88,5,5);PF.barrels(ctx,25,-60,4,3);
@@ -5855,7 +5864,7 @@ const DESTS=[['twilight','Meridian Station','Ossery b · Twilight Band',()=>true
 function openStarMap(){openPanel();const b=sheet('narrow');const here=G.shipAt||'twilight';
   b.innerHTML=head('Star Map','xSM')+`<p class="note">The Vesper is ${here==='anchorage'?'docked at':'parked at'} <b>${esc(ZONES[here].name)}</b>. Choose a destination. New coordinates appear here as you learn them.</p><div class="cards">${DESTS.map(([id,n,w,ok])=>{const can=ok(),cur=id===here;return `<div class="card"><div class="cd"><b>${can?esc(n):'Unknown coordinates'}</b><small>${can?esc(w)+' · '+esc(ZONES[id].blurb):'Keep following the signal.'}</small><small class="dim">${can?`Recommended level ${ZONES[id].lvl[0]}–${ZONES[id].lvl[1]}`:''}</small></div><button class="buy" type="button" data-d="${id}"${!can||cur?' disabled':''}>${cur?'HERE':'SET COURSE'}</button></div>`;}).join('')}</div>`;
   $('#xSM').onclick=closePanel;b.querySelectorAll('[data-d]').forEach(e=>e.onclick=()=>{const d=e.dataset.d;closePanel();flyTo(d);});padFocus(b,1);}
-function flyTo(d){sfx('warp');$('#fade').style.opacity=1;cam.shake=.8;setTimeout(()=>{G.shipAt=d;$('#fade').style.opacity=0;showBanner(d==='anchorage'?'DOCKED':'LANDED',ZONES[d].name);vesta(d==='anchorage'?'Docking clamps engaged. The cargo ramp opens onto Bay 3.':'We\'re down. The cargo ramp is open whenever you\'re ready.');saveSoon();},1400);}
+function flyTo(d){G.flags.vsShields=true;closePanel();sfx('thump');setTimeout(()=>{sfx('warp');$('#fade').style.opacity=1;cam.shake=.8;},1300);setTimeout(()=>{G.shipAt=d;$('#fade').style.opacity=0;showBanner(d==='anchorage'?'DOCKED':'LANDED',ZONES[d].name);vesta((d==='anchorage'?'Docking clamps engaged. The cargo ramp opens onto Bay 3.':'We\'re down. The cargo ramp is open whenever you\'re ready.')+' Blast shields stay down until you\'ve been outside.');saveSoon();},2700);}
 
 /* ---------- character look and turntable ---------- */
 let lookTab='you',lookRaf=0;
