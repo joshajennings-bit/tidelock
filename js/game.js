@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.57 · 2026-11-15";
+const TL_BUILD="1.58 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4190,7 +4190,7 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
       // repaired overnight where she lay: a few drones still at work on the fine touches, until she lifts off
       if(whole){debris(ctx,-60,150,16,14);const bb=new THREE.Box3().setFromObject(fx.g),top=bb.max.y-.9,jobs=[];
         for(const [lx,lz,k] of[[-2.5,-9,'repair'],[2.5,-4,'repair'],[0,2,'scan'],[-2,7,'repair'],[2,10,'clean'],[0,-13,'scan']]){const q=toW(-60,150,-.5,lx,lz);jobs.push([q.x,q.z,top,k]);}
-        stDrones(ctx,4,jobs,{ring:0x4a5a6a,core:0x6ff2d6});// the station's saucer drones, full size, in work colours}
+        stDrones(ctx,4,jobs,{ring:0x4a5a6a,core:0x6ff2d6});/* the station's saucer drones, full size, in work colours */}
       grSiege(ctx);grWalk(ctx,-60,150);
       const slk=ctx.use('survival_locker',-46.4,146,'Open the survival case',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});PF.survivalCase(ctx,-46.4,146,.9,slk.done);
       // the crashed ship can be boarded: its ramp hangs open
