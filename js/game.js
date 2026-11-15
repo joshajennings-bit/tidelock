@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.53 · 2026-11-15";
+const TL_BUILD="1.54 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2863,6 +2863,11 @@ function crashTornEnd(parent,W2,H2,zc,dir,M){const V=vdMats(),cy=H2*.46,cap=new 
   for(let i=0;i<7;i++){const x=rf(-W2*.25,W2*.25),y=cy+rf(-H2*.22,H2*.22),l=rf(1,2.6),p=new THREE.Mesh(cyl(rf(.08,.22),rf(.08,.22),l,8),i%3?V.under:MAT.metal);p.rotation.x=Math.PI/2+rf(-.4,.4);p.rotation.z=rf(-.3,.3);p.position.set(x,y,zc+dir*(.9-l/2));parent.add(p);}
   for(let i=0;i<6;i++){const x=rf(-W2*.25,W2*.25),y=cy+rf(0,H2*.2),pts=[];for(let k=0;k<=6;k++){const u=k/6;pts.push(new THREE.Vector3(x+rf(-.1,.1),y-u*u*rf(2,4),zc+dir*(.8-u*rf(1.5,2.5))));}crashTube(parent,pts,rf(.03,.06),[V.rubber,V.wireR,V.wireY][i%3]);}
   const t1=new THREE.Vector3(1,0,0),t2=new THREE.Vector3(0,1,0),n=new THREE.Vector3(0,0,-dir);crashPetals(parent,new THREE.Vector3(0,cy,zc),t1,t2,n,W2*.36,H2*.4,18,M,[.2,.8]);}
+// Push a torn plate into the ground: the ground is checked under every corner (it slopes), and a good part of the plate's
+// height goes under, so it reads as driven in edge-first rather than balanced on a point.
+function plantInGround(m,frac=.35){m.updateMatrixWorld(true);const P=m.geometry.attributes.position,v=new THREE.Vector3();let lo=1e9,ymin=1e9,ymax=-1e9;
+  for(let k=0;k<P.count;k++){v.fromBufferAttribute(P,k).applyMatrix4(m.matrixWorld);lo=Math.min(lo,v.y-groundY(v.x,v.z));ymin=Math.min(ymin,v.y);ymax=Math.max(ymax,v.y);}
+  m.position.y-=lo+clamp((ymax-ymin)*frac,.3,1.2);m.updateMatrixWorld(true);}
 function crashDress(ctx,S){const {g,body,fit,meshes,W2,H2,L,x,z,th,fx}=S,P=ctx.P,Wp=(lx,lz)=>toW(x,z,th,lx,lz),V=vdMats();renderer.localClippingEnabled=true;g.updateMatrixWorld(true);
   const ZC=-L/2-2,hullMesh=meshes.find(q=>/Hull/.test(q.name))||meshes[0],hullMat=hullMesh.material.clone();hullMat.side=THREE.DoubleSide;
   const debrisM=new THREE.MeshStandardMaterial({color:0x7a7e86,roughness:.45,metalness:.35,side:THREE.DoubleSide,envMap:SABRE_ENV,envMapIntensity:1.2}),plateM=new THREE.MeshStandardMaterial({color:0x4a4d55,roughness:.6,metalness:.55,side:THREE.DoubleSide}),burntPlate=new THREE.MeshStandardMaterial({color:0x4a423e,roughness:.85,metalness:.25,side:THREE.DoubleSide,envMap:SABRE_ENV,envMapIntensity:.6}),rockM=new THREE.MeshStandardMaterial({color:0x7a625c,roughness:.95,flatShading:true}),clodM=new THREE.MeshStandardMaterial({color:0x58423e,roughness:1,flatShading:true});
@@ -2898,8 +2903,7 @@ function crashDress(ctx,S){const {g,body,fit,meshes,W2,H2,L,x,z,th,fx}=S,P=ctx.P
   for(let i=0;i<24;i++){const u=rr(-L/2-55,L/2+4),side=Math.random()<.5?-1:1,v=side*rr(W2*.6,W2*.6+12),q=Wp(v,u);if(Math.abs(u+L/2+13)<8&&Math.abs(v-6)<8)continue;
     const r=rr(1.5,4),geo=new THREE.CylinderGeometry(r,r,rr(.8,2.4),10,1,true,rr(0,6),rr(.35,.8));const m=new THREE.Mesh(geo,i%3?debrisM:burntPlate);m.castShadow=m.receiveShadow=true;
     m.position.set(q.x,groundY(q.x,q.z)-r*.75,q.z);m.rotation.set(rr(-.5,.5),rr(0,6),rr(-.4,.4)+Math.PI/2*(i%2));m.updateMatrix();
-    // sit it so its lowest edge is a little under the ground
-    const bb=new THREE.Box3().setFromObject(m);m.position.y+=groundY(q.x,q.z)-.12-bb.min.y;ctx.g.add(m);if(i%6===0)fx.fires.push(new THREE.Vector3(q.x,groundY(q.x,q.z)+.4,q.z));}
+    plantInGround(m,.35);ctx.g.add(m);if(i%6===0)fx.fires.push(new THREE.Vector3(q.x,groundY(q.x,q.z)+.4,q.z));}
   for(let i=0;i<22;i++){const nose=i<7,a=rr(-1.2,1.2),u=nose?L/2+rr(3,10):rr(-L/2-50,L/2),v=nose?Math.sin(a)*rr(5,12):(Math.random()<.5?-1:1)*rr(W2*.55+3,W2*.55+7),q=Wp(v,u),s2=nose?rr(.6,1.6):rr(.4,1.4);
     P.add(ctx.g,i%3?rockM:clodM,rockGeo(1,i*3.7+1),q.x,groundY(q.x,q.z)+s2*.12,q.z,rr(0,3),rr(0,3),rr(0,3),s2*1.3,s2*.6,s2);}
   for(let i=0;i<10;i++){const q=Wp(rr(-1,1)*W2*.4,-L/2-rr(4,70)),d=new THREE.Mesh(new THREE.PlaneGeometry(rr(5,8),rr(6,9)),new THREE.MeshBasicMaterial({map:dmgTex('scorch'),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,opacity:.8}));d.rotation.set(-Math.PI/2,0,th+rr(-.3,.3));d.position.set(q.x,groundY(q.x,q.z)+.07,q.z);ctx.g.add(d);}
@@ -4046,7 +4050,7 @@ function qBoss(ctx,qid,type,id,x,z,lvl,o={}){(W.bossIds=W.bossIds||[]).push(id);
 function updateQBosses(){if(!W.qbosses)return;const st=zoneState(W.id);for(const b of W.qbosses){if(b.spawned||st.killed[b.id])continue;if(qActive(b.qid)&&(!b.o.cond||b.o.cond())){b.spawned=true;spawnEnemy(b.type,b.x,b.z,b.lvl,Object.assign({id:b.id},b.o));}}}
 function restSpot(ctx,x,z,label='Rest in your bunk'){ctx.inter({pos:()=>({x,z}),r:2.6,label:()=>label,ok:()=>true,act:()=>{G.hp=PS.maxHp;G.en=PS.maxEn;G.sh=PS.shieldMax;$('#fade').style.opacity=1;setTimeout(()=>{$('#fade').style.opacity=0;toast('You rest for a while. Fully healed.','teal');saveSoon();},700);}});}
 // simple wreckage scatter
-function debris(ctx,cx,cz,r,n,mats=[MAT.hullDark,MAT.metal,MAT.hullWarm]){for(let i=0;i<n;i++){const a=rr(0,6.28),d=rr(1,r),x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;const w=rr(.4,2.2);ctx.P.add(ctx.g,pick(mats,rng),RB(w,rr(.05,.4),rr(.3,1.4),.04,1),x,groundY(x,z)+.1,z,rr(-.5,.5),rr(0,6),rr(-.5,.5));if(w>1.6)ctx.col(x,z,.6);}}
+function debris(ctx,cx,cz,r,n,mats=[MAT.hullDark,MAT.metal,MAT.hullWarm]){for(let i=0;i<n;i++){const a=rr(0,6.28),d=rr(1,r),x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;const w=rr(.4,2.2);ctx.P.add(ctx.g,pick(mats,rng),RB(w,rr(.05,.4),rr(.3,1.4),.04,1),x,groundY(x,z)-.04,z,rr(-.22,.22),rr(0,6),rr(-.22,.22));if(w>1.6)ctx.col(x,z,.6);}}
 // a simple tall rock formation built from stacked boulders that blocks movement
 function boulder(ctx,x,z,s,mat=MAT.rock){ctx.P.add(ctx.g,mat,rockGeo(2,rr(0,99)),x,groundY(x,z)+s*.3,z,rr(0,3),rr(0,3),rr(0,3),s*rr(.9,1.3),s*rr(.6,1),s*rr(.9,1.3));ctx.col(x,z,s*.9);}
 // a beacon post that lights up once restarted
@@ -4141,7 +4145,7 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
       {const crW=(u,v)=>({x:CR.x+CR.fx*u+CR.fz*v,z:CR.z+CR.fz*u-CR.fx*v}),pm=new THREE.MeshStandardMaterial({color:0x8a8e96,roughness:.4,metalness:.45,side:THREE.DoubleSide,envMap:SABRE_ENV||null});
         [[-22,-10],[-40,11],[-49,-7],[-63,5],[-12,-13],[7,-13]].forEach(([u,v],i)=>{const q=crW(u,v),y=groundY(q.x,q.z),id='salv_'+i,st=ctx.state();
           const m=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1.6,10,1,true,i,.7),pm);m.rotation.set(rr(-.25,.25),i*1.3,Math.PI/2+rr(-.5,-.2));m.position.set(q.x,y,q.z);m.updateMatrixWorld(true);// a torn plate driven edge-first into the ground, leaning
-          {const bb=new THREE.Box3().setFromObject(m);m.position.y+=y-.35-bb.min.y;m.castShadow=true;}ctx.g.add(m);ctx.anim(()=>{m.visible=!st.flags['used_'+id];});
+          plantInGround(m,.3);m.castShadow=true;ctx.g.add(m);ctx.anim(()=>{m.visible=!st.flags['used_'+id];});
           qUse(ctx,id,q.x,q.z,'Pry loose a usable hull plate',{ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!G.flags.vr_hull&&countItem('hullplate')<4,act:()=>{give('hullplate');sfx('pick');const n=countItem('hullplate');if(n>=4)vesta('That\'s four plates. Enough to close the breach once Tamsin\'s sealant is in hand.');}});});
         if(qStage('m09_grounded')===GR.DEFEND)ctx.enemies('skitter',-44,136,16,7);}
       qUse(ctx,'cockpit_hatch',-71.9,156.1,'Cut open the cockpit hatch',{ok:()=>countItem('cutter')>0,act:()=>{give('recorder');FX.burst(new THREE.Vector3(-71.9,TW_H.crash+2,156.1),0xffc35a,40,4,.6,.1);}});}
