@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.62 · 2026-11-15";
+const TL_BUILD="1.63 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -2714,7 +2714,7 @@ function patriotShip(ctx,x,z,th,o={}){const crashed=!!o.crashed,M=MODELS.vesper;
   if(crashed)for(let lz=-L/2+3;lz<=L/2-3;lz+=3.2){const q=Wp(0,lz);addCol(q.x,q.z,W2*.42);}
   const warm=new THREE.MeshStandardMaterial({color:0x2a1806,emissive:0xffa040,emissiveIntensity:.85,roughness:.5}),eng=new THREE.MeshStandardMaterial({color:0x101820,emissive:0x5ab8ff,emissiveIntensity:crashed?.5:1.2,roughness:.3});
   const beacon=glowAt(ctx,body,0,H2+lift*0+.3,-2,0xff3a3a,2.2,.8);
-  const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g,meshes,lift,W2,H2,L};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};
+  const fx={warm,eng,beacon,fires:[],sparks:[],smoke:[],hatch:rampFoot,g,meshes,lift,W2,H2,L};W.vesperRamp={x:rampFoot.x,z:rampFoot.z,face:th+Math.PI};shipBeacon(fx);
   if(crashed)crashDress(ctx,{g,body,fit,meshes,W2,H2,L,x,z,th,fx});
   else{for(const sg of[-1,1]){const gl=glowSprite(0x6ff2ff,1.4,.7);gl.position.set(sg*W2*.36,.6,-3);body.add(gl);}shipLights(ctx,fx,{engines:o.engines??.35});}
   const smokeM=new THREE.SpriteMaterial({map:GLOW,color:0x2a2622,transparent:true,opacity:.35,depthWrite:false}),puffs=[];
@@ -2947,21 +2947,29 @@ function shipLights(ctx,fx,o={}){const g=fx.g,ms=fx.meshes||[],P=ctx.P,eng=o.eng
     const core=slGlow(0xffffff,r*2,.7*eng+.2);core.position.set(c.x,c.y,c.z-.4);g.add(core);
     const out=g.localToWorld(new THREE.Vector3(c.x,c.y,c.z-.4)),back=new THREE.Vector3(0,0,-1).transformDirection(g.matrixWorld);
     const w=g.localToWorld(new THREE.Vector3(c.x,c.y,c.z-2));ctx.light(w.x,w.y,w.z,0x6fc8ff,.9*eng+.2,16);plumes.push({gl,core,r,out,back});}
-  /* running lights: red to port, green to starboard on the wing pods, a double white strobe on the tail, the cockpit lit */
-  const nav=[];const navAt=(x,y,z,col,kind)=>{const s=slGlow(col,1.3,.95),b=new THREE.Mesh(sph(.12,10,8),new THREE.MeshBasicMaterial({color:col}));s.position.set(x,y,z);b.position.set(x,y,z);g.add(s);g.add(b);nav.push({s,b,kind,ph:Math.random()});};
-  navAt(-6.2,9.35,5.3,0xff3030,'steady');navAt(6.2,9.35,5.3,0x30ff60,'steady');navAt(-6.2,9.35,-.9,0xff3030,'steady');navAt(6.2,9.35,-.9,0x30ff60,'steady');
-  navAt(0,16.4,-12,0xffffff,'strobe');navAt(-5.2,3,-14.5,0xffffff,'strobe');navAt(5.2,3,-14.5,0xffffff,'strobe');
+  /* running lights, each set on the plating itself: a ray from outside finds the hull, and the light sits just off it */
+  const rc=new THREE.Raycaster(),onHull=(o,d)=>{const wo=g.localToWorld(new THREE.Vector3(...o)),wd=new THREE.Vector3(...d).normalize().transformDirection(g.matrixWorld);rc.set(wo,wd);
+    const h=rc.intersectObjects(ms,false)[0];if(!h||!h.face)return null;const n=h.face.normal.clone().transformDirection(h.object.matrixWorld);if(n.dot(wd)>0)n.negate();
+    return g.worldToLocal(h.point.clone().addScaledVector(n,.1));};
+  const nav=[];const navAt=(o,d,col,kind,size=1.3)=>{const p=onHull(o,d);if(!p)return;const sp=slGlow(col,size,.95),b=new THREE.Mesh(sph(.1,10,8),new THREE.MeshBasicMaterial({color:col}));sp.position.copy(p);b.position.copy(p);g.add(sp);g.add(b);nav.push({s:sp,b,kind,ph:Math.random()});};
+  for(const z of[5,0])navAt([-24,9.35,z],[1,0,0],0xff3030,'steady');for(const z of[5,0])navAt([24,9.35,z],[-1,0,0],0x30ff60,'steady');// port red, starboard green, on the wing pods
+  navAt([0,40,-12],[0,-1,0],0xffffff,'strobe');navAt([0,40,6],[0,-1,0],0xffffff,'strobe');// on top
+  navAt([0,-6,-4],[0,1,0],0xffffff,'strobe');navAt([0,-6,8],[0,1,0],0xff3030,'strobe',1.1);// underneath
+  for(const sg of[-1,1])navAt([sg*4.6,8,-40],[0,0,1],0xffffff,'strobe');// the stern's outer edges
   const cab=ms.find(q=>/Cabin1Glass/.test(q.name));if(cab){cab.material=cab.material.clone();cab.material.emissive=new THREE.Color(0x9fd8ff);cab.material.emissiveIntensity=.35;}
-  /* floodlights under the hull, light pooled on the ground, hazard lights blinking on the struts */
-  for(const [x,z] of[[-3,6],[3,6],[-3,-8],[3,-8]]){const s=slGlow(0xffd8a0,1.6,.8);s.position.set(x,2.25,z);g.add(s);}
-  {const pool=new THREE.Mesh(new THREE.CircleGeometry(9,40),new THREE.MeshBasicMaterial({map:GLOW,color:0xffc890,transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false}));pool.rotation.x=-Math.PI/2;pool.position.set(0,.08,-1);g.add(pool);}
+  /* floodlights set into the belly, shining down; a light pooled underneath; hazard lights on the face of each strut */
+  for(const [x,z] of[[-3,6],[3,6],[-3,-8],[3,-8]]){const p=onHull([x,-6,z],[0,1,0]);if(!p)continue;const sp=slGlow(0xffd8a0,1.4,.85);sp.position.copy(p);g.add(sp);}
   {const w=g.localToWorld(new THREE.Vector3(0,1.4,-1));ctx.light(w.x,w.y,w.z,0xffd0a0,.8,14);}
-  const W2=fx.W2||9,L=fx.L||30;for(const [lx,lz] of[[-W2*.32,-L*.3],[W2*.32,-L*.3],[-W2*.28,L*.26],[W2*.28,L*.26]]){const s=slGlow(0xffa030,.9,.9);s.position.set(lx,1.6,lz);g.add(s);nav.push({s,kind:'hazard',ph:Math.random()});}
+  const W2=fx.W2||9,L=fx.L||30;for(const [lx,lz] of[[-W2*.32,-L*.3],[W2*.32,-L*.3],[-W2*.28,L*.26],[W2*.28,L*.26]]){const out=Math.hypot(lx,lz)||1,sp=slGlow(0xffa030,.8,.9),b=new THREE.Mesh(sph(.08,8,6),new THREE.MeshBasicMaterial({color:0xffa030}));
+    sp.position.set(lx+lx/out*.4,1.5,lz+lz/out*.4);b.position.copy(sp.position);g.add(sp);g.add(b);nav.push({s:sp,b,kind:'hazard',ph:Math.random()});}
   ctx.anim(()=>{const t=performance.now()/1000;
     for(const n of nav){let on=1;if(n.kind==='strobe'){const f=(t*.8+n.ph*.1)%1;on=f<.05||(f>.12&&f<.17)?1:0;}else if(n.kind==='hazard')on=Math.sin(t*3+n.ph*6)>0?1:.1;else on=.85+Math.sin(t*1.3+n.ph*6)*.1;
       n.s.material.opacity=on*.95;if(n.b)n.b.visible=on>.5;}
     for(const p of plumes){const f=.85+Math.sin(t*37+p.r)*.06+Math.sin(t*23)*.05+Math.random()*.06;p.gl.material.opacity=(.55*eng+.2)*f;p.core.material.opacity=(.7*eng+.2)*f;if(eng>.5&&Math.random()<.6){const o=p.out,bk=p.back;FX.spawn(o.x+rf(-.3,.3)*p.r,o.y+rf(-.3,.3)*p.r,o.z+rf(-.3,.3)*p.r,bk.x*rf(3,6)+rf(-.4,.4),bk.y*rf(3,6)+rf(-.2,.5),bk.z*rf(3,6)+rf(-.4,.4),{life:rf(.4,.9),size:rf(.25,.5)*p.r,c0:0xbfe8ff,c1:0x2a5a9a,drag:1.5,grav:-.4});}}
     if(el)el.material.emissiveIntensity=(.6+eng*2.4)*(.9+Math.sin(t*9)*.08);});}
+// the hull-top beacon, set onto the plating (it used to hang at the model's full height, above the fins' level, in mid-air)
+function shipBeacon(fx){const g=fx.g,b=fx.beacon,ms=fx.meshes||[];if(!b||!ms.length)return;g.updateMatrixWorld(true);const rc=new THREE.Raycaster(),wd=new THREE.Vector3(0,-1,0).transformDirection(g.matrixWorld);
+  for(const z of[-2,0,2,-4,4]){rc.set(g.localToWorld(new THREE.Vector3(0,40,z)),wd);const h=rc.intersectObjects(ms,false)[0];if(!h)continue;b.position.copy(b.parent.worldToLocal(h.point.clone().addScaledVector(wd,-.25)));return;}}
 /* Repair drones (the station's saucer drones, in work colours) that work all over the hull: each picks a spot on the plating
    (flanks, belly, top, nose, stern), backs off and flies round to it, hovers just off the surface and welds it (a sparking
    laser) or scans it (a sweeping fan of light), then moves on. */
