@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.51 · 2026-11-15";
+const TL_BUILD="1.52 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4482,7 +4482,7 @@ function vkDoor(ctx,x,z,along,w,o={}){const y0=W.floorY,g=grp(ctx,x,y0,z,along==
       const tgt=.62*Math.min(1,(k+smooth(.3,.7,j))/5);open+=(tgt-open)*Math.min(1,dt*9);set(open);
       if(Math.random()<.12){vkGrind(x,z);for(let i=0;i<8;i++)FX.spawn(x+rf(-.2,.2),y0+rf(.6,2),z+rf(-.2,.2),rf(-1.5,1.5),rf(0,2),rf(-1.5,1.5),{life:rf(.2,.5),size:rf(.03,.06),c0:0xffffff,c1:0xffa040,drag:1.2,grav:9});}
       if(pry>=1){st.flags[key]=true;done();sfx('thump');toast('The door gives way.','',2200);}});
-    set(0);return;}
+    set(open);return;}// a door forced on an earlier visit stays open
   if(o.mode==='slow'){let was=0;ctx.anim(dt=>{const want=Math.hypot(player.x-x,player.z-z)<3.4?.82:0,t=performance.now()/1000;
       if(Math.sin(t*5.3+x)>-.25){const step=dt*.32*(want>open?1:.6);open=want>open?Math.min(want,open+step):Math.max(want,open-step);}
       const moving=Math.abs(open-was)>1e-4;if(moving&&Math.random()<.02)vkGrind(x,z);was=open;set(open+Math.sin(t*40)*.004*(moving?1:0));});return;}
