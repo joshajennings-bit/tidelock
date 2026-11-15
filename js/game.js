@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.55 · 2026-11-15";
+const TL_BUILD="1.56 · 2026-11-15";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -1822,6 +1822,8 @@ const ETYPES={
   jackalBoss:{name:'Mara Voss, Jackal Chief',hp:700,dmg:12,xp:500,speed:4.8,aggro:30,reach:2.2,cd:1,r:.7,ai:'boss',boss:'gunner',shoot:{dmg:10,col:0xffa94a,rate:3,speed:50},model:()=>makeHumanEnemy({qt:['f','Punk','women:Soldier_Head'],tint:0xa0402a,held:'rifle',scale:1.08}),human:true},
   rusk:{name:'Commander Rusk',hp:1500,dmg:16,xp:900,speed:5,aggro:30,reach:2.4,cd:1,r:.8,ai:'boss',boss:'gunner',shoot:{dmg:14,col:0xff4a5e,rate:3.4,speed:56},model:()=>makeHumanEnemy({qt:['m','Suit','Swat_Head'],tint:0x2a2a32,tintAmt:.5,held:'rifle',scale:1.15}),human:true},
   leviathan:{name:'The Glass Leviathan',hp:2200,dmg:24,xp:1200,speed:7,aggro:50,reach:4,cd:2.2,r:4,ai:'boss',boss:'leviathan',fly:9,shoot:{dmg:16,col:0x8fffe0,rate:1.2,speed:30},model:()=>makeLeviathan()},
+  // the Gate Warden: a Warden's kind, a size bigger, burning orange, waiting for the Vesper to wake
+  gatekeeper:{name:'Gate Warden',hp:1300,dmg:26,xp:1200,speed:3.6,aggro:80,reach:3.9,cd:2.1,r:2.2,ai:'boss',boss:'warden',model:()=>makeAlienWarden({tint:0xd89a6a,glow:0xff5a1a,ring:0xff8a3a,scale:3.05})||(w=>{w.g.scale.setScalar(1.15);w.mat.emissive.set(0xff7a3a);return w;})(makeWarden())},
   keeper:{name:'Vash, in the Ark Shell',hp:9500,dmg:34,xp:2500,speed:3.6,aggro:60,reach:4,cd:2,r:2.3,ai:'boss',boss:'keeper',dieT:2.4,shoot:{dmg:18,col:0xb98cff,rate:2,speed:34},model:()=>makeVash()||makeAlienWarden({tint:0xc0a2e4,glow:0x6a2ab0,ring:0xb98cff,scale:3.3})||(w=>{w.g.scale.setScalar(1.25);w.mat.emissive.set(0xb98cff);return w;})(makeWarden())},
 };
 
@@ -1885,7 +1887,7 @@ function animateEnemy(e,dt,speed){const m=e.m;
   if(m.alien){m.alien.update(e,dt,speed);if(e.lunge>0){const k=Math.sin(e.lunge/.25*Math.PI);m.g.position.x+=Math.sin(e.face)*k*.6;m.g.position.z+=Math.cos(e.face)*k*.6;}return;}
   if(m.anim){const aim=e.state==='chase'&&(e.T.ai==='ranged'||e.T.shoot)&&m.human?1:0;if(e.wind>0&&!e._wf){m.anim.oneShot(m.robot?'punch':'punch');e._wf=1;}if(e.wind<=0)e._wf=0;if(m.rider){if(e.windup>0&&!e._wu){m.anim.oneShot('slash');e._wu=1;}if(!(e.windup>0))e._wu=0;}
     m.anim.update(dt,speed>.3?speed:0,e.frozen>0,{aim,gun:!!(m.person&&m.person.held)});if(m.rider)m.rider.sync();if(m.person&&m.person.updateHeld)m.person.updateHeld(aim,e.face);return;}
-  if(e.type==='warden'||e.type==='keeper'){m.g.position.y=e.y+Math.sin(e.t*1.6)*.25;m.arms.forEach((a,i)=>{a.rotation.x=e.windup>0?-2.4+(1-e.windup/.75)*.4:Math.sin(e.t*1.2+i*3)*.25+Math.sin(e.phase)*.3;a.rotation.z=(i?-1:1)*.15;});
+  if(e.type==='warden'||e.type==='keeper'||e.type==='gatekeeper'){m.g.position.y=e.y+Math.sin(e.t*1.6)*.25;m.arms.forEach((a,i)=>{a.rotation.x=e.windup>0?-2.4+(1-e.windup/.75)*.4:Math.sin(e.t*1.2+i*3)*.25+Math.sin(e.phase)*.3;a.rotation.z=(i?-1:1)*.15;});
     m.shards.forEach((s,i)=>{const a=e.t*1.4+i*1.047;s.position.set(Math.cos(a)*3.2,3.5+Math.sin(e.t*2+i)*.8,Math.sin(a)*3.2);s.rotation.set(e.t,e.t*2,0);});m.core.scale.setScalar(1+Math.sin(e.t*4)*.12);return;}
   if(m.arms&&e.type==='golem'){m.arms.forEach((a,i)=>{a.rotation.x=e.windup>0?-2.2:Math.sin(e.phase+i*Math.PI)*.4;});m.body.position.y=Math.abs(Math.sin(e.phase))*.08;return;}
   if(m.segs){m.segs.forEach((s,i)=>{const back=i*1.9;s.position.set(Math.sin(e.t*2-i*.6)*.6,(e.sub?-2.6:1.2)+Math.sin(e.t*3-i*.7)*.4*(e.sub?0:1)-i*.08,-back);s.rotation.z=e.t*(i%2?.5:-.5);});return;}
@@ -3643,7 +3645,7 @@ K('hullplate','Hull Plate','A torn plate of the Vesper\'s own hull, salvaged fro
 K('coolant','Cryo-coolant Cell','Dr. Varga\'s coolant, cold enough to frost the casing.','❄');
 K('wiring','Superconductor Wiring','A spool of Builder-era superconductor from the ruins. Still flawless.','≋');
 K('emitter','Holo Emitter','The Kestrel Dawn\'s projector emitter. VESTA should be able to use it.','◎');
-const GR={ASSESS:0,REPORT:1,REPAIR:2,REACTOR:3,DEFEND:4,LIFT:5,FLY:6};
+const GR={ASSESS:0,REPORT:1,REPAIR:2,REACTOR:3,CHECK:4,DEFEND:5,REGROUP:6,REST:7,BRIEF:8,WALK:9,LIFT:10,FLY:11};
 Q({id:'m09_grounded',type:'main',act:1,giver:'tamsin',req:()=>qDone('m08_spire'),title:'Grounded',zone:'twilight',summary:'The Vesper took a beating coming down. Find out exactly what is broken, gather parts from across the Reach, fit them yourself, and get her back in the air.',
   ask:'Can the Vesper fly again?',offer:'Maybe. She came down hard, and I won\'t guess what\'s broken from out here. Climb aboard and run diagnostics on everything: navigation, the drive core, the power trunk, the hull. You\'ll have to force a couple of doors. Come back and tell me what you find, and I\'ll work out a parts list.',accept:'I\'ll survey the damage.',
   stages:[{text:'Survey the damage aboard the Vesper',obj:[
@@ -3660,16 +3662,49 @@ Q({id:'m09_grounded',type:'main',act:1,giver:'tamsin',req:()=>qDone('m08_spire')
       {k:'flag',flag:'vr_nav',item:'navcore',n:1,label:'Navigation: install the Kestrel Dawn\'s core (Nightward Expanse)',zone:'nightward',at:{x:198,z:112}},
       {k:'flag',flag:'vr_emitter',item:'emitter',n:1,label:'VESTA: replace her projector\'s emitter (Kestrel Dawn wreck)',zone:'nightward',at:{x:183,z:116}}]},
     {text:'Restart the reactor',obj:[{k:'use',id:'vs_reactor',label:'Restart the Vesper\'s reactor (engineering)',zone:'vesper',x:-1.6,z:-10.6}]},
-    {text:'Drive off the skitters drawn by the reactor',obj:[{k:'kill',type:'skitter',n:6,zone:'twilight',label:'Skitters driven off around the Vesper',at:{x:-46,z:138}}]},
-    {text:'Lift off with VESTA',obj:[{k:'talk',npc:'vesta',label:'Tell VESTA to take her up (Vesper bridge)',opt:'★ Let\'s get her out of this ditch.',text:'Reactor stable. Hull holding. Navigation\'s found the stars again, and so have I. Hold on to something. … There. Meridian\'s pad is clear, and Tamsin is waving at us with both arms.'}]},
+    {text:'Find out what VESTA heard outside',obj:[{k:'go',zone:'twilight',x:-52,z:146,r:26,label:'Go outside and see what\'s coming'}]},
+    {text:'Hold the crash site',obj:[{k:'flag',flag:'gr_waves',label:'Fight off what\'s coming for the Vesper',zone:'twilight',at:{x:-52,z:146}}]},
+    {text:'Talk to VESTA',obj:[{k:'talk',npc:'vesta',label:'Talk to VESTA (Vesper bridge)',opt:'★ That thing said we can\'t leave.',text:'I heard. I don\'t know what it was, but it knew this ship, and it was waiting for her engine to wake. … The parts you fitted are holding, but she\'s still a wreck: scorched plating, buckled decks, half the small systems dark. Now the reactor\'s running, her self-repair can handle the rest on its own. It takes hours. You\'ve been fighting all day. Go and rest in the crew quarters. When you wake up, she should be whole again.'}]},
+    {text:'Rest while the Vesper repairs herself',obj:[{k:'use',id:'vs_rest',label:'Rest in your bunk (crew quarters)',zone:'vesper',x:4.4,z:7.4}]},
+    {text:'Talk to VESTA',obj:[{k:'talk',npc:'vesta',label:'Talk to VESTA (Vesper bridge)',opt:'★ She feels different. Whole.',text:'Good morning. Self-repair ran all night: hull, decks, wiring, every system. She\'s whole again. Before we trust her with our lives, go and look her over yourself. Walk all the way around her outside and make sure she meets your standards. I\'ve unlocked the hatch.'}]},
+    {text:'Look the Vesper over',obj:[{k:'flag',flag:'gr_walk',label:'Walk all the way around the Vesper outside',zone:'twilight',at:{x:-60,z:150}}]},
+    {text:'Lift off with VESTA',obj:[{k:'talk',npc:'vesta',label:'Tell VESTA to take her up (Vesper bridge)',opt:'★ She passes. Let\'s get her out of this ditch.',text:'Reactor stable. Hull holding. Navigation\'s found the stars again, and so have I. Hold on to something. … There. Meridian\'s pad is clear, and Tamsin is waving at us with both arms.'}]},
     {text:'Fly the Vesper to Anchorage',obj:[{k:'go',zone:'anchorage',x:0,z:-44,r:14,label:'Fly to Anchorage station (Vesper bridge, star map)'}]}],
   reward:{xp:1400,cr:300},onComplete:()=>{}});
-Bus.on('qstart',id=>{if(id==='m09_grounded')G.q[id].v2=1;});
+Bus.on('qstart',id=>{if(id==='m09_grounded'){G.q[id].v2=1;G.q[id].v3=1;}});
 Bus.on('qstage',(id,s)=>{if(id==='m09_grounded'&&s===GR.FLY){setFlag('vesperFixed');G.shipAt='twilight';
   setTimeout(()=>{closeDialog();enterZone('twilight','ship',{kicker:'LIFT-OFF',text:'The Vesper tears free of the furrow, climbs over the crash site and settles on Meridian\'s landing pad.'});},500);}
-  if(id==='m09_grounded'&&s===GR.DEFEND)setTimeout(()=>vesta('Reactor\'s live, and loud. Something outside heard it. Lots of somethings. Skitters, coming for the hull.'),900);});
+  if(id!=='m09_grounded')return;
+  if(s===GR.CHECK)setTimeout(()=>vesta('Reactor\'s live, and loud. Something outside heard it. I\'m picking up movement all around the hull. Go and look. Carefully.',9000),900);
+  if(s===GR.DEFEND)setTimeout(()=>vesta('Skitters, a lot of them, coming for the hull. Keep them off her!',6000),300);
+  if(s===GR.REGROUP)setTimeout(()=>vesta('That was the last of them. Come back aboard. We need to talk.',8000),1500);
+  if(s===GR.WALK)setTimeout(()=>vesta('Take your time. All the way around her, nose to engines.',7000),900);
+  if(s===GR.LIFT)setTimeout(()=>vesta('Well? Does she pass? Come up to the bridge when you\'re ready and we\'ll take her up.',8000),600);});
+// the Vesper is whole again (inside and out) from the morning after the siege, before she ever lifts off
+const vsWhole=()=>!!(G.flags.vesperFixed||G.flags.vesperRepaired);
+// the hatch stays sealed while she repairs herself, until VESTA has had her word
+const vsLocked=()=>!G.flags.vesperFixed&&qActive('m09_grounded')&&(qStage('m09_grounded')===GR.REST||qStage('m09_grounded')===GR.BRIEF);
+/* The siege at the crash site: three waves of skitters (brood mothers in the later ones), then the Gate Warden. Progress is kept,
+   so leaving and coming back picks up at the wave you were on. */
+const GR_WAVES=[[['skitter',6]],[['skitter',7],['brood',1]],[['skitter',8],['brood',2]],[['gatekeeper',1]]];
+function grSiege(ctx){let cur=null,delay=3;
+  const spot=()=>{for(let k=0;k<40;k++){const a=Math.random()*6.28,d=rf(15,23),x=player.x+Math.cos(a)*d,z=player.z+Math.sin(a)*d,q={x,z};collide(q,1);if(Math.hypot(q.x-x,q.z-z)>.05||Math.abs(groundY(x,z)-player.y)>5)continue;return q;}return {x:player.x+18,z:player.z};};
+  ctx.anim(dt=>{if(W.id!=='twilight'||!qActive('m09_grounded')||qStage('m09_grounded')!==GR.DEFEND||UI.loading||player.dead||UI.dialog)return;
+    if(cur){if(cur.some(e=>!e.dead))return;const done=(G.flags.gr_wave||0)+1;G.flags.gr_wave=done;cur=null;delay=4.5;
+      if(done>=GR_WAVES.length){setFlag('gr_waves');saveSoon();return;}
+      toast(`Wave ${done} of ${GR_WAVES.length} cleared`,'gold',3000);saveSoon();
+      setTimeout(()=>vesta(['More coming. Brood mothers with them this time. Keep them off the hull!','A bigger pack. Hold on, nearly there!','They\'ve stopped. No… something big is moving out there. I\'ve seen its kind before.'][done-1]||'',6000),1200);return;}
+    delay-=dt;if(delay>0)return;const w=G.flags.gr_wave||0,lv=Math.max(6,G.lvl);cur=[];
+    for(const [type,n] of GR_WAVES[w])for(let i=0;i<n;i++){const q=spot(),e=spawnEnemy(type,q.x,q.z,type==='gatekeeper'?lv+1:type==='brood'?lv-1:lv-2,{respawn:Infinity,leash:999});if(!e)continue;e.provoked=999;cur.push(e);}
+    if(w===GR_WAVES.length-1)setTimeout(()=>say('Gate Warden','BUILDER SENTINEL','“Little ship of the Choir. You woke your engine, and I heard it. You will not leave this world. No one leaves.”',[bye('Watch me.')]),900);});}
+// looking her over: walk all the way round the repaired ship
+function grWalk(ctx,cx,cz){const seen=new Set();ctx.anim(()=>{if(W.id!=='twilight'||qStage('m09_grounded')!==GR.WALK||G.flags.gr_walk)return;const dx=player.x-cx,dz=player.z-cz,d=Math.hypot(dx,dz);if(d<8||d>34)return;
+  seen.add(Math.floor(((Math.atan2(dz,dx)+Math.PI)/(Math.PI*2))*8)%8);if(seen.size>=7){setFlag('gr_walk');toast('She looks good. Better than good.','teal',3500);}});}
 // saves from before the longer repair: put an active repair back at the survey (parts already held still count), or at the flight if she already flies
-function migrateGrounded(){const q=G.q.m09_grounded;if(!q||q.v2)return;q.v2=1;if(q.st!=='active')return;q.s=G.flags.vesperFixed?GR.FLY:GR.ASSESS;q.p=[];}
+function migrateGrounded(){const q=G.q.m09_grounded;if(!q)return;
+  if(!q.v2){q.v2=q.v3=1;if(q.st!=='active')return;q.s=G.flags.vesperFixed?GR.FLY:GR.ASSESS;q.p=[];return;}
+  // the ending grew: the old skitter fight, lift-off and flight move to their new places (the fight becomes the siege)
+  if(!q.v3){q.v3=1;if(q.st!=='active')return;const old=q.s;if(old>=4){q.s=old===4?GR.CHECK:old===5?GR.LIFT:GR.FLY;q.p=[];}}}
 // side jobs that produce the repair parts
 Q({id:'s_coupling',type:'side',giver:'oduya',req:()=>qActive('m09_grounded')&&!countItem('coupling')&&!G.flags.vr_coupling,title:'Foundry Debt',zone:'dayward',summary:'Oduya will cast a flux coupling if you bring the metal: 6 alloy plates and 3 power cells.',
   ask:'★ I need a flux coupling cast.',offer:'A flux coupling? For a starship? You want my foundry to do a starship part. … For you, fine. Bring me six alloy plates and three power cells and I\'ll pour it tonight.',accept:'I\'ll bring the metal.',
@@ -4151,7 +4186,12 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
     spawnCrowd(0,0,30,9,{});
     /* ---- crash site ---- */
     ctx.poi('crash',-60,150,'Crash Site',{r:26,ft:true});
-    if(!G.flags.vesperFixed){const fx=PF.vesper(ctx,-60,150,-.5,{crashed:true});ctx.light(-58,TW_H.crash+3,148,0xff7a2a,1.6,18,true);
+    if(!G.flags.vesperFixed){const whole=!!G.flags.vesperRepaired,fx=PF.vesper(ctx,-60,150,-.5,{crashed:!whole});if(!whole)ctx.light(-58,TW_H.crash+3,148,0xff7a2a,1.6,18,true);
+      // repaired overnight where she lay: a few drones still at work on the fine touches, until she lifts off
+      if(whole){debris(ctx,-60,150,16,14);const bb=new THREE.Box3().setFromObject(fx.g),top=bb.max.y-.9,jobs=[];
+        for(const [lx,lz,k] of[[-2.5,-9,'repair'],[2.5,-4,'repair'],[0,2,'scan'],[-2,7,'repair'],[2,10,'clean'],[0,-13,'scan']]){const q=toW(-60,150,-.5,lx,lz);jobs.push([q.x,q.z,top,k]);}
+        stDrones(ctx,4,jobs,{scale:.7,ring:0x4a5a6a,core:0x6ff2d6});}
+      grSiege(ctx);grWalk(ctx,-60,150);
       const slk=ctx.use('survival_locker',-46.4,146,'Open the survival case',{act:()=>{give('vs9',1,{lv:1});give('s_vesper',1);give('medkit',2);give('flare',3);equipBest();setTimeout(()=>showMemory('crash',()=>vesta('Meridian\'s beacon is dayward, past a crevasse. Follow the marker on your compass.')),300);}});PF.survivalCase(ctx,-46.4,146,.9,slk.done);
       // the crashed ship can be boarded: its ramp hangs open
       ctx.inter({pos:()=>fx.hatch,r:3.4,label:()=>'Climb into the Vesper',ok:()=>!INTRO.on,act:()=>enterZone('vesper','ramp')});
@@ -4161,7 +4201,7 @@ ZONES.twilight={arch:MERIDIAN_ARCH,id:'twilight',name:'The Twilight Band',world:
           const m=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1.6,10,1,true,i,.7),pm);m.rotation.set(rr(-.25,.25),i*1.3,Math.PI/2+rr(-.5,-.2));m.position.set(q.x,y,q.z);m.updateMatrixWorld(true);// a torn plate driven edge-first into the ground, leaning
           plantInGround(m,.3);m.castShadow=true;ctx.g.add(m);ctx.anim(()=>{m.visible=!st.flags['used_'+id];});
           qUse(ctx,id,q.x,q.z,'Pry loose a usable hull plate',{ok:()=>qStage('m09_grounded')>=GR.REPAIR&&!G.flags.vr_hull&&countItem('hullplate')<4,act:()=>{give('hullplate');sfx('pick');const n=countItem('hullplate');if(n>=4)vesta('That\'s four plates. Enough to close the breach once Tamsin\'s sealant is in hand.');}});});
-        if(qStage('m09_grounded')===GR.DEFEND)ctx.enemies('skitter',-44,136,16,7);}
+        }
       qUse(ctx,'cockpit_hatch',-71.9,156.1,'Cut open the cockpit hatch',{ok:()=>countItem('cutter')>0,act:()=>{give('recorder');FX.burst(new THREE.Vector3(-71.9,TW_H.crash+2,156.1),0xffc35a,40,4,.6,.1);}});}
     else{debris(ctx,-60,150,12,26);ctx.P.add(ctx.g,MAT.basalt,rockGeo(2,3),-60,TW_H.crash-1,150,0,0,0,9,1.2,4);}
     debris(ctx,-70,160,30,40);debris(ctx,-40,130,16,12);ctx.nodes('scrap',-62,146,24,6);
@@ -4547,9 +4587,9 @@ function vkView(){const c=mkCanvas(1024);c.height=512;const g=c.getContext('2d')
   const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
 function exitVesper(){const fixed=!!G.flags.vesperFixed,to=fixed?(G.shipAt||'twilight'):'twilight';sfx('door');
   enterZone(to,fixed?'ship':'crash').then(()=>{const r=W.vesperRamp;if(r){placePlayer(r.x,r.z,r.face);cam.yaw=wrapA(r.face+Math.PI);}});}
-ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return G.flags.vesperFixed?'Patched, fueled and almost spaceworthy.':'Crash-damaged and running on emergency power.';},kind:'interior',size:80,floorY:0,ceiling:3,seed:5,lvl:[1,1],sky:{...INT_SKY,hemi:[0xc8cce0,0x2e2c38,1.05],sunInt:.35},bloom:{threshold:1.2,strength:.45},
-  tempAt:()=>20,entries:{ramp:{x:0,z:-.6,face:0},bridge:{x:0,z:12,face:0}},spawn:{x:0,z:-.6,face:0},
-  build(ctx){const P=ctx.P,broken=!G.flags.vesperFixed,y0=W.floorY,X=5.5;
+ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return vsWhole()?'Patched, fueled and almost spaceworthy.':'Crash-damaged and running on emergency power.';},kind:'interior',size:80,floorY:0,ceiling:3,seed:5,lvl:[1,1],sky:{...INT_SKY,hemi:[0xc8cce0,0x2e2c38,1.05],sunInt:.35},bloom:{threshold:1.2,strength:.45},
+  tempAt:()=>20,entries:{ramp:{x:0,z:-.6,face:0},bridge:{x:0,z:12,face:0},quarters:{x:2.8,z:5.6,face:-Math.PI/2}},spawn:{x:0,z:-.6,face:0},
+  build(ctx){const P=ctx.P,broken=!vsWhole(),y0=W.floorY,X=5.5;
     // the ceiling light strips glow, but softly enough that the panels around them can still be read
     if(MODELS.shipkit)MODELS.shipkit.scene.traverse(q=>{if(q.isMesh&&q.material.name==='metal'&&!q.material.userData._dim){q.material.userData._dim=true;q.material.color.multiplyScalar(.74);}
       if(q.isMesh&&q.material.emissive&&q.material.emissive.r>.5){const m=q.material,u=m.userData;if(u._pb)delete u._pb;m.emissiveIntensity=.22;if(!u._dim){u._dim=true;m.color.multiplyScalar(.5);m.emissive.setRGB(.85,.92,1);}}});
@@ -4593,7 +4633,7 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
       {const vn=ctx.npc('vesta',-3.4,12.6,Math.PI/2);if(broken)vdGlitchHolo(ctx,vn,-3.4,12.6);}
       // while her projector is failing she can't speak from it, only through your suit
       if(broken)ctx.inter({pos:()=>({x:-3.4,z:12.6}),r:3,label:()=>'Check VESTA\'s projector',ok:()=>!G.flags.vr_emitter,act:()=>{sfx('deny');
-        vesta(G.flags.vesperFixed?'':qStage('m09_grounded')>=GR.REPAIR?'That\'s my projector, or what\'s left of its emitter. The Kestrel Dawn\'s emitter should fit. Until then I\'m only in your suit.':'That\'s my projector. The emitter cracked when we hit. I can\'t hold a shape out there, so I\'m staying in your suit for now.',8000);}});
+        vesta(vsWhole()?'':qStage('m09_grounded')>=GR.REPAIR?'That\'s my projector, or what\'s left of its emitter. The Kestrel Dawn\'s emitter should fit. Until then I\'m only in your suit.':'That\'s my projector. The emitter cracked when we hit. I can\'t hold a shape out there, so I\'m staying in your suit for now.',8000);}});
       ctx.use('starmap',0,13.9,()=>broken?'Check the navigation terminal':'Open the star map',{persist:false,act:()=>{if(broken){toast(G.flags.vr_nav?'Navigation core online, but the Vesper can\'t fly yet. No course to plot until the repairs are finished.':'Navigation offline. The core burned out in the crash and the display is smashed.','',4000);sfx('deny');return;}openStarMap();}});
       ctx.light(0,y0+2.8,12.5,broken?0xff3a2a:0xd8e6ff,broken?0.49:0.91,14);ctx.light(0,y0+1.3,15.4,0x5ae0ff,broken?0.21:0.7,6);}
     /* ---- quarters: bunk, locker, table and your note ---- */
@@ -4625,10 +4665,12 @@ ZONES.vesper={id:'vesper',name:'ISV Vesper',world:'Your ship',get blurb(){return
       // daylight (or red emergency light) coming up through the hatch
       const glow=new THREE.Mesh(new THREE.PlaneGeometry(ww,wz1-wz0),new THREE.MeshBasicMaterial({color:broken?0xff8a5a:0xffe6b8,transparent:true,opacity:.9}));glow.rotation.x=-Math.PI/2;glow.position.set(0,y0-2.2,(wz0+wz1)/2);ctx.g.add(glow);
       ctx.light(0,y0+.4,(wz0+wz1)/2,broken?0xff7a4a:0xffe0b0,0.98,9);ctx.light(0,y0+2.8,-4,broken?0xff2a1a:0xffc890,broken?0.35:0.7,10);
-      const label=()=>'Walk down the ramp to '+(G.flags.vesperFixed?shipName(G.shipAt||'twilight'):'the crash site');
-      ctx.inter({pos:()=>({x:0,z:(wz0+wz1)/2+1.2}),r:2.4,label,ok:()=>true,act:exitVesper});
-      // stepping onto the ramp takes you down it
-      let gone=false;ctx.anim(()=>{if(!gone&&!UI.loading&&player.x>wx0+.2&&player.x<wx1-.2&&player.z>wz0&&player.z<wz1-.9){gone=true;exitVesper();}});}
+      const label=()=>vsLocked()?'The hatch is locked':'Walk down the ramp to '+(G.flags.vesperFixed?shipName(G.shipAt||'twilight'):'the crash site');
+      const locked=()=>{vesta('The hatch is locked. Come and talk to me first, please. I\'m on the bridge.',5000);sfx('deny');};
+      ctx.inter({pos:()=>({x:0,z:(wz0+wz1)/2+1.2}),r:2.4,label,ok:()=>true,act:()=>vsLocked()?locked():exitVesper()});
+      // stepping onto the ramp takes you down it (unless VESTA has sealed the hatch: then it holds you back at the top)
+      let gone=false,lt=0;ctx.anim(dt=>{lt-=dt;if(!gone&&!UI.loading&&player.x>wx0+.2&&player.x<wx1-.2&&player.z>wz0&&player.z<wz1-.9){
+        if(vsLocked()){player.z=wz1+.35;player.vx=player.vz=0;if(lt<=0){lt=4;locked();}return;}gone=true;exitVesper();}});}
     /* ---- engineering: the workbench and the drive core ---- */
     {ctx.bench(4.4,-12,-Math.PI/2);vkCore(ctx,0,-12.2,broken);
       for(const x of[-3.4,3.4])P.add(ctx.g,MAT.metal,cyl(.12,.12,7,10),x,y0+2.7,-11.5,Math.PI/2,0,0);PF.crates(ctx,3.9,-14.2,3,6);}
@@ -4784,6 +4826,9 @@ function vesperRepairs(ctx,X){const y0=W.floorY,stg=()=>qStage('m09_grounded');
   fit(X-1.4,6,'Rewire the power trunk','vr_power',[['wiring',1]],()=>vesta('Power trunk rewired. Main power is back on the lights, at least.'));
   fit(.9,14.2,'Install the navigation core','vr_nav',[['navcore',1]],()=>vesta('Navigation core installed. The screen\'s still cracked, but I can see the stars on it.'));
   fit(-2.5,12.1,'Fit the holo emitter into VESTA\'s projector','vr_emitter',[['emitter',1]],()=>vesta('Oh. That\'s better. I can see myself again. Thank you.'));
+  // a night's sleep in your own bunk while she mends herself; you wake to a whole ship
+  qUse(ctx,'vs_rest',4.4,7.4,'Rest in your bunk',{ok:()=>stg()===GR.REST,act:()=>{setFlag('vesperRepaired');G.hp=PS.maxHp;G.en=PS.maxEn;saveSoon();
+    setTimeout(()=>enterZone('vesper','quarters',{kicker:'REST',text:'You needed the rest after a fight like that. You wake feeling much better, and the Vesper hums the way she used to.'}),200);}});
   qUse(ctx,'vs_reactor',-1.6,-10.6,'Restart the reactor',{ok:()=>stg()===GR.REACTOR,act:()=>{setFlag('vr_reactor');sfx('scan');for(let i=0;i<4;i++)setTimeout(()=>{FX.burst(new THREE.Vector3(0,y0+1.6,-12.2),0x8fd8ff,40,4,.7,.1);sfx('thump');},i*450);}});
   // the breach in the cargo bay's starboard wall: the dusk outside showing through torn plating, until it is welded shut
   {const V=vdMats(),c=mkCanvas(256),g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#2a1830');gr.addColorStop(.7,'#8a4038');gr.addColorStop(1,'#c8704a');g.fillStyle=gr;g.fillRect(0,0,256,256);
@@ -5155,9 +5200,9 @@ function stBots(ctx,routes){const body=new THREE.MeshStandardMaterial({color:0x0
       if(Math.abs(df)<.3){const s=Math.min(d,dt*1.15);r.x+=dx/d*s;r.z+=dz/d*s;}if(d<.05){r.i=(r.i+1)%r.pts.length;r.wait=rf(1.5,4);}
       r.g.position.set(r.x,W.floorY+Math.sin(performance.now()*.004+r.ph)*.01,r.z);r.g.rotation.y=r.face;}});(window.__st=window.__st||{}).bots=bots;return bots;}
 /* ---- saucer drones: fly from job to job, scanning, repairing or cleaning ---- */
-function stDrones(ctx,n,jobs){const ringM=new THREE.MeshStandardMaterial({color:0x2a2c32,roughness:.35,metalness:.7}),dish=new THREE.MeshStandardMaterial({color:0xb8bcc6,roughness:.35,metalness:.5}),
-    core=new THREE.MeshStandardMaterial({color:0x301004,emissive:0xff7a2a,emissiveIntensity:1.1,roughness:.4}),beamM=new THREE.MeshBasicMaterial({color:0x6ff2d6,transparent:true,opacity:.18,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),list=[];
-  for(let i=0;i<n;i++){const g=new THREE.Group();ctx.g.add(g);const r=new THREE.Mesh(cyl(.26,.2,.07,10,1,true),ringM);g.add(r);g.add(new THREE.Mesh(cyl(.19,.13,.05,10),dish)).position.y=-.01;
+function stDrones(ctx,n,jobs,o={}){const ringM=new THREE.MeshStandardMaterial({color:o.ring||0x2a2c32,roughness:.35,metalness:.7}),dish=new THREE.MeshStandardMaterial({color:0xb8bcc6,roughness:.35,metalness:.5}),
+    core=new THREE.MeshStandardMaterial({color:0x301004,emissive:o.core||0xff7a2a,emissiveIntensity:1.1,roughness:.4}),beamM=new THREE.MeshBasicMaterial({color:0x6ff2d6,transparent:true,opacity:.18,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),list=[];
+  for(let i=0;i<n;i++){const g=new THREE.Group();g.scale.setScalar(o.scale||1);ctx.g.add(g);const r=new THREE.Mesh(cyl(.26,.2,.07,10,1,true),ringM);g.add(r);g.add(new THREE.Mesh(cyl(.19,.13,.05,10),dish)).position.y=-.01;
     const dome=new THREE.Mesh(sph(.09,12,6,0,Math.PI*2,0,Math.PI/2),core);dome.position.y=.02;g.add(dome);
     const beam=new THREE.Mesh(new THREE.ConeGeometry(.5,1,16,1,true),beamM.clone());beam.visible=false;g.add(beam);
     const j=pick(jobs),d={g,beam,x:j[0]+rf(-3,3),y:3.5,z:j[1]+rf(-3,3),job:null,t:0,ph:rf(0,6)};g.position.set(d.x,d.y,d.z);list.push(d);}
@@ -6413,8 +6458,15 @@ function refreshTitle(){const d=readSlot(saveSlot);$('#bCont').hidden=!d;if(d){c
   if(old&&![0,1,2].some(i=>readSlot(i))&&!$('#ctrlText').innerHTML.includes('rebuilt'))$('#ctrlText').innerHTML+='<br>Tidelock has been rebuilt as a much bigger game, so saves from the earlier version start fresh.';}
 async function beginPlay(){cam.dist=Math.max(cam.dist,2.6);initAudio();UI.title=false;$('#title').hidden=true;$('#hud').hidden=false;sizeMap();updateTouchVis();playing=true;lastHud='';lastBuffs='-';lastWeap='';renderTracker();
   $('#hint').style.opacity=1;$('#hint').textContent=isTouch?'Left side: move · Right side: look · Pinch: zoom':'WASD move · Shift sprint · Space jump · Drag to look · F or click: fire · E use · R swap · Q quick item · I pack · J journal · M map';setTimeout(()=>$('#hint').style.opacity=0,14000);}
-async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
-  const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}
+// TEMPORARY (remove next build): on 15 Nov 2026 only, the first save loaded that is partway through "Grounded" jumps to just
+// after the last repair, aboard the Vesper by the drive core, so the new ending can be played straight through. Once per device.
+function grTestJump(){try{const k='tl_grtest_20261115',d=new Date(),today=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  if(today!=='2026-11-15'||localStorage.getItem(k))return false;const q=G.q.m09_grounded;if(!q||q.st!=='active'||G.flags.vesperFixed)return false;localStorage.setItem(k,'1');
+  for(const f of ['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'])G.flags[f]=true;for(const f of ['vesperRepaired','gr_waves','gr_wave','gr_walk'])delete G.flags[f];
+  for(const it of ['hullplate','sealant','coupling','coolant','navcore','emitter'])removeItem(it,countItem(it));
+  q.s=GR.REACTOR;q.p=[];q.v2=q.v3=1;const zs=G.zs.vesper=G.zs.vesper||{opened:{},flags:{},killed:{},dug:{}};zs.flags.door_eng=zs.flags.door_qtr=true;G.zone='vesper';G.entry='ramp';G.track='m09_grounded';return true;}catch(e){return false;}}
+async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();const jump=grTestJump();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
+  const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}if(jump){placePlayer(1.4,-9.4,Math.PI);setTimeout(()=>toast('Test jump: all six repairs fitted. Restart the reactor to begin the new ending.','gold',8000),1500);}
   migrateGrounded();migrateArk();for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k,true);}
   for(const id in G.q)if(G.q[id].st==='active'&&!(G.q[id].p||[]).length)initStage(id);beginPlay();showBanner(W.def.world||'',W.def.name);saveNow();}
 async function newGame(){startSting();G=freshState();computeStats();refreshAvatar();playing=false;await enterZone('twilight','crash',{quiet:true,kicker:'OSSERY B',text:'Somewhere on the twilight band…'});
