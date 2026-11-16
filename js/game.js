@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.68 · 2026-11-16";
+const TL_BUILD="1.69 · 2026-11-16";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -3627,7 +3627,7 @@ PPL('lumo',{zone:'calder',name:'Lumo',role:'TRADE DROID',look:{body:'robot',tint
 /* ---- Ashfall ---- */
 PPL('tem',{zone:'ashfall',name:'Brother Tem',role:'THE CHOIR',look:{body:'soldier',tint:0x6a6a7a,visor:0x8fffe0,coat:0x4a4a5a,halo:true},beh:{type:'stand'},greet:'You came. Oriel said you would. They took her into the camp.'});
 PPL('ryn',{zone:'ashfall',name:'Ryn Castellan',role:'COHORT DESERTER',look:{body:'soldier',tint:0x5a5a62,visor:0xff4a5e,scarf:0xa0302a},beh:{type:'stand'},greet:'Put the gun down. I\'m done with the Cohort. Mostly.'});
-PPL('oriel2',{zone:'ashfall',name:'Sister Oriel',role:'THE CHOIR',look:{body:'michelle',tint:0x8a8a9a,coat:0x5a5a6a,halo:true,accent:0x8fffe0,hat:'hood'},beh:{type:'stand'},greet:'The Ark is waking. I can feel it in my teeth.',cond:()=>!!G.flags.orielFree});
+PPL('oriel2',{zone:'ashfall',name:'Sister Oriel',role:'THE CHOIR',look:{body:'michelle',tint:0x8a8a9a,coat:0x5a5a6a,halo:true,accent:0x8fffe0,hat:'hood'},beh:{type:'stand'},greet:'The Ark is waking. I can feel it in my teeth.',cond:()=>!!G.flags.orielFree||qDone('m15_ashfall')||!!G.q.m15b_wards||!!G.q.m16_ark});
 /* ---- the Vesper ---- */
 // VESTA can only speak from her projector once it has a working emitter; until the Vesper flies, she talks about the repair
 const VR_SYS=[['vr_hull','the hull breach'],['vr_coupling','the drive coupling'],['vr_coolant','the coolant line'],['vr_power','the power trunk'],['vr_nav','navigation']];
@@ -3848,13 +3848,13 @@ Q({id:'m15_ashfall',type:'main',act:4,auto:true,req:()=>qDone('m14_drowned'),tit
   reward:{xp:1600,cr:500,items:[{gen:'weapon',lvl:22,r:3}]},onComplete:()=>{}});
 Bus.on('use',id=>{if(id==='oriel_cell'){setFlag('orielFree');say('Sister Oriel','THE CHOIR','You came. Vash went into the Ark an hour ago, and he sealed it behind him. The gate won\'t answer the spire keys now. Meet me at the Choir shelter. I\'ll tell you how we break his seal.',[bye('I\'ll see you there.')]);}});
 Q({id:'m15b_wards',type:'main',act:4,auto:true,req:()=>qDone('m15_ashfall')&&!G.q.m16_ark,title:'The Burning Wards',zone:'ashfall',summary:'Vash sealed the Ark behind three Builder wards fed by Ashfall\'s fire, and keyed the seal to a Halcyon cipher. Silence the wards, steal the cipher, and Oriel can open the way.',
-  stages:[{text:'Meet Oriel at the Choir shelter',obj:[{k:'talk',npc:'oriel2',label:'Talk to Sister Oriel at the Choir shelter',opt:'★ How do we break Vash\'s seal?',text:'Three wardstones ring the Ark: the West Ward on the cinder volcano, the East Ward at Emberfall, the South Ward out on the obsidian flats. The Builders made them to guard the Ark. Vash has bent them to guard him, and he\'s set the worst things on Ashfall to watch over them. Silence all three. And the seal answers to a Halcyon cipher: the Cohort keeps it at their signal relay south of here. Bring me both and I\'ll sing the gate open.'}]},
+  stages:[{text:'Meet Oriel at the Choir shelter',obj:[{k:'talk',npc:'oriel2',zone:'ashfall',at:{x:-52,z:-204},label:'Talk to Sister Oriel at the Choir shelter',opt:'★ How do we break Vash\'s seal?',text:'Three wardstones ring the Ark: the West Ward on the cinder volcano, the East Ward at Emberfall, the South Ward out on the obsidian flats. The Builders made them to guard the Ark. Vash has bent them to guard him, and he\'s set the worst things on Ashfall to watch over them. Silence all three. And the seal answers to a Halcyon cipher: the Cohort keeps it at their signal relay south of here. Bring me both and I\'ll sing the gate open.'}]},
     {text:'Silence the wards and take the cipher',obj:[
       {k:'killId',id:'wardgolem',label:'Destroy the Cinder Colossus (West Ward)',zone:'ashfall',at:{x:-176,z:154}},{k:'use',id:'ward_w',label:'Silence the West Ward',zone:'ashfall',x:-180,z:150},
       {k:'killId',id:'wardwisp',label:'Destroy the Ember Matriarch (East Ward)',zone:'ashfall',at:{x:202,z:172}},{k:'use',id:'ward_e',label:'Silence the East Ward',zone:'ashfall',x:198,z:168},
       {k:'killId',id:'wardbrute',label:'Destroy the Obsidian Brute (South Ward)',zone:'ashfall',at:{x:-194,z:-106}},{k:'use',id:'ward_s',label:'Silence the South Ward',zone:'ashfall',x:-198,z:-110},
       {k:'killId',id:'hale',label:'Defeat Signal Officer Hale (Cohort relay)',zone:'ashfall',at:{x:40,z:-140}},{k:'use',id:'relay_cipher',label:'Pull Vash\'s cipher from the relay',zone:'ashfall',x:42,z:-137}]},
-    {text:'Bring the cipher to Oriel',obj:[{k:'talk',npc:'oriel2',label:'Bring the cipher to Oriel',opt:'★ The wards are silent. Here\'s the cipher.',text:'Then he\'s alone in there with the heart. … There. The keys are tuned to the cipher, and the gate will answer us. Be careful. The Ark has its own guardians, and they don\'t care which of us is right. Neither does Vash.'}]}],
+    {text:'Bring the cipher to Oriel',obj:[{k:'talk',npc:'oriel2',zone:'ashfall',at:{x:-52,z:-204},label:'Bring the cipher to Oriel',opt:'★ The wards are silent. Here\'s the cipher.',text:'Then he\'s alone in there with the heart. … There. The keys are tuned to the cipher, and the gate will answer us. Be careful. The Ark has its own guardians, and they don\'t care which of us is right. Neither does Vash.'}]}],
   reward:{xp:2400,cr:800,items:[{gen:'gear',lvl:24,r:3}],perk:1}});
 Bus.on('use',id=>{if(/^ward_[wes]$/.test(id)){const n=['ward_w','ward_e','ward_s'].filter(w=>zoneState('ashfall').flags['used_'+w]).length;toast(n<3?`Ward silenced · ${n}/3`:'All three wards are silent.','gold');}});
 Q({id:'m16_ark',type:'main',act:4,auto:true,req:()=>qDone('m15b_wards')||(qDone('m15_ashfall')&&!!G.q.m16_ark),title:'The Ark',zone:'ashfall',summary:'Imre Vash is inside the Builders\' Ark. Stop him, and decide what to do with what the Builders left behind.',
@@ -4111,7 +4111,7 @@ Bus.on('use',id=>{if(/^cache[123]$/.test(id)){const L=rollLoot('locked',22,'ashf
 S({id:'s_lastwords',giver:'oriel2',zone:'ashfall',req:()=>!!G.flags.orielFree,title:'Last Words',summary:'Sister Oriel asks you to lay a memorial stone at the Choir graves west of the shelter.',
   ask:'Are you all right, Oriel?',offer:'No. Eleven of us died for this. Brother Tem carved a stone for them. Will you lay it at the graves, west of the shelter? I can\'t look at them yet.',accept:'I\'ll lay the stone.',
   stages:[{text:'Lay the memorial stone',onStart:()=>give('lastwords'),obj:[{k:'use',id:'graves',label:'Lay the memorial stone at the graves',zone:'ashfall',x:-110,z:-180}]},
-    {text:'Tell Oriel',obj:[{k:'talk',npc:'oriel2',label:'Tell Oriel',opt:'It\'s done.',text:'Thank you. When this is over, I want to be the one who sings for them.'}]}],
+    {text:'Tell Oriel',obj:[{k:'talk',npc:'oriel2',zone:'ashfall',at:{x:-52,z:-204},label:'Tell Oriel',opt:'It\'s done.',text:'Thank you. When this is over, I want to be the one who sings for them.'}]}],
   reward:{xp:1000,cr:100,perk:1}});
 Bus.on('use',id=>{if(id==='graves')removeItem('lastwords',1);});
 
