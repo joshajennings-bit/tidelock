@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.66 · 2026-11-15";
+const TL_BUILD="1.67 · 2026-11-16";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -4501,7 +4501,7 @@ ZONES.nightward={arch:HARBOR_ARCH,bloom:{threshold:1.0,strength:1.1},id:'nightwa
     {const y=groundY(30,-160),g=grp(ctx,30,y,-160,0);P.add(g,MAT.metal,cyl(.25,.4,8,12),0,4,0);P.add(g,MAT.hull,sph(3,40,16,0,6.3,0,1.2),0,8.6,0,2.2,0,0);P.add(g,MAT.metal,cyl(.06,.06,3,8),0,10,1.6,.9,0,0);ctx.col(30,-160,1);}
     lampRing(ctx,30,-190,40,12,0x8fd8ff);PF.gate(ctx,30,-232,0,'COLD HARBOR','RESEARCH POST');campfire(ctx,22,-176);
     ctx.bench(46,-188,-Math.PI/2);ctx.board(18,-176,Math.PI*.8,'nightward','Cold Harbor Contract Board');
-    ctx.npc('varga',30,-194,Math.PI);ctx.npc('pavo',12,-186,Math.PI/2,{type:'route',pts:[[12,-186],[30,-160],[46,-172],[24,-180]],pause:[4,9]});ctx.npc('siku',20,-172,Math.PI*.8);if(G.q.s_lost&&G.q.s_lost.st==='done'){const an=ctx.npc('anik',22.2,-170.6,Math.PI*1.1);if(an){an.seat={drop:.42};groundSeat(ctx,22.2,-170.6,Math.PI*1.1);}}// home, her leg splinted, sat beside Sikuctx.npc('hale',archAt(HA('galley'),0,-2.15).x,archAt(HA('galley'),0,-2.15).z,-Math.PI/2);ctx.npc('index',archAt(HA('archive'),0,-1.2).x,archAt(HA('archive'),0,-1.2).z,-Math.PI/2);
+    ctx.npc('varga',30,-194,Math.PI);ctx.npc('pavo',12,-186,Math.PI/2,{type:'route',pts:[[12,-186],[30,-160],[46,-172],[24,-180]],pause:[4,9]});ctx.npc('siku',20,-172,Math.PI*.8);if(G.q.s_lost&&G.q.s_lost.st==='done'){const an=ctx.npc('anik',22.2,-170.6,Math.PI*1.1);if(an){an.seat={drop:.42};groundSeat(ctx,22.2,-170.6,Math.PI*1.1);}}/* home, her leg splinted, sat beside Siku */ctx.npc('hale',archAt(HA('galley'),0,-2.15).x,archAt(HA('galley'),0,-2.15).z,-Math.PI/2);ctx.npc('index',archAt(HA('archive'),0,-1.2).x,archAt(HA('archive'),0,-1.2).z,-Math.PI/2);
     spawnCrowd(30,-190,26,6,{barks:['Is it colder today? It\'s always colder today.','The aurora was beautiful last night.','The spire\'s been humming.','Don\'t go near the ice caves.','Hale\'s soup is the only reason I\'m still here.']});
     vesperPad(ctx,-8,-226,.4,{y:2});
     /* ---- weather pods ---- */
@@ -5112,7 +5112,7 @@ ZONES.anchorage={id:'anchorage',name:'Anchorage Station',world:'Orbit of Ossery 
     for(let i=0;i<10;i++){const x=rr(-78,-42),z=rr(-66,-34);if(Math.hypot(x+72,z+58)<4)continue;if(i%3)PF.crates(ctx,x,z,3,i);else PF.barrels(ctx,x,z,3,i);}
     // partition walls standing on the deck, with a lit cap
     for(const [x,z,w,d] of [[-50,-42,8,1],[-70,-40,1,10],[-64,-62,10,1],[-48,-60,1,8]]){P.add(ctx.g,M.dark,RB(w,2.6,d,.06,1),x,1.3,z);P.add(ctx.g,M.trim,RB(w+.1,.12,d+.1,.03,1),x,2.66,z);P.add(ctx.g,MAT.hazard,new THREE.BoxGeometry(w+.02,.3,d+.02),x,.15,z);ctx.box(x,z,w/2,d/2,0,2.7,-1);}
-    for(let z=-68;z<-30;z+=6){P.add(ctx.g,M.trim,cyl(.15,.15,44,10),-60,3.9,z,0,0,PI/2);for(let x=-78;x<=-42;x+=6)P.add(ctx.g,M.dark,RB(.08,.5,.08,.01,1),x,4.15,z);}// pipes hung from the ceilingfor(const x of[-70,-50])P.add(ctx.g,MAT.metal,cyl(.25,.25,40,10),x,3.6,-50,PI/2,0,0);
+    for(let z=-68;z<-30;z+=6){P.add(ctx.g,M.trim,cyl(.15,.15,44,10),-60,3.9,z,0,0,PI/2);for(let x=-78;x<=-42;x+=6)P.add(ctx.g,M.dark,RB(.08,.5,.08,.01,1),x,4.15,z);}/* pipes hung from the ceiling */for(const x of[-70,-50])P.add(ctx.g,MAT.metal,cyl(.25,.25,40,10),x,3.6,-50,PI/2,0,0);
     ctx.light(-60,3.6,-50,0xffd8a0,1.6,28,true);ctx.light(-74,3.6,-60,0xff7a5a,1.1,16,true);ctx.light(-46,3.6,-40,0xffe0b0,1.3,18);ctx.light(-34,3,-50,0xffe8c8,1,10);
     ctx.enemies('drone',-60,-50,14,6,13,{respawn:70});ctx.enemies('sentinel',-66,-56,8,2,14);ctx.enemies('drone',-44,-60,4,2,12);
     PF.console(ctx,-72,-60,0,4);qUse(ctx,'records_terminal',-72,-58,'Enter Dax\'s passcode at the records junction',{ok:()=>countItem('passcode')>0});
@@ -5362,7 +5362,7 @@ ZONES.calder={id:'calder',name:'Calder',world:'Calder · Lagoon moon',blurb:'A w
     ctx.poi('reedwater',0,10,'Reedwater',{r:30,ft:true,icon:'town'});const DY=1.9,deck=std(TEX.reed,{color:0xc8a878,roughness:.9}),plank=std(TEX.reed,{color:0x8a6a48,roughness:.95}),
       thatch=std(TEX.reed,{color:0xb89a58,roughness:.95,side:THREE.DoubleSide}),wall=std(TEX.reed,{color:0xa88a5a,roughness:.95,side:THREE.DoubleSide}),cloth=std(TEX.fabric,{color:0x2a8a8a,roughness:.9,side:THREE.DoubleSide});
     const decks=[[0,12,14,14],[-17,14,9,9],[17,16,9,9],[0,31,10,9],[-14,30,7,7],[16,32,7,7]],walks=[[0,-10,0,5,3],[-7,13,-12.5,13,2.4],[7,14,12.5,15,2.4],[0,19,0,26.5,2.4],[-5,31,-10.5,30,2],[5,31,12.5,32,2],[-17,18.5,-15,26.5,2],[17,20.5,16,28.5,2]];
-    const ends=[];for(const [ax,az,bx,bz] of walks)ends.push([ax,az],[bx,bz]);ends.push([-17.5,29]);// the steps down to the net pathconst nearEnd=(x,z)=>ends.some(([ex,ez])=>Math.hypot(x-ex,z-ez)<2.2);
+    const ends=[];for(const [ax,az,bx,bz] of walks)ends.push([ax,az],[bx,bz]);ends.push([-17.5,29]);/* the steps down to the net path */const nearEnd=(x,z)=>ends.some(([ex,ez])=>Math.hypot(x-ex,z-ez)<2.2);
     // the decks are ground: register them first, so everything placed or standing on them sits on the planks
     W.decks=[];for(const [x,z,w,d] of decks)W.decks.push({x,z,hw:w/2,hd:d/2,rot:0,y:DY});
     for(const [ax,az,bx,bz,w] of walks){const L=Math.hypot(bx-ax,bz-az),ry=Math.atan2(bx-ax,bz-az);W.decks.push({x:(ax+bx)/2,z:(az+bz)/2,hw:w/2,hd:L/2+.3,rot:ry,y:DY-.05});}
@@ -6556,15 +6556,8 @@ function refreshTitle(){const d=readSlot(saveSlot);$('#bCont').hidden=!d;if(d){c
   if(old&&![0,1,2].some(i=>readSlot(i))&&!$('#ctrlText').innerHTML.includes('rebuilt'))$('#ctrlText').innerHTML+='<br>Tidelock has been rebuilt as a much bigger game, so saves from the earlier version start fresh.';}
 async function beginPlay(){cam.dist=Math.max(cam.dist,2.6);initAudio();UI.title=false;$('#title').hidden=true;$('#hud').hidden=false;sizeMap();updateTouchVis();playing=true;lastHud='';lastBuffs='-';lastWeap='';renderTracker();
   $('#hint').style.opacity=1;$('#hint').textContent=isTouch?'Left side: move · Right side: look · Pinch: zoom':'WASD move · Shift sprint · Space jump · Drag to look · F or click: fire · E use · R swap · Q quick item · I pack · J journal · M map';setTimeout(()=>$('#hint').style.opacity=0,14000);}
-// TEMPORARY (remove next build): on 15 Nov 2026 only, the first save loaded that is partway through "Grounded" jumps to just
-// after the last repair, aboard the Vesper by the drive core, so the new ending can be played straight through. Once per device.
-function grTestJump(){try{const k='tl_grtest_20261115c',d=new Date(),today=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
-  if(today!=='2026-11-15'||localStorage.getItem(k))return false;const q=G.q.m09_grounded;if(!q||q.st!=='active'||G.flags.vesperFixed)return false;localStorage.setItem(k,'1');
-  for(const f of ['vr_hull','vr_coupling','vr_coolant','vr_power','vr_nav','vr_emitter'])G.flags[f]=true;for(const f of ['vesperRepaired','vr_reactor','gr_waves','gr_wave','gr_walk'])delete G.flags[f];
-  for(const it of ['hullplate','sealant','coupling','coolant','navcore','emitter'])removeItem(it,countItem(it));
-  q.s=GR.REACTOR;q.p=[];q.v2=q.v3=1;const zs=G.zs.vesper=G.zs.vesper||{opened:{},flags:{},killed:{},dug:{}};zs.flags.door_eng=zs.flags.door_qtr=true;delete zs.flags.used_vs_reactor;delete zs.flags.used_vs_rest;G.zone='vesper';G.entry='ramp';G.track='m09_grounded';return true;}catch(e){return false;}}
-async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();const jump=grTestJump();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
-  const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}if(jump){placePlayer(1.4,-9.4,Math.PI);setTimeout(()=>toast('Test jump: all six repairs fitted. Restart the reactor to begin the new ending.','gold',8000),1500);}
+async function loadGame(d){startSting();breathing(false);applySave(d);refreshAvatar();await enterZone(G.zone,G.entry,{quiet:true});// inside the Vesper, always start on the bridge: saves from older versions of the ship hold positions outside today's decks
+  const ok=W.id!=='vesper'&&Number.isFinite(d.x)&&Math.abs(d.x)<W.half&&Math.abs(d.z)<W.half;if(ok)placePlayer(d.x,d.z,d.face||0);else if(W.id==='vesper'){const e=W.def.entries.bridge;placePlayer(e.x,e.z,e.face);}
   migrateGrounded();migrateArk();fixBottle();for(const k in QUESTS){const q=QUESTS[k];if(q.auto&&qAvailable(k))startQuest(k,true);}
   for(const id in G.q)if(G.q[id].st==='active'&&!(G.q[id].p||[]).length)initStage(id);beginPlay();showBanner(W.def.world||'',W.def.name);saveNow();}
 async function newGame(){startSting();G=freshState();computeStats();refreshAvatar();playing=false;await enterZone('twilight','crash',{quiet:true,kicker:'OSSERY B',text:'Somewhere on the twilight band…'});
