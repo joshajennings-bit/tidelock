@@ -1,6 +1,6 @@
 'use strict';
 (function(){
-const TL_BUILD="1.67 · 2026-11-16";
+const TL_BUILD="1.68 · 2026-11-16";
 // ===== 00_core.js =====
 /* ================= CORE ================= */
 const $=s=>document.querySelector(s);
@@ -1364,7 +1364,7 @@ function rollRarity(bonus=0){let tot=0;for(const r of RAR)tot+=r.w*(r.id==='comm
 function rollEquipment(lvl,bonus=0,kind){const tier=clamp(Math.ceil(lvl/5),1,5);
   const pool=kind==='weapon'?Object.keys(WEAPONS):kind==='gear'?Object.keys(GEAR):[...Object.keys(WEAPONS),...Object.keys(GEAR)];
   const cands=pool.filter(id=>{const d=itemDef(id);return !d.unique&&d.tier<=tier&&d.tier>=tier-2&&id!=='vs9'&&id!=='h_scuffed'&&id!=='s_vesper'&&id!=='b_standard'&&id!=='p_basic';});
-  if(!cands.length)return null;const id=pick(cands),r=rollRarity(bonus),it=makeItem(id,{r,lv:clamp(lvl+Math.floor(rf(-1,2)),1,30)});
+  if(!cands.length)return null;const id=pick(cands),r=rollRarity(bonus),it=makeItem(id,{r,lv:clamp(lvl+Math.floor(rf(-1,2)),1,99)});
   if(Math.random()<.25*RAR[r].slots){const m=Object.keys(MODS).filter(k=>MODS[k].for===(WEAPONS[id]?'weapon':'gear'));it.mods=[pick(m)];}return it;}
 // returns {cr, items:[...]}
 function rollLoot(kind,lvl,zone){const out={cr:0,items:[]};const mats=MAT_BY_ZONE[zone]||MAT_BY_ZONE.twilight;
@@ -1476,21 +1476,22 @@ function drawLegacyIcon(g,id,box,lin,glow,noglow,I){
 // ===== 11_player.js =====
 /* ================= PLAYER STATE ================= */
 const PERKS={
-  marksman:{name:'Marksman',max:3,desc:'+8% weapon damage per rank'},
-  steady:{name:'Steady Hands',max:3,desc:'+5% critical chance per rank'},
-  tough:{name:'Toughness',max:3,desc:'+20 maximum health per rank'},
-  skin:{name:'Thick Skin',max:3,desc:'+4 armor per rank'},
-  battery:{name:'Deep Battery',max:3,desc:'+15 energy and faster recharge per rank'},
-  fleet:{name:'Fleet-footed',max:3,desc:'+5% movement speed per rank'},
+  marksman:{name:'Marksman',max:5,desc:'+8% weapon damage per rank'},
+  steady:{name:'Steady Hands',max:5,desc:'+5% critical chance per rank'},
+  tough:{name:'Toughness',max:5,desc:'+20 maximum health per rank'},
+  skin:{name:'Thick Skin',max:5,desc:'+4 armor per rank'},
+  battery:{name:'Deep Battery',max:5,desc:'+15 energy and faster recharge per rank'},
+  fleet:{name:'Fleet-footed',max:5,desc:'+5% movement speed per rank'},
   spring:{name:'Springheel',max:2,desc:'+15% jump height per rank'},
-  scavenger:{name:'Scavenger',max:3,desc:'More gear drops from enemies and caches'},
-  haggler:{name:'Haggler',max:3,desc:'Buy 6% cheaper and sell 6% higher per rank'},
-  tinker:{name:'Tinkerer',max:3,desc:'Upgrades cost 12% less per rank'},
-  medic:{name:'Field Medic',max:3,desc:'Healing items restore 25% more per rank'},
-  adapted:{name:'Climate Adapted',max:3,desc:'+6 cold and heat protection per rank'},
+  scavenger:{name:'Scavenger',max:5,desc:'More gear drops from enemies and caches'},
+  haggler:{name:'Haggler',max:5,desc:'Buy 6% cheaper and sell 6% higher per rank'},
+  tinker:{name:'Tinkerer',max:5,desc:'Upgrades cost 12% less per rank'},
+  medic:{name:'Field Medic',max:5,desc:'Healing items restore 25% more per rank'},
+  adapted:{name:'Climate Adapted',max:5,desc:'+6 cold and heat protection per rank'},
 };
-const xpNeed=l=>Math.round(100*Math.pow(l,1.35));
-const MAX_LVL=30;
+// up to 30 the curve climbs steeply; past it each level asks only a little more than the last (enemies level with you from there)
+const xpNeed=l=>l<=30?Math.round(100*Math.pow(l,1.35)):Math.round(100*Math.pow(30,1.35)*(1+(l-30)*.05));
+const MAX_LVL=99;
 function freshState(){return {v:2,look:defaultLook(),zone:'twilight',entry:'crash',x:0,z:0,face:0,
   lvl:1,xp:0,hp:100,sh:0,en:100,cr:15,perkPts:0,perks:{},
   inv:[],equip:{w1:null,w2:null,helmet:null,suit:null,boots:null,pack:null},act:'w1',quick:'medkit',
@@ -1522,7 +1523,7 @@ function removeInst(u){const i=G.inv.findIndex(x=>x.u===u);if(i>=0)return G.inv.
 function give(id,q=1,o={},silent){const k=itemKind(id);if(k==='weapon'||k==='gear'){for(let i=0;i<q;i++)addItem(makeItem(id,o),silent);}else addItem(makeItem(id,{q}),silent);}
 function giveCr(n,silent){G.cr+=Math.round(n);if(!silent&&n>0)floatText('+'+Math.round(n)+' cr',player.x,player.y+2.3,player.z,'info');}
 function gainXP(n,silent){if(G.lvl>=MAX_LVL)return;G.xp+=Math.round(n);if(!silent)floatText('+'+Math.round(n)+' XP',player.x,player.y+2.6,player.z,'xp');
-  while(G.lvl<MAX_LVL&&G.xp>=xpNeed(G.lvl)){G.xp-=xpNeed(G.lvl);G.lvl++;G.perkPts++;computeStats();G.hp=PS.maxHp;toast(`Level ${G.lvl}! You have a perk point to spend (Menu → Character).`,'teal');sfx('level');showBanner('LEVEL UP','Level '+G.lvl);}}
+  while(G.lvl<MAX_LVL&&G.xp>=xpNeed(G.lvl)){G.xp-=xpNeed(G.lvl);G.lvl++;const pt=G.lvl<=30||G.lvl%5===0;if(pt)G.perkPts++;computeStats();G.hp=PS.maxHp;toast(pt?`Level ${G.lvl}! You have a perk point to spend (Menu → Character).`:`Level ${G.lvl}! Your next perk point comes at level ${Math.ceil((G.lvl+1)/5)*5}.`,'teal');sfx('level');showBanner('LEVEL UP','Level '+G.lvl);}}
 
 /* ---------- equipment ---------- */
 function slotFor(it){const k=itemKind(it);if(k==='weapon')return 'weapon';if(k==='gear')return GEAR[it.id].slot;return null;}
@@ -1830,7 +1831,7 @@ const ETYPES={
 /* ---------- spawning ---------- */
 function spawnEnemy(type,hx,hz,lvl,o={}){
   const T=ETYPES[type];if(!T)return null;const m=T.model();const sc=(T.scale||1)*(o.scale||1);if(!m.human&&!m.robot)m.g.scale.setScalar(sc);else m.g.scale.multiplyScalar(sc);
-  W.group.add(m.g);const L=lvl||1,hpMul=1+(L-1)*.22,dmgMul=1+(L-1)*.15;
+  W.group.add(m.g);/* past the old level cap of 30 the worlds keep up: nothing spawns more than two levels below you */const L=Math.max(lvl||1,G.lvl>30?Math.min(99,G.lvl-2):1),hpMul=1+(L-1)*.22,dmgMul=1+(L-1)*.15;
   const el=document.createElement('div');el.className='ehp'+(T.ai==='boss'?' boss':'');el.innerHTML=`<span class="n">${esc(o.name||T.name)} <small>LV ${L}</small></span><div class="bar"><i></i></div>`;el.hidden=true;$('#labels').appendChild(el);
   const e={type,T,m,el,bar:el.querySelector('i'),hx,hz,x:hx,z:hz,y:groundY(hx,hz),face:Math.random()*6.28,lvl:L,maxHp:Math.round(T.hp*hpMul*(o.hpMul||1)),dmg:T.dmg*dmgMul,hp:0,cd:0,state:'wander',wt:0,wx:hx,wz:hz,phase:0,flash:0,dead:false,dying:0,respawn:0,provoked:0,windup:0,lunge:0,wind:0,
     id:o.id,quest:o.quest,respawnT:o.respawn===undefined?(T.ai==='boss'?Infinity:55):o.respawn,leash:o.leash||(T.ai==='boss'?40:45),scaleBase:sc,burn:0,frozen:0,stun:0,fleeT:0,shootT:rf(.5,2),fly:T.fly||0,t:Math.random()*10,loot:o.loot,elite:T.elite||o.elite,
